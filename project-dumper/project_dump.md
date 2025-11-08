@@ -26,6 +26,7 @@
 ┃       ┃ ┗ WaveformGraph.java
 ┃       ┗ utils
 ┃         ┣ I18N.java
+┃         ┣ LanguageManager.java
 ┃         ┗ SimulationObserver.java
 ┗ test
   ┗ java
@@ -603,7 +604,7 @@ public interface SimulationStrategy {
 ```java
 package com.simulador.model;
 
-import com.simulador.utils.I18N;
+import com.simulador.utils.LanguageManager;
 import java.util.Objects;
 
 /**
@@ -613,10 +614,12 @@ import java.util.Objects;
 public class CircuitComponent {
     private String type;
     private double value;
+    private LanguageManager languageManager;
     
     public CircuitComponent(String type, double value) {
         this.type = type;
         this.value = value;
+        this.languageManager = LanguageManager.getInstance();
     }
     
     public String getType() { 
@@ -646,15 +649,15 @@ public class CircuitComponent {
         
         switch(type) {
             case "Resistance":
-                displayType = I18N.get("resistance");
+                displayType = languageManager.getTranslation("resistance");
                 unit = "Ω";
                 break;
             case "Inductor":
-                displayType = I18N.get("inductor");
+                displayType = languageManager.getTranslation("inductor");
                 unit = "H";
                 break;
             case "Capacitor":
-                displayType = I18N.get("capacitor");
+                displayType = languageManager.getTranslation("capacitor");
                 unit = "F";
                 break;
         }
@@ -1206,6 +1209,7 @@ package com.simulador.ui;
 
 import com.simulador.model.CircuitComponent;
 import com.simulador.model.SimulationResult;
+import com.simulador.utils.LanguageManager;
 import javax.swing.*;
 import java.awt.*;
 import java.util.List;
@@ -1217,16 +1221,22 @@ import java.util.List;
 public class GraphWindow extends JDialog {
     private SimulationResult result;
     private List<CircuitComponent> components;
+    private LanguageManager languageManager;
     
     private TimeGraph timeGraph;
     private FrequencyGraph frequencyGraph;
     private PhasorDiagram phasorDiagram;
     private WaveformGraph waveformGraph;
     
+    // Componentes de UI para traducción
+    private JTabbedPane tabbedPane;
+    private JButton refreshButton, printButton, closeButton;
+    
     public GraphWindow(JFrame parent, SimulationResult result, List<CircuitComponent> components) {
         super(parent, true); // Modal
         this.result = result;
         this.components = components;
+        this.languageManager = LanguageManager.getInstance();
         
         initializeComponents();
         setupUI();
@@ -1240,29 +1250,29 @@ public class GraphWindow extends JDialog {
     }
     
     private void setupUI() {
-        setTitle("Gráficos del Circuito RLC - Simulador");
+        setTitle(languageManager.getTranslation("graph_window_title"));
         setDefaultCloseOperation(JDialog.DISPOSE_ON_CLOSE);
         setPreferredSize(new Dimension(1000, 700));
         setLocationRelativeTo(getOwner());
         
         // Crear pestañas
-        JTabbedPane tabbedPane = new JTabbedPane();
+        tabbedPane = new JTabbedPane();
         
         // Pestaña de dominio de tiempo
-        JPanel timePanel = createGraphPanel(timeGraph, "Dominio del Tiempo");
-        tabbedPane.addTab("Tiempo", timePanel);
+        JPanel timePanel = createGraphPanel(timeGraph, "time_domain");
+        tabbedPane.addTab(languageManager.getTranslation("time_tab"), timePanel);
         
         // Pestaña de frecuencia
-        JPanel freqPanel = createGraphPanel(frequencyGraph, "Respuesta en Frecuencia");
-        tabbedPane.addTab("Frecuencia", freqPanel);
+        JPanel freqPanel = createGraphPanel(frequencyGraph, "frequency_response");
+        tabbedPane.addTab(languageManager.getTranslation("frequency_tab"), freqPanel);
         
         // Pestaña fasorial
-        JPanel phasorPanel = createGraphPanel(phasorDiagram, "Diagrama Fasorial");
-        tabbedPane.addTab("Fasorial", phasorPanel);
+        JPanel phasorPanel = createGraphPanel(phasorDiagram, "phasor_diagram");
+        tabbedPane.addTab(languageManager.getTranslation("phasor_tab"), phasorPanel);
         
         // Pestaña de formas de onda
-        JPanel wavePanel = createGraphPanel(waveformGraph, "Formas de Onda");
-        tabbedPane.addTab("Ondas", wavePanel);
+        JPanel wavePanel = createGraphPanel(waveformGraph, "waveforms");
+        tabbedPane.addTab(languageManager.getTranslation("waveforms_tab"), wavePanel);
         
         // Panel de controles
         JPanel controlPanel = createControlPanel();
@@ -1279,12 +1289,12 @@ public class GraphWindow extends JDialog {
         setupSafeClose();
     }
     
-    private JPanel createGraphPanel(JComponent graph, String title) {
+    private JPanel createGraphPanel(JComponent graph, String titleKey) {
         JPanel panel = new JPanel(new BorderLayout());
         panel.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
         
         // Título
-        JLabel titleLabel = new JLabel(title, JLabel.CENTER);
+        JLabel titleLabel = new JLabel(languageManager.getTranslation(titleKey), JLabel.CENTER);
         titleLabel.setFont(new Font("Arial", Font.BOLD, 14));
         titleLabel.setBorder(BorderFactory.createEmptyBorder(5, 0, 10, 0));
         
@@ -1305,15 +1315,15 @@ public class GraphWindow extends JDialog {
         panel.setBackground(new Color(240, 240, 240));
         
         // Botón de actualizar
-        JButton refreshButton = new JButton("Actualizar Gráficos");
+        refreshButton = new JButton(languageManager.getTranslation("refresh_graphs"));
         refreshButton.addActionListener(e -> refreshGraphs());
         
         // Botón de imprimir
-        JButton printButton = new JButton("Guardar como Imagen");
+        printButton = new JButton(languageManager.getTranslation("save_as_image"));
         printButton.addActionListener(e -> saveAsImage());
         
         // Botón de cerrar
-        JButton closeButton = new JButton("Cerrar");
+        closeButton = new JButton(languageManager.getTranslation("close"));
         closeButton.addActionListener(e -> disposeSafely());
         
         panel.add(refreshButton);
@@ -1334,9 +1344,8 @@ public class GraphWindow extends JDialog {
     
     private void saveAsImage() {
         JOptionPane.showMessageDialog(this,
-            "Funcionalidad de guardar imagen no implementada en esta versión.\n" +
-            "Use la función de captura de pantalla de su sistema.",
-            "Información",
+            languageManager.getTranslation("save_image_not_implemented"),
+            languageManager.getTranslation("information"),
             JOptionPane.INFORMATION_MESSAGE);
     }
     
@@ -1363,6 +1372,63 @@ public class GraphWindow extends JDialog {
         this.result = newResult;
         this.components = newComponents;
         refreshGraphs();
+    }
+    
+    /**
+     * Actualiza todos los textos de la interfaz según el idioma actual
+     */
+    public void updateUITexts() {
+        setTitle(languageManager.getTranslation("graph_window_title"));
+        
+        // Actualizar textos de los botones
+        refreshButton.setText(languageManager.getTranslation("refresh_graphs"));
+        printButton.setText(languageManager.getTranslation("save_as_image"));
+        closeButton.setText(languageManager.getTranslation("close"));
+        
+        // Actualizar títulos de las pestañas
+        updateTabTitles();
+        
+        // Actualizar títulos de los gráficos
+        updateGraphTitles();
+    }
+    
+    private void updateTabTitles() {
+        if (tabbedPane.getTabCount() >= 4) {
+            tabbedPane.setTitleAt(0, languageManager.getTranslation("time_tab"));
+            tabbedPane.setTitleAt(1, languageManager.getTranslation("frequency_tab"));
+            tabbedPane.setTitleAt(2, languageManager.getTranslation("phasor_tab"));
+            tabbedPane.setTitleAt(3, languageManager.getTranslation("waveforms_tab"));
+        }
+    }
+    
+    private void updateGraphTitles() {
+        // Actualizar títulos en los paneles de gráficos
+        Component[] components = tabbedPane.getComponents();
+        for (Component comp : components) {
+            if (comp instanceof JPanel) {
+                updatePanelTitles((JPanel) comp);
+            }
+        }
+    }
+    
+    private void updatePanelTitles(JPanel panel) {
+        for (Component comp : panel.getComponents()) {
+            if (comp instanceof JLabel) {
+                JLabel label = (JLabel) comp;
+                String text = label.getText();
+                if (text != null) {
+                    if (text.contains("Dominio del Tiempo") || text.contains("Time Domain") || text.contains("Domínio do Tempo")) {
+                        label.setText(languageManager.getTranslation("time_domain"));
+                    } else if (text.contains("Respuesta en Frecuencia") || text.contains("Frequency Response") || text.contains("Resposta em Frequência")) {
+                        label.setText(languageManager.getTranslation("frequency_response"));
+                    } else if (text.contains("Diagrama Fasorial") || text.contains("Phasor Diagram") || text.contains("Diagrama Fasorial")) {
+                        label.setText(languageManager.getTranslation("phasor_diagram"));
+                    } else if (text.contains("Formas de Onda") || text.contains("Waveforms") || text.contains("Formas de Onda")) {
+                        label.setText(languageManager.getTranslation("waveforms"));
+                    }
+                }
+            }
+        }
     }
     
     @Override
@@ -1689,6 +1755,9 @@ import com.simulador.engine.*;
 import com.simulador.model.*;
 import com.simulador.utils.*;
 import javax.swing.*;
+import javax.swing.border.Border;
+import javax.swing.border.TitledBorder;
+
 import java.awt.*;
 import java.awt.event.*;
 import java.text.DecimalFormat;
@@ -1703,6 +1772,7 @@ public class RLCSimulator extends JFrame implements SimulationObserver {
     private java.util.List<CircuitComponent> components;
     private SimulationResult lastResult;
     private DecimalFormat df = new DecimalFormat("0.000");
+    private LanguageManager languageManager;
 
     // Componentes de UI
     private JTextField voltageField, frequencyField, valueField;
@@ -1717,6 +1787,7 @@ public class RLCSimulator extends JFrame implements SimulationObserver {
     public RLCSimulator() {
         this.engine = new CircuitEngine();
         this.components = new ArrayList<>();
+        this.languageManager = LanguageManager.getInstance();
 
         initializeEngine();
         initializeUI();
@@ -1729,7 +1800,7 @@ public class RLCSimulator extends JFrame implements SimulationObserver {
     }
 
     private void initializeUI() {
-        setTitle("Simulador de Circuitos RLC");
+        setTitle(languageManager.getTranslation("title"));
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         setPreferredSize(new Dimension(1200, 800));
 
@@ -1751,7 +1822,7 @@ public class RLCSimulator extends JFrame implements SimulationObserver {
     private JPanel createControlPanel() {
         JPanel panel = new JPanel();
         panel.setLayout(new BoxLayout(panel, BoxLayout.Y_AXIS));
-        panel.setBorder(BorderFactory.createTitledBorder("Controles de Entrada"));
+        panel.setBorder(BorderFactory.createTitledBorder(languageManager.getTranslation("controls")));
 
         // Selector de idioma
         JPanel langPanel = createLanguagePanel();
@@ -1788,9 +1859,9 @@ public class RLCSimulator extends JFrame implements SimulationObserver {
 
     private JPanel createLanguagePanel() {
         JPanel panel = new JPanel(new FlowLayout(FlowLayout.LEFT));
-        panel.add(new JLabel("Idioma:"));
+        panel.add(new JLabel(languageManager.getTranslation("language")));
 
-        langCombo = new JComboBox<>(new String[] { "Español", "Português", "English" });
+        langCombo = new JComboBox<>(languageManager.getAvailableLanguageNames());
         langCombo.setSelectedItem("Español");
         panel.add(langCombo);
 
@@ -1800,14 +1871,14 @@ public class RLCSimulator extends JFrame implements SimulationObserver {
     private JPanel createInputPanel() {
         JPanel panel = new JPanel(new FlowLayout(FlowLayout.LEFT));
 
-        panel.add(new JLabel("Voltaje (V):"));
+        panel.add(new JLabel(languageManager.getTranslation("voltage")));
         voltageField = new JTextField("10", 8);
-        voltageField.setToolTipText("Voltaje de alimentación (0.1 - 1000 V)");
+        voltageField.setToolTipText(languageManager.getTranslation("voltage_range"));
         panel.add(voltageField);
 
-        panel.add(new JLabel("Frecuencia (Hz):"));
+        panel.add(new JLabel(languageManager.getTranslation("frequency")));
         frequencyField = new JTextField("60", 8);
-        frequencyField.setToolTipText("Frecuencia de operación (0.1 - 10000 Hz)");
+        frequencyField.setToolTipText(languageManager.getTranslation("frequency_range"));
         panel.add(frequencyField);
 
         return panel;
@@ -1815,13 +1886,15 @@ public class RLCSimulator extends JFrame implements SimulationObserver {
 
     private JPanel createMethodPanel() {
         JPanel panel = new JPanel(new FlowLayout(FlowLayout.LEFT));
-        panel.add(new JLabel("Método:"));
+        panel.add(new JLabel(languageManager.getTranslation("method")));
 
         methodCombo = new JComboBox<>();
         for (SimulationStrategy strategy : CircuitEngine.getAvailableStrategies()) {
-            methodCombo.addItem(strategy.getName());
+            // Usar las claves de traducción para los métodos
+            String methodKey = strategy.getName().toLowerCase().replace("-", "");
+            methodCombo.addItem(languageManager.getTranslation(methodKey));
         }
-        methodCombo.setToolTipText("Seleccione el método de simulación");
+        methodCombo.setToolTipText(languageManager.getTranslation("method"));
         panel.add(methodCombo);
 
         return panel;
@@ -1829,13 +1902,18 @@ public class RLCSimulator extends JFrame implements SimulationObserver {
 
     private JPanel createPresetPanel() {
         JPanel panel = new JPanel(new FlowLayout(FlowLayout.LEFT));
-        panel.add(new JLabel("Circuito Predefinido:"));
+        panel.add(new JLabel(languageManager.getTranslation("preset")));
 
-        presetCombo = new JComboBox<>(new String[] {
-                "Personalizado", "Subamortiguado", "Crítico", "Sobreamortiguado",
-                "RLC Serie", "Filtro Pasa Altos", "Filtro Pasa Bajos"
-        });
-        presetCombo.setToolTipText("Seleccione un circuito predefinido");
+        String[] presetKeys = {
+                "custom", "underdamped", "critical", "overdamped",
+                "series_rlc", "high_pass", "low_pass"
+        };
+
+        presetCombo = new JComboBox<>();
+        for (String key : presetKeys) {
+            presetCombo.addItem(languageManager.getTranslation(key));
+        }
+        presetCombo.setToolTipText(languageManager.getTranslation("preset"));
         panel.add(presetCombo);
 
         return panel;
@@ -1844,19 +1922,22 @@ public class RLCSimulator extends JFrame implements SimulationObserver {
     private JPanel createComponentPanel() {
         JPanel panel = new JPanel(new FlowLayout(FlowLayout.LEFT));
 
-        panel.add(new JLabel("Tipo:"));
-        componentTypeCombo = new JComboBox<>(new String[] {
-                "Resistencia", "Inductor", "Capacitor"
-        });
+        panel.add(new JLabel(languageManager.getTranslation("component_type")));
+
+        String[] componentTypes = { "resistance", "inductor", "capacitor" };
+        componentTypeCombo = new JComboBox<>();
+        for (String type : componentTypes) {
+            componentTypeCombo.addItem(languageManager.getTranslation(type));
+        }
         panel.add(componentTypeCombo);
 
-        panel.add(new JLabel("Valor:"));
+        panel.add(new JLabel(languageManager.getTranslation("value")));
         valueField = new JTextField("100", 8);
-        valueField.setToolTipText("Valor del componente (debe ser positivo)");
+        valueField.setToolTipText(languageManager.getTranslation("component_value_positive"));
         panel.add(valueField);
 
-        addButton = new JButton("Agregar Componente");
-        addButton.setToolTipText("Agregar componente al circuito");
+        addButton = new JButton(languageManager.getTranslation("add_component"));
+        addButton.setToolTipText(languageManager.getTranslation("add_component"));
         panel.add(addButton);
 
         return panel;
@@ -1868,15 +1949,15 @@ public class RLCSimulator extends JFrame implements SimulationObserver {
         componentsModel = new DefaultListModel<>();
         componentsList = new JList<>(componentsModel);
         componentsList.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
-        componentsList.setToolTipText("Componentes en el circuito");
+        componentsList.setToolTipText(languageManager.getTranslation("component_list"));
 
         JScrollPane listScroll = new JScrollPane(componentsList);
         listScroll.setPreferredSize(new Dimension(400, 100));
 
-        removeButton = new JButton("Eliminar Seleccionado");
-        removeButton.setToolTipText("Eliminar componente seleccionado");
+        removeButton = new JButton(languageManager.getTranslation("remove_selected"));
+        removeButton.setToolTipText(languageManager.getTranslation("remove_selected"));
 
-        panel.add(new JLabel("Lista de Componentes:"), BorderLayout.NORTH);
+        panel.add(new JLabel(languageManager.getTranslation("component_list")), BorderLayout.NORTH);
         panel.add(listScroll, BorderLayout.CENTER);
         panel.add(removeButton, BorderLayout.SOUTH);
 
@@ -1885,7 +1966,7 @@ public class RLCSimulator extends JFrame implements SimulationObserver {
 
     private JPanel createCircuitPanel() {
         JPanel panel = new JPanel(new BorderLayout());
-        panel.setBorder(BorderFactory.createTitledBorder("Diagrama del Circuito"));
+        panel.setBorder(BorderFactory.createTitledBorder(languageManager.getTranslation("circuit_diagram")));
         panel.setPreferredSize(new Dimension(600, 150));
 
         circuitDiagram = new JLabel("", JLabel.CENTER);
@@ -1901,7 +1982,7 @@ public class RLCSimulator extends JFrame implements SimulationObserver {
 
     private JPanel createResultsPanel() {
         JPanel panel = new JPanel(new BorderLayout());
-        panel.setBorder(BorderFactory.createTitledBorder("Resultados y Gráficos"));
+        panel.setBorder(BorderFactory.createTitledBorder(languageManager.getTranslation("results")));
 
         // Panel de botones
         JPanel buttonPanel = createButtonPanel();
@@ -1918,15 +1999,15 @@ public class RLCSimulator extends JFrame implements SimulationObserver {
     private JPanel createButtonPanel() {
         JPanel panel = new JPanel(new FlowLayout());
 
-        simulateButton = new JButton("Simular Circuito");
-        simulateButton.setToolTipText("Ejecutar simulación del circuito");
+        simulateButton = new JButton(languageManager.getTranslation("simulate"));
+        simulateButton.setToolTipText(languageManager.getTranslation("simulate"));
 
-        graphButton = new JButton("Ver Gráficos");
+        graphButton = new JButton(languageManager.getTranslation("view_graphs"));
         graphButton.setEnabled(false);
-        graphButton.setToolTipText("Abrir ventana de gráficos");
+        graphButton.setToolTipText(languageManager.getTranslation("view_graphs"));
 
-        clearButton = new JButton("Limpiar Todo");
-        clearButton.setToolTipText("Limpiar circuito y resultados");
+        clearButton = new JButton(languageManager.getTranslation("clear_all"));
+        clearButton.setToolTipText(languageManager.getTranslation("clear_all"));
 
         // Barra de progreso
         progressBar = new JProgressBar();
@@ -1947,19 +2028,9 @@ public class RLCSimulator extends JFrame implements SimulationObserver {
         resultsArea = new JTextArea(12, 70);
         resultsArea.setEditable(false);
         resultsArea.setFont(new Font("Monospaced", Font.PLAIN, 12));
-        resultsArea.setText(
-                "=== SIMULADOR DE CIRCUITOS RLC ===\n\n" +
-                        "Instrucciones:\n" +
-                        "1. Agregue componentes (R, L, C) al circuito\n" +
-                        "2. Configure voltaje y frecuencia\n" +
-                        "3. Seleccione método de simulación\n" +
-                        "4. Haga clic en 'Simular Circuito'\n\n" +
-                        "Características:\n" +
-                        "• Análisis en dominio de tiempo y frecuencia\n" +
-                        "• Diagramas fasoriales interactivos\n" +
-                        "• Múltiples métodos de cálculo\n" +
-                        "• Circuitos predefinidos\n" +
-                        "• Soporte multiidioma\n");
+
+        // Texto inicial en el idioma actual
+        updateInitialResultsText();
 
         JScrollPane scroll = new JScrollPane(resultsArea);
         scroll.setBorder(BorderFactory.createLineBorder(Color.LIGHT_GRAY));
@@ -2004,23 +2075,139 @@ public class RLCSimulator extends JFrame implements SimulationObserver {
 
     private void changeLanguage() {
         String selected = (String) langCombo.getSelectedItem();
-        switch (selected) {
-            case "Español":
-                I18N.setLanguage("es");
-                break;
-            case "Português":
-                I18N.setLanguage("pt");
-                break;
-            case "English":
-                I18N.setLanguage("en");
-                break;
+        if ("Español".equals(selected)) {
+            languageManager.setLanguage("es");
+        } else if ("Português".equals(selected)) {
+            languageManager.setLanguage("pt");
         }
         updateUITexts();
     }
 
     private void updateUITexts() {
-        setTitle(I18N.get("title"));
-        // Actualizar otros textos de UI según sea necesario
+        setTitle(languageManager.getTranslation("title"));
+
+        // Actualizar textos de bordes con título
+        updateTitledBorders();
+
+        // Actualizar todos los componentes de UI
+        updateAllUITexts();
+
+        // Actualizar área de resultados inicial
+        updateInitialResultsText();
+
+        // Actualizar lista de componentes
+        updateComponentList();
+
+        // Actualizar diagrama del circuito
+        updateCircuitDiagram();
+    }
+
+    private void updateTitledBorders() {
+        updatePanelBorders((JPanel) getContentPane());
+    }
+
+    private void updatePanelBorders(JPanel panel) {
+        Border border = panel.getBorder();
+        if (border instanceof TitledBorder) {
+            TitledBorder titledBorder = (TitledBorder) border;
+            String title = titledBorder.getTitle();
+
+            // Mapear títulos a claves de traducción
+            if (title != null) {
+                if (title.contains("Controles") || title.contains("Controls")
+                        || title.contains("Controles de Entrada")) {
+                    titledBorder.setTitle(languageManager.getTranslation("controls"));
+                } else if (title.contains("Diagrama") || title.contains("Diagram")) {
+                    titledBorder.setTitle(languageManager.getTranslation("circuit_diagram"));
+                } else if (title.contains("Resultados") || title.contains("Results")) {
+                    titledBorder.setTitle(languageManager.getTranslation("results"));
+                }
+            }
+        }
+
+        // Actualizar recursivamente
+        for (Component comp : panel.getComponents()) {
+            if (comp instanceof JPanel) {
+                updatePanelBorders((JPanel) comp);
+            }
+        }
+    }
+
+    private void updateAllUITexts() {
+        // Actualizar labels
+        updateAllComponents(this.getContentPane());
+    }
+
+    private void updateAllComponents(Container container) {
+        for (Component comp : container.getComponents()) {
+            if (comp instanceof JLabel) {
+                JLabel label = (JLabel) comp;
+                String text = label.getText();
+                if (text != null) {
+                    if (text.contains("Idioma:") || text.contains("Language:") || text.contains("Idioma:")) {
+                        label.setText(languageManager.getTranslation("language"));
+                    } else if (text.contains("Voltaje") || text.contains("Voltage") || text.contains("Tensão")) {
+                        label.setText(languageManager.getTranslation("voltage"));
+                    } else if (text.contains("Frecuencia") || text.contains("Frequency")
+                            || text.contains("Frequência")) {
+                        label.setText(languageManager.getTranslation("frequency"));
+                    } else if (text.contains("Método:") || text.contains("Method:") || text.contains("Método:")) {
+                        label.setText(languageManager.getTranslation("method"));
+                    } else if (text.contains("Circuito Predefinido") || text.contains("Preset Circuit")
+                            || text.contains("Circuito Predefinido")) {
+                        label.setText(languageManager.getTranslation("preset"));
+                    } else if (text.contains("Tipo:") || text.contains("Type:") || text.contains("Tipo:")) {
+                        label.setText(languageManager.getTranslation("component_type"));
+                    } else if (text.contains("Valor:") || text.contains("Value:") || text.contains("Valor:")) {
+                        label.setText(languageManager.getTranslation("value"));
+                    } else if (text.contains("Lista de Componentes") || text.contains("Component List")
+                            || text.contains("Lista de Componentes")) {
+                        label.setText(languageManager.getTranslation("component_list"));
+                    }
+                }
+            } else if (comp instanceof JButton) {
+                JButton button = (JButton) comp;
+                String text = button.getText();
+                if (text != null) {
+                    if (text.contains("Agregar Componente") || text.contains("Add Component")
+                            || text.contains("Adicionar Componente")) {
+                        button.setText(languageManager.getTranslation("add_component"));
+                    } else if (text.contains("Eliminar Seleccionado") || text.contains("Remove Selected")
+                            || text.contains("Remover Selecionado")) {
+                        button.setText(languageManager.getTranslation("remove_selected"));
+                    } else if (text.contains("Simular Circuito") || text.contains("Simulate Circuit")
+                            || text.contains("Simular Circuito")) {
+                        button.setText(languageManager.getTranslation("simulate"));
+                    } else if (text.contains("Ver Gráficos") || text.contains("View Graphs")
+                            || text.contains("Ver Gráficos")) {
+                        button.setText(languageManager.getTranslation("view_graphs"));
+                    } else if (text.contains("Limpiar Todo") || text.contains("Clear All")
+                            || text.contains("Limpar Tudo")) {
+                        button.setText(languageManager.getTranslation("clear_all"));
+                    }
+                }
+            } else if (comp instanceof Container) {
+                updateAllComponents((Container) comp);
+            }
+        }
+    }
+
+    private void updateInitialResultsText() {
+        StringBuilder sb = new StringBuilder();
+        sb.append("=== ").append(languageManager.getTranslation("title")).append(" ===\n\n");
+        sb.append(languageManager.getTranslation("instructions")).append("\n");
+        sb.append(languageManager.getTranslation("instruction1")).append("\n");
+        sb.append(languageManager.getTranslation("instruction2")).append("\n");
+        sb.append(languageManager.getTranslation("instruction3")).append("\n");
+        sb.append(languageManager.getTranslation("instruction4")).append("\n\n");
+        sb.append(languageManager.getTranslation("features")).append("\n");
+        sb.append(languageManager.getTranslation("feature1")).append("\n");
+        sb.append(languageManager.getTranslation("feature2")).append("\n");
+        sb.append(languageManager.getTranslation("feature3")).append("\n");
+        sb.append(languageManager.getTranslation("feature4")).append("\n");
+        sb.append(languageManager.getTranslation("feature5")).append("\n");
+
+        resultsArea.setText(sb.toString());
     }
 
     private void updateStrategy() {
@@ -2033,29 +2220,22 @@ public class RLCSimulator extends JFrame implements SimulationObserver {
 
     private void loadPreset() {
         String selected = (String) presetCombo.getSelectedItem();
-        if (selected == null || "Personalizado".equals(selected))
+        if (selected == null || languageManager.getTranslation("custom").equals(selected))
             return;
 
         String presetType = "";
-        switch (selected) {
-            case "Subamortiguado":
-                presetType = "underdamped";
-                break;
-            case "Crítico":
-                presetType = "critical";
-                break;
-            case "Sobreamortiguado":
-                presetType = "overdamped";
-                break;
-            case "RLC Serie":
-                presetType = "series_rlc";
-                break;
-            case "Filtro Pasa Altos":
-                presetType = "high_pass";
-                break;
-            case "Filtro Pasa Bajos":
-                presetType = "low_pass";
-                break;
+        if (languageManager.getTranslation("underdamped").equals(selected)) {
+            presetType = "underdamped";
+        } else if (languageManager.getTranslation("critical").equals(selected)) {
+            presetType = "critical";
+        } else if (languageManager.getTranslation("overdamped").equals(selected)) {
+            presetType = "overdamped";
+        } else if (languageManager.getTranslation("series_rlc").equals(selected)) {
+            presetType = "series_rlc";
+        } else if (languageManager.getTranslation("high_pass").equals(selected)) {
+            presetType = "high_pass";
+        } else if (languageManager.getTranslation("low_pass").equals(selected)) {
+            presetType = "low_pass";
         }
 
         components.clear();
@@ -2064,7 +2244,7 @@ public class RLCSimulator extends JFrame implements SimulationObserver {
         updateComponentList();
         updateCircuitDiagram();
 
-        showInfo("Circuito predefinido '" + selected + "' cargado");
+        showInfo(languageManager.getFormattedTranslation("preset_loaded", selected));
     }
 
     private void addComponent() {
@@ -2085,7 +2265,7 @@ public class RLCSimulator extends JFrame implements SimulationObserver {
 
             double value = Double.parseDouble(valueField.getText());
             if (value <= 0) {
-                showError("El valor del componente debe ser positivo");
+                showError(languageManager.getTranslation("component_value_positive"));
                 return;
             }
 
@@ -2098,7 +2278,7 @@ public class RLCSimulator extends JFrame implements SimulationObserver {
             valueField.requestFocus();
 
         } catch (NumberFormatException ex) {
-            showError("Por favor ingrese un valor numérico válido");
+            showError(languageManager.getTranslation("enter_numeric_values"));
         }
     }
 
@@ -2109,13 +2289,13 @@ public class RLCSimulator extends JFrame implements SimulationObserver {
             updateComponentList();
             updateCircuitDiagram();
         } else {
-            showError("Seleccione un componente para eliminar");
+            showError(languageManager.getTranslation("select_component_remove"));
         }
     }
 
     private void simulateCircuit() {
         if (components.isEmpty()) {
-            showError("Agregue al menos un componente al circuito");
+            showError(languageManager.getTranslation("add_least_one_component"));
             return;
         }
 
@@ -2128,7 +2308,7 @@ public class RLCSimulator extends JFrame implements SimulationObserver {
 
             progressBar.setVisible(true);
             progressBar.setIndeterminate(true);
-            progressBar.setString("Simulando...");
+            progressBar.setString(languageManager.getTranslation("simulation_in_progress"));
 
             simulateButton.setEnabled(false);
             graphButton.setEnabled(false);
@@ -2136,7 +2316,7 @@ public class RLCSimulator extends JFrame implements SimulationObserver {
             engine.simulate(components, voltage, frequency);
 
         } catch (NumberFormatException ex) {
-            showError("Error en los valores de voltaje o frecuencia");
+            showError(languageManager.getTranslation("enter_numeric_values"));
         }
     }
 
@@ -2146,26 +2326,34 @@ public class RLCSimulator extends JFrame implements SimulationObserver {
             double frequency = Double.parseDouble(frequencyField.getText());
 
             if (voltage <= 0 || voltage > 1000) {
-                showError("El voltaje debe estar entre 0.1 y 1000 V");
+                showError(languageManager.getTranslation("voltage_range"));
                 return false;
             }
 
             if (frequency <= 0 || frequency > 10000) {
-                showError("La frecuencia debe estar entre 0.1 y 10000 Hz");
+                showError(languageManager.getTranslation("frequency_range"));
                 return false;
             }
 
             return true;
 
         } catch (NumberFormatException e) {
-            showError("Ingrese valores numéricos válidos para voltaje y frecuencia");
+            showError(languageManager.getTranslation("enter_numeric_values"));
             return false;
         }
     }
 
+    // En RLCSimulator.java - MODIFICAR el método showGraphs()
+
     private void showGraphs() {
         if (lastResult != null) {
             GraphWindow graphWindow = new GraphWindow(this, lastResult, components);
+
+            // Agregar listener para cambios de idioma
+            langCombo.addActionListener(e -> {
+                graphWindow.updateUITexts();
+            });
+
             graphWindow.setVisible(true);
         }
     }
@@ -2175,11 +2363,11 @@ public class RLCSimulator extends JFrame implements SimulationObserver {
         updateComponentList();
         updateCircuitDiagram();
 
-        resultsArea.setText("Circuito limpiado. Listo para nueva simulación.");
+        resultsArea.setText(languageManager.getTranslation("circuit_cleared"));
         graphButton.setEnabled(false);
         lastResult = null;
 
-        showInfo("Circuito y resultados limpiados");
+        showInfo(languageManager.getTranslation("circuit_results_cleared"));
     }
 
     private void updateComponentList() {
@@ -2193,8 +2381,12 @@ public class RLCSimulator extends JFrame implements SimulationObserver {
         StringBuilder html = new StringBuilder("<html><div style='text-align:center;'>");
 
         if (components.isEmpty()) {
-            html.append("<p style='color:gray;font-size:14px;'>Circuito Vacío</p>");
-            html.append("<p style='color:gray;font-size:12px;'>Agregue componentes para comenzar</p>");
+            html.append("<p style='color:gray;font-size:14px;'>")
+                    .append(languageManager.getTranslation("empty_circuit"))
+                    .append("</p>");
+            html.append("<p style='color:gray;font-size:12px;'>")
+                    .append(languageManager.getTranslation("add_components_start"))
+                    .append("</p>");
         } else {
             html.append("<p style='font-size:16px;margin-bottom:10px;'>⚡ ");
 
@@ -2233,8 +2425,6 @@ public class RLCSimulator extends JFrame implements SimulationObserver {
         circuitDiagram.setText(html.toString());
     }
 
-    // En RLCSimulator.java - REEMPLAZAR el método onSimulationComplete existente:
-
     @Override
     public void onSimulationComplete(Object result) {
         SwingUtilities.invokeLater(() -> {
@@ -2244,24 +2434,30 @@ public class RLCSimulator extends JFrame implements SimulationObserver {
                 graphButton.setEnabled(true);
 
                 StringBuilder sb = new StringBuilder();
-                sb.append("=== RESULTADOS DE SIMULACIÓN ===\n\n");
-                sb.append("• Impedancia: ").append(df.format(simResult.getImpedance())).append(" Ω\n");
-                sb.append("• Corriente: ").append(df.format(simResult.getCurrent())).append(" A\n");
-                sb.append("• Ángulo de Fase: ").append(df.format(Math.toDegrees(simResult.getPhaseAngle())))
-                        .append("°\n");
-                sb.append("• Potencia Activa: ").append(df.format(simResult.getActivePower())).append(" W\n");
-                sb.append("• Potencia Reactiva: ").append(df.format(simResult.getReactivePower())).append(" VAR\n");
-                sb.append("• Potencia Aparente: ").append(df.format(simResult.getApparentPower())).append(" VA\n");
-                sb.append("• Factor de Potencia: ").append(df.format(simResult.getPowerFactor())).append("\n\n");
+                sb.append(languageManager.getTranslation("simulation_results")).append("\n\n");
+                sb.append(languageManager.getTranslation("impedance")).append(" ")
+                        .append(df.format(simResult.getImpedance())).append(" Ω\n");
+                sb.append(languageManager.getTranslation("current")).append(" ")
+                        .append(df.format(simResult.getCurrent())).append(" A\n");
+                sb.append(languageManager.getTranslation("phase_angle")).append(" ")
+                        .append(df.format(Math.toDegrees(simResult.getPhaseAngle()))).append("°\n");
+                sb.append(languageManager.getTranslation("active_power")).append(" ")
+                        .append(df.format(simResult.getActivePower())).append(" W\n");
+                sb.append(languageManager.getTranslation("reactive_power")).append(" ")
+                        .append(df.format(simResult.getReactivePower())).append(" VAR\n");
+                sb.append(languageManager.getTranslation("apparent_power")).append(" ")
+                        .append(df.format(simResult.getApparentPower())).append(" VA\n");
+                sb.append(languageManager.getTranslation("power_factor")).append(" ")
+                        .append(df.format(simResult.getPowerFactor())).append("\n\n");
 
                 // Información adicional
                 double phaseDeg = Math.toDegrees(simResult.getPhaseAngle());
                 if (phaseDeg > 0) {
-                    sb.append("→ Circuito INDUCTIVO (corriente atrasada)\n");
+                    sb.append(languageManager.getTranslation("inductive_circuit")).append("\n");
                 } else if (phaseDeg < 0) {
-                    sb.append("→ Circuito CAPACITIVO (corriente adelantada)\n");
+                    sb.append(languageManager.getTranslation("capacitive_circuit")).append("\n");
                 } else {
-                    sb.append("→ Circuito RESISTIVO (corriente en fase)\n");
+                    sb.append(languageManager.getTranslation("resistive_circuit")).append("\n");
                 }
 
                 resultsArea.setText(sb.toString());
@@ -2277,7 +2473,7 @@ public class RLCSimulator extends JFrame implements SimulationObserver {
     @Override
     public void onSimulationError(String error) {
         SwingUtilities.invokeLater(() -> {
-            showError("Error en simulación: " + error);
+            showError(languageManager.getFormattedTranslation("simulation_error", error));
 
             progressBar.setVisible(false);
             simulateButton.setEnabled(true);
@@ -2285,24 +2481,26 @@ public class RLCSimulator extends JFrame implements SimulationObserver {
         });
     }
 
-    // AÑADIR este método faltante:
     @Override
     public void onSimulationStart() {
         SwingUtilities.invokeLater(() -> {
-            resultsArea.setText("Simulación en progreso...\n\nPor favor espere.");
+            resultsArea.setText(languageManager.getTranslation("simulation_in_progress") +
+                    "\n\n" + languageManager.getTranslation("please_wait"));
             progressBar.setVisible(true);
             progressBar.setIndeterminate(true);
-            progressBar.setString("Simulando...");
+            progressBar.setString(languageManager.getTranslation("simulation_in_progress"));
         });
     }
 
     // Métodos de utilidad
     private void showError(String message) {
-        JOptionPane.showMessageDialog(this, message, "Error", JOptionPane.ERROR_MESSAGE);
+        JOptionPane.showMessageDialog(this, message,
+                languageManager.getTranslation("error"), JOptionPane.ERROR_MESSAGE);
     }
 
     private void showInfo(String message) {
-        JOptionPane.showMessageDialog(this, message, "Información", JOptionPane.INFORMATION_MESSAGE);
+        JOptionPane.showMessageDialog(this, message,
+                languageManager.getTranslation("information"), JOptionPane.INFORMATION_MESSAGE);
     }
 
     private void closeApplication() {
@@ -2756,6 +2954,317 @@ public class I18N {
         if (translations.containsKey(lang)) {
             currentLang = lang;
         }
+    }
+}
+```
+
+## C:\Users\joese\OneDrive\Escritorio\Projects\integrador_simulador\simuladordefisica\src\main\java\com\simulador\utils\LanguageManager.java
+
+```java
+package com.simulador.utils;
+
+import java.util.HashMap;
+import java.util.Map;
+import javax.swing.*;
+
+/**
+ * Gestor especializado de idiomas para el simulador RLC
+ * Maneja español y portugués con JSON interno
+ */
+public class LanguageManager {
+
+    private static LanguageManager instance;
+    private Map<String, Map<String, String>> translations;
+    private String currentLanguage;
+
+    private static final Map<String, Object> LANGUAGE_JSON = Map.ofEntries(
+        Map.entry("es", Map.ofEntries(
+            Map.entry("title", "Simulador de Circuitos RLC"),
+            Map.entry("controls", "Controles de Entrada"),
+            Map.entry("language", "Idioma:"),
+            Map.entry("voltage", "Voltaje (V):"),
+            Map.entry("frequency", "Frecuencia (Hz):"),
+            Map.entry("method", "Método:"),
+            Map.entry("preset", "Circuito Predefinido:"),
+            Map.entry("component_type", "Tipo:"),
+            Map.entry("value", "Valor:"),
+            Map.entry("add_component", "Agregar Componente"),
+            Map.entry("component_list", "Lista de Componentes:"),
+            Map.entry("remove_selected", "Eliminar Seleccionado"),
+            Map.entry("circuit_diagram", "Diagrama del Circuito"),
+            Map.entry("results", "Resultados y Gráficos"),
+            Map.entry("simulate", "Simular Circuito"),
+            Map.entry("view_graphs", "Ver Gráficos"),
+            Map.entry("clear_all", "Limpiar Todo"),
+            Map.entry("resistance", "Resistencia"),
+            Map.entry("inductor", "Inductor"),
+            Map.entry("capacitor", "Capacitor"),
+            Map.entry("custom", "Personalizado"),
+            Map.entry("underdamped", "Subamortiguado"),
+            Map.entry("critical", "Crítico"),
+            Map.entry("overdamped", "Sobreamortiguado"),
+            Map.entry("series_rlc", "RLC Serie"),
+            Map.entry("high_pass", "Filtro Pasa Altos"),
+            Map.entry("low_pass", "Filtro Pasa Bajos"),
+            Map.entry("analytical", "Analítico"),
+            Map.entry("euler", "Euler"),
+            Map.entry("runge_kutta", "Runge-Kutta4"),
+            Map.entry("simulation_results", "=== RESULTADOS DE SIMULACIÓN ==="),
+            Map.entry("impedance", "• Impedancia:"),
+            Map.entry("current", "• Corriente:"),
+            Map.entry("phase_angle", "• Ángulo de Fase:"),
+            Map.entry("active_power", "• Potencia Activa:"),
+            Map.entry("reactive_power", "• Potencia Reactiva:"),
+            Map.entry("apparent_power", "• Potencia Aparente:"),
+            Map.entry("power_factor", "• Factor de Potencia:"),
+            Map.entry("inductive_circuit", "→ Circuito INDUCTIVO (corriente atrasada)"),
+            Map.entry("capacitive_circuit", "→ Circuito CAPACITIVO (corriente adelantada)"),
+            Map.entry("resistive_circuit", "→ Circuito RESISTIVO (corriente en fase)"),
+            Map.entry("simulation_in_progress", "Simulación en progreso..."),
+            Map.entry("please_wait", "Por favor espere..."),
+            Map.entry("empty_circuit", "Circuito Vacío"),
+            Map.entry("add_components_start", "Agregue componentes para comenzar"),
+            Map.entry("instructions", "Instrucciones:"),
+            Map.entry("instruction1", "1. Agregue componentes (R, L, C) al circuito"),
+            Map.entry("instruction2", "2. Configure voltaje y frecuencia"),
+            Map.entry("instruction3", "3. Seleccione método de simulación"),
+            Map.entry("instruction4", "4. Haga clic en 'Simular Circuito'"),
+            Map.entry("features", "Características:"),
+            Map.entry("feature1", "• Análisis en dominio de tiempo y frecuencia"),
+            Map.entry("feature2", "• Diagramas fasoriales interactivos"),
+            Map.entry("feature3", "• Múltiples métodos de cálculo"),
+            Map.entry("feature4", "• Circuitos predefinidos"),
+            Map.entry("feature5", "• Soporte multiidioma"),
+            Map.entry("error", "Error"),
+            Map.entry("information", "Información"),
+            Map.entry("component_value_positive", "El valor del componente debe ser positivo"),
+            Map.entry("select_component_remove", "Seleccione un componente para eliminar"),
+            Map.entry("add_least_one_component", "Agregue al menos un componente al circuito"),
+            Map.entry("voltage_range", "El voltaje debe estar entre 0.1 y 1000 V"),
+            Map.entry("frequency_range", "La frecuencia debe estar entre 0.1 y 10000 Hz"),
+            Map.entry("enter_numeric_values", "Ingrese valores numéricos válidos para voltaje y frecuencia"),
+            Map.entry("circuit_cleared", "Circuito limpiado. Listo para nueva simulación."),
+            Map.entry("circuit_results_cleared", "Circuito y resultados limpiados"),
+            Map.entry("preset_loaded", "Circuito predefinido '%s' cargado"),
+            Map.entry("simulation_error", "Error en simulación: %s"),
+            // Nuevas traducciones para GraphWindow
+            Map.entry("graph_window_title", "Gráficos del Circuito RLC - Simulador"),
+            Map.entry("time_tab", "Tiempo"),
+            Map.entry("frequency_tab", "Frecuencia"), 
+            Map.entry("phasor_tab", "Fasorial"),
+            Map.entry("waveforms_tab", "Ondas"),
+            Map.entry("time_domain", "Dominio del Tiempo"),
+            Map.entry("frequency_response", "Respuesta en Frecuencia"),
+            Map.entry("phasor_diagram", "Diagrama Fasorial"),
+            Map.entry("waveforms", "Formas de Onda"),
+            Map.entry("refresh_graphs", "Actualizar Gráficos"),
+            Map.entry("save_as_image", "Guardar como Imagen"),
+            Map.entry("close", "Cerrar"),
+            Map.entry("save_image_not_implemented", "Funcionalidad de guardar imagen no implementada en esta versión.\nUse la función de captura de pantalla de su sistema.")
+        )),
+        Map.entry("pt", Map.ofEntries(
+            Map.entry("title", "Simulador de Circuitos RLC"),
+            Map.entry("controls", "Controles de Entrada"),
+            Map.entry("language", "Idioma:"),
+            Map.entry("voltage", "Tensão (V):"),
+            Map.entry("frequency", "Frequência (Hz):"),
+            Map.entry("method", "Método:"),
+            Map.entry("preset", "Circuito Predefinido:"),
+            Map.entry("component_type", "Tipo:"),
+            Map.entry("value", "Valor:"),
+            Map.entry("add_component", "Adicionar Componente"),
+            Map.entry("component_list", "Lista de Componentes:"),
+            Map.entry("remove_selected", "Remover Selecionado"),
+            Map.entry("circuit_diagram", "Diagrama do Circuito"),
+            Map.entry("results", "Resultados e Gráficos"),
+            Map.entry("simulate", "Simular Circuito"),
+            Map.entry("view_graphs", "Ver Gráficos"),
+            Map.entry("clear_all", "Limpar Tudo"),
+            Map.entry("resistance", "Resistência"),
+            Map.entry("inductor", "Indutor"),
+            Map.entry("capacitor", "Capacitor"),
+            Map.entry("custom", "Personalizado"),
+            Map.entry("underdamped", "Subamortecido"),
+            Map.entry("critical", "Crítico"),
+            Map.entry("overdamped", "Superamortecido"),
+            Map.entry("series_rlc", "RLC Série"),
+            Map.entry("high_pass", "Filtro Passa Altas"),
+            Map.entry("low_pass", "Filtro Passa Baixas"),
+            Map.entry("analytical", "Analítico"),
+            Map.entry("euler", "Euler"),
+            Map.entry("runge_kutta", "Runge-Kutta4"),
+            Map.entry("simulation_results", "=== RESULTADOS DA SIMULAÇÃO ==="),
+            Map.entry("impedance", "• Impedância:"),
+            Map.entry("current", "• Corrente:"),
+            Map.entry("phase_angle", "• Ângulo de Fase:"),
+            Map.entry("active_power", "• Potência Ativa:"),
+            Map.entry("reactive_power", "• Potência Reativa:"),
+            Map.entry("apparent_power", "• Potência Aparente:"),
+            Map.entry("power_factor", "• Fator de Potência:"),
+            Map.entry("inductive_circuit", "→ Circuito INDUTIVO (corrente atrasada)"),
+            Map.entry("capacitive_circuit", "→ Circuito CAPACITIVO (corrente adiantada)"),
+            Map.entry("resistive_circuit", "→ Circuito RESISTIVO (corrente em fase)"),
+            Map.entry("simulation_in_progress", "Simulação em andamento..."),
+            Map.entry("please_wait", "Por favor aguarde..."),
+            Map.entry("empty_circuit", "Circuito Vazio"),
+            Map.entry("add_components_start", "Adicione componentes para começar"),
+            Map.entry("instructions", "Instruções:"),
+            Map.entry("instruction1", "1. Adicione componentes (R, L, C) ao circuito"),
+            Map.entry("instruction2", "2. Configure tensão e frequência"),
+            Map.entry("instruction3", "3. Selecione o método de simulação"),
+            Map.entry("instruction4", "4. Clique em 'Simular Circuito'"),
+            Map.entry("features", "Características:"),
+            Map.entry("feature1", "• Análise no domínio do tempo e frequência"),
+            Map.entry("feature2", "• Diagramas fasoriais interativos"),
+            Map.entry("feature3", "• Múltiplos métodos de cálculo"),
+            Map.entry("feature4", "• Circuitos predefinidos"),
+            Map.entry("feature5", "• Suporte multilíngue"),
+            Map.entry("error", "Erro"),
+            Map.entry("information", "Informação"),
+            Map.entry("component_value_positive", "O valor do componente deve ser positivo"),
+            Map.entry("select_component_remove", "Selecione um componente para remover"),
+            Map.entry("add_least_one_component", "Adicione pelo menos um componente ao circuito"),
+            Map.entry("voltage_range", "A tensão deve estar entre 0.1 e 1000 V"),
+            Map.entry("frequency_range", "A frequência deve estar entre 0.1 e 10000 Hz"),
+            Map.entry("enter_numeric_values", "Insira valores numéricos válidos para tensão e frequência"),
+            Map.entry("circuit_cleared", "Circuito limpo. Pronto para nova simulação."),
+            Map.entry("circuit_results_cleared", "Circuito e resultados limpos"),
+            Map.entry("preset_loaded", "Circuito predefinido '%s' carregado"),
+            Map.entry("simulation_error", "Erro na simulação: %s"),
+            // Nuevas traducciones para GraphWindow
+            Map.entry("graph_window_title", "Gráficos do Circuito RLC - Simulador"),
+            Map.entry("time_tab", "Tempo"),
+            Map.entry("frequency_tab", "Frequência"),
+            Map.entry("phasor_tab", "Fasorial"), 
+            Map.entry("waveforms_tab", "Ondas"),
+            Map.entry("time_domain", "Domínio do Tempo"),
+            Map.entry("frequency_response", "Resposta em Frequência"),
+            Map.entry("phasor_diagram", "Diagrama Fasorial"),
+            Map.entry("waveforms", "Formas de Onda"),
+            Map.entry("refresh_graphs", "Atualizar Gráficos"),
+            Map.entry("save_as_image", "Salvar como Imagem"),
+            Map.entry("close", "Fechar"),
+            Map.entry("save_image_not_implemented", "Funcionalidade de salvar imagem não implementada nesta versão.\nUse a função de captura de tela do seu sistema.")
+        ))
+    );
+
+    
+    private LanguageManager() {
+        translations = new HashMap<>();
+        currentLanguage = "es";
+        loadTranslations();
+    }
+    
+    public static LanguageManager getInstance() {
+        if (instance == null) {
+            instance = new LanguageManager();
+        }
+        return instance;
+    }
+    
+    @SuppressWarnings("unchecked")
+    private void loadTranslations() {
+        // Cargar traducciones desde el JSON interno
+        for (String lang : LANGUAGE_JSON.keySet()) {
+            Map<String, Object> langData = (Map<String, Object>) LANGUAGE_JSON.get(lang);
+            Map<String, String> langTranslations = new HashMap<>();
+            
+            for (Map.Entry<String, Object> entry : langData.entrySet()) {
+                langTranslations.put(entry.getKey(), entry.getValue().toString());
+            }
+            
+            translations.put(lang, langTranslations);
+        }
+    }
+    
+    /**
+     * Obtiene una traducción para la clave especificada
+     */
+    public String getTranslation(String key) {
+        Map<String, String> langTranslations = translations.get(currentLanguage);
+        if (langTranslations != null && langTranslations.containsKey(key)) {
+            return langTranslations.get(key);
+        }
+        
+        // Fallback a español si no encuentra la clave
+        Map<String, String> fallback = translations.get("es");
+        return fallback.getOrDefault(key, key);
+    }
+    
+    /**
+     * Obtiene una traducción formateada con parámetros
+     */
+    public String getFormattedTranslation(String key, Object... args) {
+        String template = getTranslation(key);
+        return String.format(template, args);
+    }
+    
+    /**
+     * Cambia el idioma actual
+     */
+    public void setLanguage(String language) {
+        if (translations.containsKey(language)) {
+            this.currentLanguage = language;
+        } else {
+            // Fallback a español
+            this.currentLanguage = "es";
+        }
+    }
+    
+    /**
+     * Obtiene el idioma actual
+     */
+    public String getCurrentLanguage() {
+        return currentLanguage;
+    }
+    
+    /**
+     * Obtiene los idiomas disponibles
+     */
+    public String[] getAvailableLanguages() {
+        return new String[]{"es", "pt"};
+    }
+    
+    /**
+     * Obtiene los nombres de los idiomas para mostrar en UI
+     */
+    public String[] getAvailableLanguageNames() {
+        return new String[]{"Español", "Português"};
+    }
+    
+    /**
+     * Actualiza todos los textos de un combo box según el idioma actual
+     */
+    public void updateComboBox(JComboBox<String> comboBox, String[] keys) {
+        comboBox.removeAllItems();
+        for (String key : keys) {
+            comboBox.addItem(getTranslation(key));
+        }
+    }
+    
+    /**
+     * Actualiza el texto de un componente Swing
+     */
+    public void updateComponentText(JComponent component, String key) {
+        if (component instanceof JLabel) {
+            ((JLabel) component).setText(getTranslation(key));
+        } else if (component instanceof JButton) {
+            ((JButton) component).setText(getTranslation(key));
+        } else if (component instanceof JCheckBox) {
+            ((JCheckBox) component).setText(getTranslation(key));
+        } else if (component instanceof JRadioButton) {
+            ((JRadioButton) component).setText(getTranslation(key));
+        } else if (component instanceof JTabbedPane) {
+            // Para JTabbedPane necesitamos manejo especial
+            System.out.println("JTabbedPane requiere actualización manual por índice");
+        }
+    }
+    
+    /**
+     * Actualiza el tooltip de un componente
+     */
+    public void updateToolTipText(JComponent component, String key) {
+        component.setToolTipText(getTranslation(key));
     }
 }
 ```

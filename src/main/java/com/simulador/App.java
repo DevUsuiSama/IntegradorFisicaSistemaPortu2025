@@ -1,6 +1,6 @@
 package com.simulador;
 
-import com.simulador.ui.RLCSimulator;
+import com.simulador.ui.MainSimulatorFrame;
 import javax.swing.SwingUtilities;
 
 /**
@@ -9,14 +9,14 @@ import javax.swing.SwingUtilities;
  */
 public class App {
     public static void main(String[] args) {
-        System.out.println("Iniciando Simulador RLC...");
+        System.out.println("Iniciando Simulador...");
         System.out.println("Java version: " + System.getProperty("java.version"));
         
         SwingUtilities.invokeLater(() -> {
             try {
                 System.out.println("Creando interfaz gráfica...");
-                // Usar el método main de RLCSimulator en lugar de crear instancia directamente
-                RLCSimulator.main(args);
+                // Usar el nuevo MainSimulatorFrame
+                MainSimulatorFrame.main(args);
             } catch (Exception e) {
                 System.err.println("Error iniciando aplicación: " + e.getMessage());
                 e.printStackTrace();

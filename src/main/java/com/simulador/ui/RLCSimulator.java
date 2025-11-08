@@ -8,15 +8,14 @@ import javax.swing.border.Border;
 import javax.swing.border.TitledBorder;
 
 import java.awt.*;
-import java.awt.event.*;
 import java.text.DecimalFormat;
 import java.util.*;
 
 /**
- * Interfaz gráfica principal del simulador de circuitos RLC
- * Main GUI for RLC circuit simulator
+ * Panel principal del simulador de circuitos RLC
+ * Main panel for RLC circuit simulator
  */
-public class RLCSimulator extends JFrame implements SimulationObserver {
+public class RLCSimulator extends JPanel implements SimulationObserver {
     private CircuitEngine engine;
     private java.util.List<CircuitComponent> components;
     private SimulationResult lastResult;
@@ -49,23 +48,12 @@ public class RLCSimulator extends JFrame implements SimulationObserver {
     }
 
     private void initializeUI() {
-        setTitle(languageManager.getTranslation("title"));
-        setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-        setPreferredSize(new Dimension(1200, 800));
+        setLayout(new BorderLayout(10, 10));
+        setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
 
-        JPanel mainPanel = new JPanel(new BorderLayout(10, 10));
-        mainPanel.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
-
-        mainPanel.add(createControlPanel(), BorderLayout.NORTH);
-        mainPanel.add(createCircuitPanel(), BorderLayout.CENTER);
-        mainPanel.add(createResultsPanel(), BorderLayout.SOUTH);
-
-        add(mainPanel);
-        pack();
-        setLocationRelativeTo(null);
-
-        // Configurar cierre seguro
-        setupSafeClose();
+        add(createControlPanel(), BorderLayout.NORTH);
+        add(createCircuitPanel(), BorderLayout.CENTER);
+        add(createResultsPanel(), BorderLayout.SOUTH);
     }
 
     private JPanel createControlPanel() {
@@ -313,15 +301,6 @@ public class RLCSimulator extends JFrame implements SimulationObserver {
         frequencyField.addActionListener(e -> simulateCircuit());
     }
 
-    private void setupSafeClose() {
-        addWindowListener(new WindowAdapter() {
-            @Override
-            public void windowClosing(WindowEvent e) {
-                closeApplication();
-            }
-        });
-    }
-
     private void changeLanguage() {
         String selected = (String) langCombo.getSelectedItem();
         if ("Español".equals(selected)) {
@@ -333,8 +312,6 @@ public class RLCSimulator extends JFrame implements SimulationObserver {
     }
 
     private void updateUITexts() {
-        setTitle(languageManager.getTranslation("title"));
-
         // Actualizar textos de bordes con título
         updateTitledBorders();
 
@@ -351,11 +328,7 @@ public class RLCSimulator extends JFrame implements SimulationObserver {
         updateCircuitDiagram();
     }
 
-    private void updateTitledBorders() {
-        updatePanelBorders((JPanel) getContentPane());
-    }
-
-    private void updatePanelBorders(JPanel panel) {
+    private void updateTitledBorders(JPanel panel) {
         Border border = panel.getBorder();
         if (border instanceof TitledBorder) {
             TitledBorder titledBorder = (TitledBorder) border;
@@ -377,14 +350,18 @@ public class RLCSimulator extends JFrame implements SimulationObserver {
         // Actualizar recursivamente
         for (Component comp : panel.getComponents()) {
             if (comp instanceof JPanel) {
-                updatePanelBorders((JPanel) comp);
+                updateTitledBorders((JPanel) comp);
             }
         }
     }
 
+    private void updateTitledBorders() {
+        updateTitledBorders((JPanel) this);
+    }
+
     private void updateAllUITexts() {
         // Actualizar labels
-        updateAllComponents(this.getContentPane());
+        updateAllComponents(this);
     }
 
     private void updateAllComponents(Container container) {
@@ -592,18 +569,22 @@ public class RLCSimulator extends JFrame implements SimulationObserver {
         }
     }
 
-    // En RLCSimulator.java - MODIFICAR el método showGraphs()
-
     private void showGraphs() {
         if (lastResult != null) {
-            GraphWindow graphWindow = new GraphWindow(this, lastResult, components);
+            // Necesitamos obtener el JFrame padre para crear el GraphWindow
+            Window parentWindow = SwingUtilities.getWindowAncestor(this);
+            if (parentWindow instanceof JFrame) {
+                GraphWindow graphWindow = new GraphWindow((JFrame) parentWindow, lastResult, components);
 
-            // Agregar listener para cambios de idioma
-            langCombo.addActionListener(e -> {
-                graphWindow.updateUITexts();
-            });
+                // Agregar listener para cambios de idioma
+                langCombo.addActionListener(e -> {
+                    graphWindow.updateUITexts();
+                });
 
-            graphWindow.setVisible(true);
+                graphWindow.setVisible(true);
+            } else {
+                showError("No se puede mostrar la ventana de gráficos: ventana padre no disponible");
+            }
         }
     }
 
@@ -752,24 +733,98 @@ public class RLCSimulator extends JFrame implements SimulationObserver {
                 languageManager.getTranslation("information"), JOptionPane.INFORMATION_MESSAGE);
     }
 
-    private void closeApplication() {
-        if (engine != null) {
-            engine.dispose();
-        }
-        dispose();
-        System.exit(0);
+    // ========== NUEVOS MÉTODOS AGREGADOS PARA LA INTEGRACIÓN ==========
+
+    /**
+     * Actualiza el tamaño de fuente en el simulador
+     */
+    public void updateFontSize(float newSize) {
+        // Actualizar fuentes de los componentes principales
+        updateComponentFonts(this, newSize);
+        revalidate();
+        repaint();
     }
 
-    public static void main(String[] args) {
-        // Configurar look and feel de forma segura para Java 17
-        setupLookAndFeel();
+    private void updateComponentFonts(Container container, float newSize) {
+        for (Component comp : container.getComponents()) {
+            if (comp instanceof JComponent) {
+                JComponent jcomp = (JComponent) comp;
+                
+                if (jcomp instanceof JLabel) {
+                    JLabel label = (JLabel) jcomp;
+                    Font currentFont = label.getFont();
+                    label.setFont(currentFont.deriveFont(newSize));
+                } else if (jcomp instanceof JButton) {
+                    JButton button = (JButton) jcomp;
+                    Font currentFont = button.getFont();
+                    button.setFont(currentFont.deriveFont(newSize));
+                } else if (jcomp instanceof JTextField) {
+                    JTextField textField = (JTextField) jcomp;
+                    Font currentFont = textField.getFont();
+                    textField.setFont(currentFont.deriveFont(newSize));
+                } else if (jcomp instanceof JComboBox) {
+                    JComboBox<?> combo = (JComboBox<?>) jcomp;
+                    Font currentFont = combo.getFont();
+                    combo.setFont(currentFont.deriveFont(newSize));
+                } else if (jcomp instanceof JTextArea) {
+                    JTextArea textArea = (JTextArea) jcomp;
+                    Font currentFont = textArea.getFont();
+                    textArea.setFont(currentFont.deriveFont(newSize));
+                } else if (jcomp instanceof JTabbedPane) {
+                    JTabbedPane tabs = (JTabbedPane) jcomp;
+                    Font currentFont = tabs.getFont();
+                    tabs.setFont(currentFont.deriveFont(newSize));
+                } else if (jcomp instanceof JList) {
+                    JList<?> list = (JList<?>) jcomp;
+                    Font currentFont = list.getFont();
+                    list.setFont(currentFont.deriveFont(newSize));
+                }
+            }
+            
+            if (comp instanceof Container) {
+                updateComponentFonts((Container) comp, newSize);
+            }
+        }
+    }
 
+    /**
+     * Libera recursos del simulador
+     */
+    public void disposeResources() {
+        if (engine != null) {
+            engine.dispose();
+            engine = null;
+        }
+        if (components != null) {
+            components.clear();
+        }
+        lastResult = null;
+    }
+
+    /**
+     * Método para ejecución independiente (crea su propio JFrame)
+     */
+    public void showInFrame() {
+        JFrame frame = new JFrame("Simulador de Circuitos RLC");
+        frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+        frame.setContentPane(this);
+        frame.pack();
+        frame.setLocationRelativeTo(null);
+        frame.setVisible(true);
+    }
+
+    /**
+     * Método main para ejecución independiente
+     */
+    public static void main(String[] args) {
+        setupLookAndFeel();
+        
         SwingUtilities.invokeLater(() -> {
             try {
-                System.out.println("Iniciando Simulador RLC...");
+                System.out.println("Iniciando Simulador RLC en modo independiente...");
                 RLCSimulator simulator = new RLCSimulator();
-                simulator.setVisible(true);
-                System.out.println("Simulador iniciado correctamente");
+                simulator.showInFrame();
+                System.out.println("Simulador RLC iniciado correctamente");
             } catch (Exception e) {
                 handleStartupError(e);
             }
@@ -778,18 +833,15 @@ public class RLCSimulator extends JFrame implements SimulationObserver {
 
     private static void setupLookAndFeel() {
         try {
-            // Método CORREGIDO para Java 17 - usar getSystemLookAndFeelClassName()
             UIManager.setLookAndFeel(UIManager.getSystemLookAndFeelClassName());
             System.out.println("Look and feel del sistema configurado correctamente");
         } catch (Exception e1) {
             System.err.println("Error configurando look and feel del sistema: " + e1.getMessage());
             try {
-                // Fallback a Nimbus (moderno)
                 UIManager.setLookAndFeel("javax.swing.plaf.nimbus.NimbusLookAndFeel");
                 System.out.println("Look and feel Nimbus configurado como fallback");
             } catch (Exception e2) {
                 try {
-                    // Fallback final a Metal (cross-platform)
                     UIManager.setLookAndFeel(UIManager.getCrossPlatformLookAndFeelClassName());
                     System.out.println("Look and feel cross-platform configurado como fallback");
                 } catch (Exception e3) {
@@ -802,12 +854,11 @@ public class RLCSimulator extends JFrame implements SimulationObserver {
     private static void handleStartupError(Exception e) {
         System.err.println("Error crítico iniciando la aplicación: " + e.getMessage());
         e.printStackTrace();
-
-        // Mostrar mensaje de error básico
+        
         JOptionPane.showMessageDialog(null,
-                "Error iniciando la aplicación:\n" + e.getMessage() +
-                        "\n\nVer consola para más detalles.",
-                "Error de Inicio",
-                JOptionPane.ERROR_MESSAGE);
+            "Error iniciando la aplicación:\n" + e.getMessage() +
+            "\n\nVer consola para más detalles.",
+            "Error de Inicio",
+            JOptionPane.ERROR_MESSAGE);
     }
 }

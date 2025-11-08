@@ -152,13 +152,16 @@ public class CircuitEngine {
             }
         }
     }
-
+    
     /**
      * Limpia los recursos del motor
      * Cleans up engine resources
      */
     public void dispose() {
-        observers.clear();
+        if (observers != null) {
+            observers.clear();
+        }
+        strategy = null;
         isSimulating = false;
     }
 }
