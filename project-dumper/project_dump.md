@@ -131,20 +131,23 @@ import javax.swing.SwingUtilities;
 public class App {
     public static void main(String[] args) {
         System.out.println("Iniciando Simulador RLC...");
+        System.out.println("Java version: " + System.getProperty("java.version"));
         
         SwingUtilities.invokeLater(() -> {
             try {
                 System.out.println("Creando interfaz gráfica...");
-                new RLCSimulator();
-                System.out.println("Aplicación iniciada correctamente");
+                // Usar el método main de RLCSimulator en lugar de crear instancia directamente
+                RLCSimulator.main(args);
             } catch (Exception e) {
                 System.err.println("Error iniciando aplicación: " + e.getMessage());
                 e.printStackTrace();
+                javax.swing.JOptionPane.showMessageDialog(null, 
+                    "Error: " + e.getMessage(), "Error", 
+                    javax.swing.JOptionPane.ERROR_MESSAGE);
             }
         });
     }
 }
-
 ```
 
 ## C:\Users\joese\OneDrive\Escritorio\Projects\integrador_simulador\simuladordefisica\src\main\java\com\simulador\engine\AnalyticalStrategy.java
@@ -264,83 +267,86 @@ public class CircuitEngine {
     private final List<SimulationObserver> observers;
     private SimulationStrategy strategy;
     private boolean isSimulating;
-    
+
     public CircuitEngine() {
         this.observers = new CopyOnWriteArrayList<>();
         this.strategy = new AnalyticalStrategy(); // Estrategia por defecto
         this.isSimulating = false;
     }
-    
+
     public void setStrategy(SimulationStrategy strategy) {
         if (strategy == null) {
             throw new IllegalArgumentException("Strategy cannot be null");
         }
         this.strategy = strategy;
     }
-    
+
     public SimulationStrategy getStrategy() {
         return strategy;
     }
-    
+
     public void addObserver(SimulationObserver observer) {
         if (observer != null && !observers.contains(observer)) {
             observers.add(observer);
         }
     }
-    
+
     public void removeObserver(SimulationObserver observer) {
         observers.remove(observer);
     }
-    
+
     public boolean isSimulating() {
         return isSimulating;
     }
-    
+
     /**
      * Ejecuta la simulación del circuito
      * Executes circuit simulation
      */
-    public void simulate(List<CircuitComponent> components, 
-                        double voltage, double frequency) {
+    // En CircuitEngine.java - MODIFICAR el método simulate:
+
+    public void simulate(List<CircuitComponent> components,
+            double voltage, double frequency) {
         if (isSimulating) {
             notifyError("Simulation already in progress");
             return;
         }
-        
+
         // Validaciones básicas
         if (components == null || components.isEmpty()) {
             notifyError("No components in circuit");
             return;
         }
-        
+
         if (voltage <= 0 || voltage > 10000) {
             notifyError("Voltage must be between 0.1 and 10000 V");
             return;
         }
-        
+
         if (frequency <= 0 || frequency > 1000000) {
             notifyError("Frequency must be between 0.1 and 1 MHz");
             return;
         }
-        
+
         if (!strategy.isValidFor(components)) {
             notifyError("Selected method is not valid for this circuit configuration");
             return;
         }
-        
+
         isSimulating = true;
-        
+        notifyStart(); // <-- AÑADIR esta línea
+
         // Ejecutar en hilo separado para no bloquear la UI
         new Thread(() -> {
             try {
                 SimulationResult result = strategy.calculate(components, voltage, frequency);
-                
+
                 if (result != null && result.isValid()) {
                     notifyComplete(result);
                 } else {
                     notifyError("Invalid simulation results");
                 }
-                
+
             } catch (IllegalArgumentException e) {
                 notifyError("Invalid input parameters: " + e.getMessage());
             } catch (ArithmeticException e) {
@@ -353,19 +359,32 @@ public class CircuitEngine {
             }
         }).start();
     }
-    
+
+    // AÑADIR este método en CircuitEngine:
+    private void notifyStart() {
+        for (SimulationObserver observer : observers) {
+            try {
+                // Usar reflexión para mantener compatibilidad
+                observer.getClass().getMethod("onSimulationStart").invoke(observer);
+            } catch (Exception e) {
+                // Si el método no existe, continuar sin error
+                System.out.println("Observer doesn't implement onSimulationStart: " + e.getMessage());
+            }
+        }
+    }
+
     /**
      * Obtiene todas las estrategias disponibles
      * Gets all available strategies
      */
     public static SimulationStrategy[] getAvailableStrategies() {
-        return new SimulationStrategy[]{
-            new AnalyticalStrategy(),
-            new EulerStrategy(),
-            new RungeKutta4Strategy()
+        return new SimulationStrategy[] {
+                new AnalyticalStrategy(),
+                new EulerStrategy(),
+                new RungeKutta4Strategy()
         };
     }
-    
+
     private void notifyComplete(SimulationResult result) {
         for (SimulationObserver observer : observers) {
             try {
@@ -375,7 +394,7 @@ public class CircuitEngine {
             }
         }
     }
-    
+
     private void notifyError(String error) {
         isSimulating = false;
         for (SimulationObserver observer : observers) {
@@ -386,7 +405,7 @@ public class CircuitEngine {
             }
         }
     }
-    
+
     /**
      * Limpia los recursos del motor
      * Cleans up engine resources
@@ -414,7 +433,6 @@ import java.util.List;
 public class EulerStrategy implements SimulationStrategy {
     
     private static final double TIME_STEP = 1e-5; // 10 microsegundos
-    private static final double SIMULATION_TIME = 0.1; // 100 ms
     
     @Override
     public String getName() { 
@@ -464,37 +482,6 @@ public class EulerStrategy implements SimulationStrategy {
             throw new RuntimeException("Error in Euler method calculation: " + e.getMessage(), e);
         }
     }
-    
-    /**
-     * Método de Euler para ecuación diferencial de circuito RLC
-     * Euler's method for RLC circuit differential equation
-     */
-    private double[] solveDifferentialEquation(double R, double L, double C, 
-                                               double voltage, double frequency) {
-        double w = 2 * Math.PI * frequency;
-        int steps = (int)(SIMULATION_TIME / TIME_STEP);
-
-        double[] current = new double[steps];
-        double[] di_dt = new double[steps]; // nombre corregido
-
-        // Condiciones iniciales
-        current[0] = 0.0;
-        di_dt[0] = voltage / L;
-
-        // Integración por Euler
-        for (int i = 1; i < steps; i++) {
-            double t = i * TIME_STEP;
-            double V = voltage * Math.sin(w * t);
-
-            // Aproximación de la ecuación diferencial RLC
-            double d2i_dt2 = (V - R * di_dt[i - 1] - (1.0 / C) * current[i - 1]) / L;
-
-            di_dt[i] = di_dt[i - 1] + d2i_dt2 * TIME_STEP;
-            current[i] = current[i - 1] + di_dt[i] * TIME_STEP;
-        }
-
-        return current;
-    }
 }
 
 ```
@@ -515,7 +502,6 @@ import java.util.List;
 public class RungeKutta4Strategy implements SimulationStrategy {
     
     private static final double TIME_STEP = 1e-5; // 10 microsegundos
-    private static final double SIMULATION_TIME = 0.1; // 100 ms
     
     @Override
     public String getName() { 
@@ -564,54 +550,6 @@ public class RungeKutta4Strategy implements SimulationStrategy {
         } catch (Exception e) {
             throw new RuntimeException("Error in Runge-Kutta calculation: " + e.getMessage(), e);
         }
-    }
-    
-    /**
-     * Método Runge-Kutta 4to orden para ecuación diferencial
-     * 4th order Runge-Kutta method for differential equation
-     */
-    private double[] rungeKutta4(double R, double L, double C, 
-                                double voltage, double frequency) {
-        double w = 2 * Math.PI * frequency;
-        int steps = (int)(SIMULATION_TIME / TIME_STEP);
-        double[] current = new double[steps];
-        double[] di_dt = new double[steps];
-        
-        // Condiciones iniciales
-        current[0] = 0;
-        di_dt[0] = voltage / L;
-        
-        for (int i = 0; i < steps - 1; i++) {
-            double t = i * TIME_STEP;
-            double V = voltage * Math.sin(w * t);
-            
-            // Coeficientes k1
-            double k1_i = di_dt[i];
-            double k1_di = (V - R * current[i] - (1.0/C) * current[i]) / L;
-            
-            // Coeficientes k2
-            double k2_i = di_dt[i] + 0.5 * TIME_STEP * k1_di;
-            double k2_di = (V - R * (current[i] + 0.5 * TIME_STEP * k1_i) - 
-                           (1.0/C) * (current[i] + 0.5 * TIME_STEP * k1_i)) / L;
-            
-            // Coeficientes k3
-            double k3_i = di_dt[i] + 0.5 * TIME_STEP * k2_di;
-            double k3_di = (V - R * (current[i] + 0.5 * TIME_STEP * k2_i) - 
-                           (1.0/C) * (current[i] + 0.5 * TIME_STEP * k2_i)) / L;
-            
-            // Coeficientes k4
-            double k4_i = di_dt[i] + TIME_STEP * k3_di;
-            double k4_di = (V - R * (current[i] + TIME_STEP * k3_i) - 
-                           (1.0/C) * (current[i] + TIME_STEP * k3_i)) / L;
-            
-            // Promedio ponderado
-            current[i+1] = current[i] + (TIME_STEP / 6.0) * 
-                          (k1_i + 2*k2_i + 2*k3_i + k4_i);
-            di_dt[i+1] = di_dt[i] + (TIME_STEP / 6.0) * 
-                         (k1_di + 2*k2_di + 2*k3_di + k4_di);
-        }
-        
-        return current;
     }
 }
 ```
@@ -1765,7 +1703,7 @@ public class RLCSimulator extends JFrame implements SimulationObserver {
     private java.util.List<CircuitComponent> components;
     private SimulationResult lastResult;
     private DecimalFormat df = new DecimalFormat("0.000");
-    
+
     // Componentes de UI
     private JTextField voltageField, frequencyField, valueField;
     private JComboBox<String> componentTypeCombo, methodCombo, presetCombo, langCombo;
@@ -1775,75 +1713,64 @@ public class RLCSimulator extends JFrame implements SimulationObserver {
     private JLabel circuitDiagram;
     private JButton addButton, removeButton, simulateButton, graphButton, clearButton;
     private JProgressBar progressBar;
-    
+
     public RLCSimulator() {
         this.engine = new CircuitEngine();
         this.components = new ArrayList<>();
-        
+
         initializeEngine();
         initializeUI();
         setupEventHandlers();
     }
 
-    @Override
-    public void onSimulationComplete(Object result) {
-        // Aquí decides qué hacer cuando la simulación termina.
-        // Por ejemplo, mostrar resultados en la interfaz gráfica:
-        System.out.println("Simulación finalizada: " + result);
-
-        // Si result es de tipo SimulationResult, puedes castear:
-        // SimulationResult simResult = (SimulationResult) result;
-        // actualizar la UI con simResult.getCurrent(), etc.
-    }
-    
     private void initializeEngine() {
         engine.addObserver(this);
         engine.setStrategy(new AnalyticalStrategy());
     }
-    
+
     private void initializeUI() {
         setTitle("Simulador de Circuitos RLC");
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         setPreferredSize(new Dimension(1200, 800));
-        
+
         JPanel mainPanel = new JPanel(new BorderLayout(10, 10));
         mainPanel.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
-        
+
         mainPanel.add(createControlPanel(), BorderLayout.NORTH);
         mainPanel.add(createCircuitPanel(), BorderLayout.CENTER);
         mainPanel.add(createResultsPanel(), BorderLayout.SOUTH);
-        
+
         add(mainPanel);
         pack();
         setLocationRelativeTo(null);
-        
+
         // Configurar cierre seguro
         setupSafeClose();
     }
-    
+
     private JPanel createControlPanel() {
         JPanel panel = new JPanel();
         panel.setLayout(new BoxLayout(panel, BoxLayout.Y_AXIS));
         panel.setBorder(BorderFactory.createTitledBorder("Controles de Entrada"));
-        
+
         // Selector de idioma
         JPanel langPanel = createLanguagePanel();
-        
+
         // Panel de entrada principal
         JPanel inputPanel = createInputPanel();
-        
+
         // Selector de método
         JPanel methodPanel = createMethodPanel();
-        
+
         // Presets de circuito
         JPanel presetPanel = createPresetPanel();
-        
+
         // Panel de componentes
         JPanel componentPanel = createComponentPanel();
-        
+
         // Lista de componentes
         JPanel listPanel = createComponentListPanel();
-        
+
         panel.add(langPanel);
         panel.add(Box.createVerticalStrut(5));
         panel.add(inputPanel);
@@ -1855,218 +1782,217 @@ public class RLCSimulator extends JFrame implements SimulationObserver {
         panel.add(componentPanel);
         panel.add(Box.createVerticalStrut(5));
         panel.add(listPanel);
-        
+
         return panel;
     }
-    
+
     private JPanel createLanguagePanel() {
         JPanel panel = new JPanel(new FlowLayout(FlowLayout.LEFT));
         panel.add(new JLabel("Idioma:"));
-        
-        langCombo = new JComboBox<>(new String[]{"Español", "Português", "English"});
+
+        langCombo = new JComboBox<>(new String[] { "Español", "Português", "English" });
         langCombo.setSelectedItem("Español");
         panel.add(langCombo);
-        
+
         return panel;
     }
-    
+
     private JPanel createInputPanel() {
         JPanel panel = new JPanel(new FlowLayout(FlowLayout.LEFT));
-        
+
         panel.add(new JLabel("Voltaje (V):"));
         voltageField = new JTextField("10", 8);
         voltageField.setToolTipText("Voltaje de alimentación (0.1 - 1000 V)");
         panel.add(voltageField);
-        
+
         panel.add(new JLabel("Frecuencia (Hz):"));
         frequencyField = new JTextField("60", 8);
         frequencyField.setToolTipText("Frecuencia de operación (0.1 - 10000 Hz)");
         panel.add(frequencyField);
-        
+
         return panel;
     }
-    
+
     private JPanel createMethodPanel() {
         JPanel panel = new JPanel(new FlowLayout(FlowLayout.LEFT));
         panel.add(new JLabel("Método:"));
-        
+
         methodCombo = new JComboBox<>();
         for (SimulationStrategy strategy : CircuitEngine.getAvailableStrategies()) {
             methodCombo.addItem(strategy.getName());
         }
         methodCombo.setToolTipText("Seleccione el método de simulación");
         panel.add(methodCombo);
-        
+
         return panel;
     }
-    
+
     private JPanel createPresetPanel() {
         JPanel panel = new JPanel(new FlowLayout(FlowLayout.LEFT));
         panel.add(new JLabel("Circuito Predefinido:"));
-        
-        presetCombo = new JComboBox<>(new String[]{
-            "Personalizado", "Subamortiguado", "Crítico", "Sobreamortiguado",
-            "RLC Serie", "Filtro Pasa Altos", "Filtro Pasa Bajos"
+
+        presetCombo = new JComboBox<>(new String[] {
+                "Personalizado", "Subamortiguado", "Crítico", "Sobreamortiguado",
+                "RLC Serie", "Filtro Pasa Altos", "Filtro Pasa Bajos"
         });
         presetCombo.setToolTipText("Seleccione un circuito predefinido");
         panel.add(presetCombo);
-        
+
         return panel;
     }
-    
+
     private JPanel createComponentPanel() {
         JPanel panel = new JPanel(new FlowLayout(FlowLayout.LEFT));
-        
+
         panel.add(new JLabel("Tipo:"));
-        componentTypeCombo = new JComboBox<>(new String[]{
-            "Resistencia", "Inductor", "Capacitor"
+        componentTypeCombo = new JComboBox<>(new String[] {
+                "Resistencia", "Inductor", "Capacitor"
         });
         panel.add(componentTypeCombo);
-        
+
         panel.add(new JLabel("Valor:"));
         valueField = new JTextField("100", 8);
         valueField.setToolTipText("Valor del componente (debe ser positivo)");
         panel.add(valueField);
-        
+
         addButton = new JButton("Agregar Componente");
         addButton.setToolTipText("Agregar componente al circuito");
         panel.add(addButton);
-        
+
         return panel;
     }
-    
+
     private JPanel createComponentListPanel() {
         JPanel panel = new JPanel(new BorderLayout());
-        
+
         componentsModel = new DefaultListModel<>();
         componentsList = new JList<>(componentsModel);
         componentsList.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
         componentsList.setToolTipText("Componentes en el circuito");
-        
+
         JScrollPane listScroll = new JScrollPane(componentsList);
         listScroll.setPreferredSize(new Dimension(400, 100));
-        
+
         removeButton = new JButton("Eliminar Seleccionado");
         removeButton.setToolTipText("Eliminar componente seleccionado");
-        
+
         panel.add(new JLabel("Lista de Componentes:"), BorderLayout.NORTH);
         panel.add(listScroll, BorderLayout.CENTER);
         panel.add(removeButton, BorderLayout.SOUTH);
-        
+
         return panel;
     }
-    
+
     private JPanel createCircuitPanel() {
         JPanel panel = new JPanel(new BorderLayout());
         panel.setBorder(BorderFactory.createTitledBorder("Diagrama del Circuito"));
         panel.setPreferredSize(new Dimension(600, 150));
-        
+
         circuitDiagram = new JLabel("", JLabel.CENTER);
         circuitDiagram.setFont(new Font("Arial", Font.PLAIN, 16));
         circuitDiagram.setVerticalTextPosition(JLabel.CENTER);
         circuitDiagram.setHorizontalTextPosition(JLabel.CENTER);
-        
+
         updateCircuitDiagram();
-        
+
         panel.add(circuitDiagram, BorderLayout.CENTER);
         return panel;
     }
-    
+
     private JPanel createResultsPanel() {
         JPanel panel = new JPanel(new BorderLayout());
         panel.setBorder(BorderFactory.createTitledBorder("Resultados y Gráficos"));
-        
+
         // Panel de botones
         JPanel buttonPanel = createButtonPanel();
-        
+
         // Área de resultados
         JPanel resultsPanel = createResultsAreaPanel();
-        
+
         panel.add(buttonPanel, BorderLayout.NORTH);
         panel.add(resultsPanel, BorderLayout.CENTER);
-        
+
         return panel;
     }
-    
+
     private JPanel createButtonPanel() {
         JPanel panel = new JPanel(new FlowLayout());
-        
+
         simulateButton = new JButton("Simular Circuito");
         simulateButton.setToolTipText("Ejecutar simulación del circuito");
-        
+
         graphButton = new JButton("Ver Gráficos");
         graphButton.setEnabled(false);
         graphButton.setToolTipText("Abrir ventana de gráficos");
-        
+
         clearButton = new JButton("Limpiar Todo");
         clearButton.setToolTipText("Limpiar circuito y resultados");
-        
+
         // Barra de progreso
         progressBar = new JProgressBar();
         progressBar.setVisible(false);
         progressBar.setStringPainted(true);
-        
+
         panel.add(simulateButton);
         panel.add(graphButton);
         panel.add(clearButton);
         panel.add(progressBar);
-        
+
         return panel;
     }
-    
+
     private JPanel createResultsAreaPanel() {
         JPanel panel = new JPanel(new BorderLayout());
-        
+
         resultsArea = new JTextArea(12, 70);
         resultsArea.setEditable(false);
         resultsArea.setFont(new Font("Monospaced", Font.PLAIN, 12));
         resultsArea.setText(
-            "=== SIMULADOR DE CIRCUITOS RLC ===\n\n" +
-            "Instrucciones:\n" +
-            "1. Agregue componentes (R, L, C) al circuito\n" +
-            "2. Configure voltaje y frecuencia\n" + 
-            "3. Seleccione método de simulación\n" +
-            "4. Haga clic en 'Simular Circuito'\n\n" +
-            "Características:\n" +
-            "• Análisis en dominio de tiempo y frecuencia\n" +
-            "• Diagramas fasoriales interactivos\n" +
-            "• Múltiples métodos de cálculo\n" +
-            "• Circuitos predefinidos\n" +
-            "• Soporte multiidioma\n"
-        );
-        
+                "=== SIMULADOR DE CIRCUITOS RLC ===\n\n" +
+                        "Instrucciones:\n" +
+                        "1. Agregue componentes (R, L, C) al circuito\n" +
+                        "2. Configure voltaje y frecuencia\n" +
+                        "3. Seleccione método de simulación\n" +
+                        "4. Haga clic en 'Simular Circuito'\n\n" +
+                        "Características:\n" +
+                        "• Análisis en dominio de tiempo y frecuencia\n" +
+                        "• Diagramas fasoriales interactivos\n" +
+                        "• Múltiples métodos de cálculo\n" +
+                        "• Circuitos predefinidos\n" +
+                        "• Soporte multiidioma\n");
+
         JScrollPane scroll = new JScrollPane(resultsArea);
         scroll.setBorder(BorderFactory.createLineBorder(Color.LIGHT_GRAY));
-        
+
         panel.add(scroll, BorderLayout.CENTER);
         return panel;
     }
-    
+
     private void setupEventHandlers() {
         // Selector de idioma
         langCombo.addActionListener(e -> changeLanguage());
-        
+
         // Selector de método
         methodCombo.addActionListener(e -> updateStrategy());
-        
+
         // Selector de preset
         presetCombo.addActionListener(e -> loadPreset());
-        
+
         // Botones de componentes
         addButton.addActionListener(e -> addComponent());
         removeButton.addActionListener(e -> removeComponent());
-        
+
         // Botones principales
         simulateButton.addActionListener(e -> simulateCircuit());
         graphButton.addActionListener(e -> showGraphs());
         clearButton.addActionListener(e -> clearAll());
-        
+
         // Enter en campos de texto
         valueField.addActionListener(e -> addComponent());
         voltageField.addActionListener(e -> simulateCircuit());
         frequencyField.addActionListener(e -> simulateCircuit());
     }
-    
+
     private void setupSafeClose() {
         addWindowListener(new WindowAdapter() {
             @Override
@@ -2075,22 +2001,28 @@ public class RLCSimulator extends JFrame implements SimulationObserver {
             }
         });
     }
-    
+
     private void changeLanguage() {
         String selected = (String) langCombo.getSelectedItem();
-        switch(selected) {
-            case "Español": I18N.setLanguage("es"); break;
-            case "Português": I18N.setLanguage("pt"); break;
-            case "English": I18N.setLanguage("en"); break;
+        switch (selected) {
+            case "Español":
+                I18N.setLanguage("es");
+                break;
+            case "Português":
+                I18N.setLanguage("pt");
+                break;
+            case "English":
+                I18N.setLanguage("en");
+                break;
         }
         updateUITexts();
     }
-    
+
     private void updateUITexts() {
         setTitle(I18N.get("title"));
         // Actualizar otros textos de UI según sea necesario
     }
-    
+
     private void updateStrategy() {
         int index = methodCombo.getSelectedIndex();
         SimulationStrategy[] strategies = CircuitEngine.getAvailableStrategies();
@@ -2098,59 +2030,78 @@ public class RLCSimulator extends JFrame implements SimulationObserver {
             engine.setStrategy(strategies[index]);
         }
     }
-    
+
     private void loadPreset() {
         String selected = (String) presetCombo.getSelectedItem();
-        if (selected == null || "Personalizado".equals(selected)) return;
-        
+        if (selected == null || "Personalizado".equals(selected))
+            return;
+
         String presetType = "";
-        switch(selected) {
-            case "Subamortiguado": presetType = "underdamped"; break;
-            case "Crítico": presetType = "critical"; break;
-            case "Sobreamortiguado": presetType = "overdamped"; break;
-            case "RLC Serie": presetType = "series_rlc"; break;
-            case "Filtro Pasa Altos": presetType = "high_pass"; break;
-            case "Filtro Pasa Bajos": presetType = "low_pass"; break;
+        switch (selected) {
+            case "Subamortiguado":
+                presetType = "underdamped";
+                break;
+            case "Crítico":
+                presetType = "critical";
+                break;
+            case "Sobreamortiguado":
+                presetType = "overdamped";
+                break;
+            case "RLC Serie":
+                presetType = "series_rlc";
+                break;
+            case "Filtro Pasa Altos":
+                presetType = "high_pass";
+                break;
+            case "Filtro Pasa Bajos":
+                presetType = "low_pass";
+                break;
         }
-        
+
         components.clear();
         components.addAll(CircuitFactory.createPreset(presetType));
-        
+
         updateComponentList();
         updateCircuitDiagram();
-        
+
         showInfo("Circuito predefinido '" + selected + "' cargado");
     }
-    
+
     private void addComponent() {
         try {
             String type = "";
             int index = componentTypeCombo.getSelectedIndex();
-            switch(index) {
-                case 0: type = "Resistance"; break;
-                case 1: type = "Inductor"; break;
-                case 2: type = "Capacitor"; break;
+            switch (index) {
+                case 0:
+                    type = "Resistance";
+                    break;
+                case 1:
+                    type = "Inductor";
+                    break;
+                case 2:
+                    type = "Capacitor";
+                    break;
             }
-            
+
             double value = Double.parseDouble(valueField.getText());
             if (value <= 0) {
                 showError("El valor del componente debe ser positivo");
                 return;
             }
-            
+
             CircuitComponent comp = new CircuitComponent(type, value);
             components.add(comp);
             updateComponentList();
             updateCircuitDiagram();
-            
+
             valueField.setText("");
             valueField.requestFocus();
-            
+
         } catch (NumberFormatException ex) {
             showError("Por favor ingrese un valor numérico válido");
         }
     }
-    
+
     private void removeComponent() {
         int index = componentsList.getSelectedIndex();
         if (index >= 0 && index < components.size()) {
@@ -2161,103 +2112,108 @@ public class RLCSimulator extends JFrame implements SimulationObserver {
             showError("Seleccione un componente para eliminar");
         }
     }
-    
+
     private void simulateCircuit() {
         if (components.isEmpty()) {
             showError("Agregue al menos un componente al circuito");
             return;
         }
-        
-        if (!validateInputs()) return;
-        
+
+        if (!validateInputs())
+            return;
+
         try {
             double voltage = Double.parseDouble(voltageField.getText());
             double frequency = Double.parseDouble(frequencyField.getText());
-            
+
             progressBar.setVisible(true);
             progressBar.setIndeterminate(true);
             progressBar.setString("Simulando...");
-            
+
             simulateButton.setEnabled(false);
             graphButton.setEnabled(false);
-            
+
             engine.simulate(components, voltage, frequency);
-            
+
         } catch (NumberFormatException ex) {
             showError("Error en los valores de voltaje o frecuencia");
         }
     }
-    
+
     private boolean validateInputs() {
         try {
             double voltage = Double.parseDouble(voltageField.getText());
             double frequency = Double.parseDouble(frequencyField.getText());
-            
+
             if (voltage <= 0 || voltage > 1000) {
                 showError("El voltaje debe estar entre 0.1 y 1000 V");
                 return false;
             }
-            
+
             if (frequency <= 0 || frequency > 10000) {
                 showError("La frecuencia debe estar entre 0.1 y 10000 Hz");
                 return false;
             }
-            
+
             return true;
-            
+
         } catch (NumberFormatException e) {
             showError("Ingrese valores numéricos válidos para voltaje y frecuencia");
             return false;
         }
     }
-    
+
     private void showGraphs() {
         if (lastResult != null) {
             GraphWindow graphWindow = new GraphWindow(this, lastResult, components);
             graphWindow.setVisible(true);
         }
     }
-    
+
     private void clearAll() {
         components.clear();
         updateComponentList();
         updateCircuitDiagram();
-        
+
         resultsArea.setText("Circuito limpiado. Listo para nueva simulación.");
         graphButton.setEnabled(false);
         lastResult = null;
-        
+
         showInfo("Circuito y resultados limpiados");
     }
-    
+
     private void updateComponentList() {
         componentsModel.clear();
         for (CircuitComponent comp : components) {
             componentsModel.addElement(comp.toString());
         }
     }
-    
+
     private void updateCircuitDiagram() {
         StringBuilder html = new StringBuilder("<html><div style='text-align:center;'>");
-        
+
         if (components.isEmpty()) {
             html.append("<p style='color:gray;font-size:14px;'>Circuito Vacío</p>");
             html.append("<p style='color:gray;font-size:12px;'>Agregue componentes para comenzar</p>");
         } else {
             html.append("<p style='font-size:16px;margin-bottom:10px;'>⚡ ");
-            
+
             for (int i = 0; i < components.size(); i++) {
-                if (i > 0) html.append(" — ");
+                if (i > 0)
+                    html.append(" — ");
                 String type = components.get(i).getType();
-                if (type.equals("Resistance")) html.append("R");
-                else if (type.equals("Inductor")) html.append("L");
-                else html.append("C");
-                
+                if (type.equals("Resistance"))
+                    html.append("R");
+                else if (type.equals("Inductor"))
+                    html.append("L");
+                else
+                    html.append("C");
+
                 html.append(" (").append(components.get(i).getValue()).append(")");
             }
-            
+
             html.append(" ⚡</p>");
-            
+
             // Información resumida
             double totalR = 0, totalL = 0, totalC = 0;
             for (CircuitComponent comp : components) {
@@ -2265,76 +2221,90 @@ public class RLCSimulator extends JFrame implements SimulationObserver {
                 totalL += comp.getInductance();
                 totalC += comp.getCapacitance();
             }
-            
+
             html.append("<p style='font-size:12px;color:darkblue;'>");
             html.append("R: ").append(String.format("%.2f Ω", totalR)).append(" | ");
             html.append("L: ").append(String.format("%.4f H", totalL)).append(" | ");
             html.append("C: ").append(String.format("%.6f F", totalC));
             html.append("</p>");
         }
-        
+
         html.append("</div></html>");
         circuitDiagram.setText(html.toString());
     }
-    
-    public void onSimulationComplete(SimulationResult result) {
+
+    // En RLCSimulator.java - REEMPLAZAR el método onSimulationComplete existente:
+
+    @Override
+    public void onSimulationComplete(Object result) {
         SwingUtilities.invokeLater(() -> {
-            lastResult = result;
-            graphButton.setEnabled(true);
-            
-            StringBuilder sb = new StringBuilder();
-            sb.append("=== RESULTADOS DE SIMULACIÓN ===\n\n");
-            sb.append("• Impedancia: ").append(df.format(result.getImpedance())).append(" Ω\n");
-            sb.append("• Corriente: ").append(df.format(result.getCurrent())).append(" A\n");
-            sb.append("• Ángulo de Fase: ").append(df.format(Math.toDegrees(result.getPhaseAngle()))).append("°\n");
-            sb.append("• Potencia Activa: ").append(df.format(result.getActivePower())).append(" W\n");
-            sb.append("• Potencia Reactiva: ").append(df.format(result.getReactivePower())).append(" VAR\n");
-            sb.append("• Potencia Aparente: ").append(df.format(result.getApparentPower())).append(" VA\n");
-            sb.append("• Factor de Potencia: ").append(df.format(result.getPowerFactor())).append("\n\n");
-            
-            // Información adicional
-            double phaseDeg = Math.toDegrees(result.getPhaseAngle());
-            if (phaseDeg > 0) {
-                sb.append("→ Circuito INDUCTIVO (corriente atrasada)\n");
-            } else if (phaseDeg < 0) {
-                sb.append("→ Circuito CAPACITIVO (corriente adelantada)\n");
+            if (result instanceof SimulationResult) {
+                SimulationResult simResult = (SimulationResult) result;
+                lastResult = simResult;
+                graphButton.setEnabled(true);
+
+                StringBuilder sb = new StringBuilder();
+                sb.append("=== RESULTADOS DE SIMULACIÓN ===\n\n");
+                sb.append("• Impedancia: ").append(df.format(simResult.getImpedance())).append(" Ω\n");
+                sb.append("• Corriente: ").append(df.format(simResult.getCurrent())).append(" A\n");
+                sb.append("• Ángulo de Fase: ").append(df.format(Math.toDegrees(simResult.getPhaseAngle())))
+                        .append("°\n");
+                sb.append("• Potencia Activa: ").append(df.format(simResult.getActivePower())).append(" W\n");
+                sb.append("• Potencia Reactiva: ").append(df.format(simResult.getReactivePower())).append(" VAR\n");
+                sb.append("• Potencia Aparente: ").append(df.format(simResult.getApparentPower())).append(" VA\n");
+                sb.append("• Factor de Potencia: ").append(df.format(simResult.getPowerFactor())).append("\n\n");
+
+                // Información adicional
+                double phaseDeg = Math.toDegrees(simResult.getPhaseAngle());
+                if (phaseDeg > 0) {
+                    sb.append("→ Circuito INDUCTIVO (corriente atrasada)\n");
+                } else if (phaseDeg < 0) {
+                    sb.append("→ Circuito CAPACITIVO (corriente adelantada)\n");
+                } else {
+                    sb.append("→ Circuito RESISTIVO (corriente en fase)\n");
+                }
+
+                resultsArea.setText(sb.toString());
+
+                progressBar.setVisible(false);
+                simulateButton.setEnabled(true);
             } else {
-                sb.append("→ Circuito RESISTIVO (corriente en fase)\n");
+                onSimulationError("Resultado de simulación inválido");
             }
-            
-            resultsArea.setText(sb.toString());
-            
-            progressBar.setVisible(false);
-            simulateButton.setEnabled(true);
         });
     }
-    
+
     @Override
     public void onSimulationError(String error) {
         SwingUtilities.invokeLater(() -> {
             showError("Error en simulación: " + error);
-            
+
             progressBar.setVisible(false);
             simulateButton.setEnabled(true);
             graphButton.setEnabled(false);
         });
     }
-    
+
+    // AÑADIR este método faltante:
+    @Override
     public void onSimulationStart() {
         SwingUtilities.invokeLater(() -> {
             resultsArea.setText("Simulación en progreso...\n\nPor favor espere.");
+            progressBar.setVisible(true);
+            progressBar.setIndeterminate(true);
+            progressBar.setString("Simulando...");
         });
     }
-    
+
     // Métodos de utilidad
     private void showError(String message) {
         JOptionPane.showMessageDialog(this, message, "Error", JOptionPane.ERROR_MESSAGE);
     }
-    
+
     private void showInfo(String message) {
         JOptionPane.showMessageDialog(this, message, "Información", JOptionPane.INFORMATION_MESSAGE);
     }
-    
+
     private void closeApplication() {
         if (engine != null) {
             engine.dispose();
@@ -2342,11 +2312,11 @@ public class RLCSimulator extends JFrame implements SimulationObserver {
         dispose();
         System.exit(0);
     }
-    
+
     public static void main(String[] args) {
         // Configurar look and feel de forma segura para Java 17
         setupLookAndFeel();
-        
+
         SwingUtilities.invokeLater(() -> {
             try {
                 System.out.println("Iniciando Simulador RLC...");
@@ -2358,7 +2328,7 @@ public class RLCSimulator extends JFrame implements SimulationObserver {
             }
         });
     }
-    
+
     private static void setupLookAndFeel() {
         try {
             // Método CORREGIDO para Java 17 - usar getSystemLookAndFeelClassName()
@@ -2381,17 +2351,17 @@ public class RLCSimulator extends JFrame implements SimulationObserver {
             }
         }
     }
-    
+
     private static void handleStartupError(Exception e) {
         System.err.println("Error crítico iniciando la aplicación: " + e.getMessage());
         e.printStackTrace();
-        
+
         // Mostrar mensaje de error básico
         JOptionPane.showMessageDialog(null,
-            "Error iniciando la aplicación:\n" + e.getMessage() + 
-            "\n\nVer consola para más detalles.",
-            "Error de Inicio",
-            JOptionPane.ERROR_MESSAGE);
+                "Error iniciando la aplicación:\n" + e.getMessage() +
+                        "\n\nVer consola para más detalles.",
+                "Error de Inicio",
+                JOptionPane.ERROR_MESSAGE);
     }
 }
 ```
@@ -2537,13 +2507,9 @@ import java.awt.geom.Path2D;
  */
 public class WaveformGraph extends BaseGraph {
     private SimulationResult result;
-    private Path2D.Double voltageWave;
-    private Path2D.Double currentWave;
     
     public WaveformGraph(SimulationResult result) {
         this.result = result;
-        this.voltageWave = new Path2D.Double();
-        this.currentWave = new Path2D.Double();
         setPreferredSize(new Dimension(800, 600));
     }
     
@@ -2558,7 +2524,6 @@ public class WaveformGraph extends BaseGraph {
     }
     
     private void drawWaveforms(Graphics2D g2d) {
-        int width = getWidth();
         int height = getHeight();
         int halfHeight = (height - 2 * padding) / 2;
         
@@ -2809,13 +2774,21 @@ public interface SimulationObserver {
      * Se llama cuando una simulación se completa exitosamente
      * Called when a simulation completes successfully
      */
-    void onSimulationComplete(Object result); // Usar Object temporalmente
+    void onSimulationComplete(Object result);
     
     /**
      * Se llama cuando ocurre un error en la simulación
      * Called when a simulation error occurs
      */
     void onSimulationError(String error);
+    
+    /**
+     * Se llama cuando una simulación inicia (método opcional)
+     * Called when a simulation starts (optional method)
+     */
+    default void onSimulationStart() {
+        // Implementación por defecto vacía para compatibilidad
+    }
 }
 ```
 

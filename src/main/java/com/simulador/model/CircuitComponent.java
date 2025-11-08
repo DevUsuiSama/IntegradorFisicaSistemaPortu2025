@@ -1,6 +1,6 @@
 package com.simulador.model;
 
-import com.simulador.utils.I18N;
+import com.simulador.utils.LanguageManager;
 import java.util.Objects;
 
 /**
@@ -10,10 +10,12 @@ import java.util.Objects;
 public class CircuitComponent {
     private String type;
     private double value;
+    private LanguageManager languageManager;
     
     public CircuitComponent(String type, double value) {
         this.type = type;
         this.value = value;
+        this.languageManager = LanguageManager.getInstance();
     }
     
     public String getType() { 
@@ -43,15 +45,15 @@ public class CircuitComponent {
         
         switch(type) {
             case "Resistance":
-                displayType = I18N.get("resistance");
+                displayType = languageManager.getTranslation("resistance");
                 unit = "Ω";
                 break;
             case "Inductor":
-                displayType = I18N.get("inductor");
+                displayType = languageManager.getTranslation("inductor");
                 unit = "H";
                 break;
             case "Capacitor":
-                displayType = I18N.get("capacitor");
+                displayType = languageManager.getTranslation("capacitor");
                 unit = "F";
                 break;
         }
