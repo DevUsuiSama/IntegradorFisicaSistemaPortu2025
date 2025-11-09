@@ -29,7 +29,7 @@ public class LanguageManager {
             Map.entry("component_list", "Lista de Componentes:"),
             Map.entry("remove_selected", "Eliminar Seleccionado"),
             Map.entry("circuit_diagram", "Diagrama del Circuito"),
-            Map.entry("results", "Resultados y Gráficos"),
+            Map.entry("results", "Resultados"),
             Map.entry("simulate", "Simular Circuito"),
             Map.entry("view_graphs", "Ver Gráficos"),
             Map.entry("clear_all", "Limpiar Todo"),
@@ -97,7 +97,15 @@ public class LanguageManager {
             Map.entry("refresh_graphs", "Actualizar Gráficos"),
             Map.entry("save_as_image", "Guardar como Imagen"),
             Map.entry("close", "Cerrar"),
-            Map.entry("save_image_not_implemented", "Funcionalidad de guardar imagen no implementada en esta versión.\nUse la función de captura de pantalla de su sistema.")
+            Map.entry("save_image_not_implemented", "Funcionalidad de guardar imagen no implementada en esta versión.\nUse la función de captura de pantalla de su sistema."),
+            // Nuevas traducciones para el diseño de dos columnas
+            Map.entry("configuration", "Configuración del Circuito"),
+            Map.entry("power_supply", "Fuente de Alimentación"),
+            Map.entry("simulation_method", "Método de Simulación"),
+            Map.entry("circuit_presets", "Circuitos Predefinidos"),
+            Map.entry("components", "Componentes"),
+            Map.entry("actions", "Acciones"),
+            Map.entry("simulation_graph", "Gráfica de Simulación")
         )),
         Map.entry("pt", Map.ofEntries(
             Map.entry("title", "Simulador de Circuitos RLC"),
@@ -113,7 +121,7 @@ public class LanguageManager {
             Map.entry("component_list", "Lista de Componentes:"),
             Map.entry("remove_selected", "Remover Selecionado"),
             Map.entry("circuit_diagram", "Diagrama do Circuito"),
-            Map.entry("results", "Resultados e Gráficos"),
+            Map.entry("results", "Resultados"),
             Map.entry("simulate", "Simular Circuito"),
             Map.entry("view_graphs", "Ver Gráficos"),
             Map.entry("clear_all", "Limpar Tudo"),
@@ -181,7 +189,15 @@ public class LanguageManager {
             Map.entry("refresh_graphs", "Atualizar Gráficos"),
             Map.entry("save_as_image", "Salvar como Imagem"),
             Map.entry("close", "Fechar"),
-            Map.entry("save_image_not_implemented", "Funcionalidade de salvar imagem não implementada nesta versão.\nUse a função de captura de tela do seu sistema.")
+            Map.entry("save_image_not_implemented", "Funcionalidade de salvar imagem não implementada nesta versão.\nUse a função de captura de tela do seu sistema."),
+            // Nuevas traducciones para el diseño de dos columnas
+            Map.entry("configuration", "Configuração do Circuito"),
+            Map.entry("power_supply", "Fonte de Alimentação"),
+            Map.entry("simulation_method", "Método de Simulação"),
+            Map.entry("circuit_presets", "Circuitos Predefinidos"),
+            Map.entry("components", "Componentes"),
+            Map.entry("actions", "Ações"),
+            Map.entry("simulation_graph", "Gráfico de Simulação")
         ))
     );
 

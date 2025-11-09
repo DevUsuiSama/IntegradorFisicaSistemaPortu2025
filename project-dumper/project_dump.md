@@ -15,12 +15,22 @@
 ┃       ┣ model
 ┃       ┃ ┣ CircuitComponent.java
 ┃       ┃ ┣ CircuitFactory.java
+┃       ┃ ┣ CircuitSimulationTask.java
 ┃       ┃ ┗ SimulationResult.java
+┃       ┣ scheduler
+┃       ┃ ┣ FirstComeFirstServedScheduler.java
+┃       ┃ ┣ ProcessScheduler.java
+┃       ┃ ┣ RoundRobinScheduler.java
+┃       ┃ ┣ SchedulerMetrics.java
+┃       ┃ ┣ SchedulerStrategy.java
+┃       ┃ ┗ ShortestJobFirstScheduler.java
 ┃       ┣ ui
 ┃       ┃ ┣ BaseGraph.java
 ┃       ┃ ┣ FrequencyGraph.java
 ┃       ┃ ┣ GraphWindow.java
 ┃       ┃ ┣ MainSimulatorFrame.java
+┃       ┃ ┣ NavigatorPanel.java
+┃       ┃ ┣ OSSimulatorPanel.java
 ┃       ┃ ┣ PhasorDiagram.java
 ┃       ┃ ┣ RLCSimulator.java
 ┃       ┃ ┣ TimeGraph.java
@@ -790,6 +800,209 @@ public class CircuitFactory {
 }
 ```
 
+## C:\Users\joese\OneDrive\Escritorio\Projects\integrador_simulador\simuladordefisica\src\main\java\com\simulador\model\CircuitSimulationTask.java
+
+```java
+package com.simulador.model;
+
+import java.util.concurrent.atomic.AtomicLong;
+
+/**
+ * Representa una tarea de simulación de circuito eléctrico para planificación
+ * Represents an electrical circuit simulation task for scheduling
+ */
+public class CircuitSimulationTask implements Runnable, Comparable<CircuitSimulationTask> {
+    private static final AtomicLong idGenerator = new AtomicLong(1);
+    
+    private final long id;
+    private final String name;
+    private final Complexity complexity;
+    private final long estimatedDuration;
+    private final long creationTime;
+    
+    private long startTime;
+    private long finishTime;
+    private volatile TaskState state;
+    private Thread executionThread;
+    
+    public enum Complexity {
+        SIMPLE("Simple", 1000, 5000),    // 1-5 segundos
+        MEDIUM("Medio", 5000, 15000),    // 5-15 segundos  
+        COMPLEX("Complejo", 15000, 30000); // 15-30 segundos
+        
+        private final String displayName;
+        private final long minDuration;
+        private final long maxDuration;
+        
+        Complexity(String displayName, long minDuration, long maxDuration) {
+            this.displayName = displayName;
+            this.minDuration = minDuration;
+            this.maxDuration = maxDuration;
+        }
+        
+        public String getDisplayName() { return displayName; }
+        public long getMinDuration() { return minDuration; }
+        public long getMaxDuration() { return maxDuration; }
+    }
+    
+    public enum TaskState {
+        CREATED("Creada"),
+        READY("Lista"),
+        RUNNING("Ejecutando"),
+        PAUSED("Pausada"),
+        COMPLETED("Completada"),
+        INTERRUPTED("Interrumpida");
+        
+        private final String displayName;
+        
+        TaskState(String displayName) {
+            this.displayName = displayName;
+        }
+        
+        public String getDisplayName() { return displayName; }
+    }
+    
+    public CircuitSimulationTask(String name, Complexity complexity) {
+        this.id = idGenerator.getAndIncrement();
+        this.name = name;
+        this.complexity = complexity;
+        this.estimatedDuration = calculateEstimatedDuration(complexity);
+        this.creationTime = System.currentTimeMillis();
+        this.state = TaskState.CREATED;
+    }
+    
+    private long calculateEstimatedDuration(Complexity complexity) {
+        long range = complexity.getMaxDuration() - complexity.getMinDuration();
+        return complexity.getMinDuration() + (long)(Math.random() * range);
+    }
+    
+    @Override
+    public void run() {
+        this.state = TaskState.RUNNING;
+        this.startTime = System.currentTimeMillis();
+        this.executionThread = Thread.currentThread();
+        
+        try {
+            // Simular el procesamiento de la simulación del circuito
+            System.out.printf("[Tarea %d] Iniciando simulación: %s (%s)%n", 
+                id, name, complexity.getDisplayName());
+            
+            // Simular trabajo con sleep
+            long start = System.currentTimeMillis();
+            long elapsed = 0;
+            
+            while (elapsed < estimatedDuration && !Thread.currentThread().isInterrupted()) {
+                long remaining = estimatedDuration - elapsed;
+                long sleepTime = Math.min(remaining, 100); // Actualizar cada 100ms
+                
+                Thread.sleep(sleepTime);
+                elapsed = System.currentTimeMillis() - start;
+                
+                // Simular progreso
+                if (elapsed % 1000 == 0) {
+                    int progress = (int)((elapsed * 100) / estimatedDuration);
+                    System.out.printf("[Tarea %d] Progreso: %d%%%n", id, progress);
+                }
+            }
+            
+            if (!Thread.currentThread().isInterrupted()) {
+                this.finishTime = System.currentTimeMillis();
+                this.state = TaskState.COMPLETED;
+                System.out.printf("[Tarea %d] Simulación completada en %d ms%n", 
+                    id, getExecutionTime());
+            } else {
+                this.state = TaskState.INTERRUPTED;
+                System.out.printf("[Tarea %d] Simulación interrumpida%n", id);
+            }
+            
+        } catch (InterruptedException e) {
+            this.state = TaskState.INTERRUPTED;
+            System.out.printf("[Tarea %d] Simulación interrumpida%n", id);
+            Thread.currentThread().interrupt();
+        } finally {
+            this.executionThread = null;
+        }
+    }
+    
+    public void pause() {
+        if (state == TaskState.RUNNING && executionThread != null) {
+            executionThread.interrupt();
+            state = TaskState.PAUSED;
+        }
+    }
+    
+    public void resume() {
+        if (state == TaskState.PAUSED) {
+            state = TaskState.READY;
+        }
+    }
+    
+    public void interrupt() {
+        if (executionThread != null) {
+            executionThread.interrupt();
+        }
+        state = TaskState.INTERRUPTED;
+    }
+    
+    // Getters
+    public long getId() { return id; }
+    public String getName() { return name; }
+    public Complexity getComplexity() { return complexity; }
+    public long getEstimatedDuration() { return estimatedDuration; }
+    public long getCreationTime() { return creationTime; }
+    public long getStartTime() { return startTime; }
+    public long getFinishTime() { return finishTime; }
+    public TaskState getState() { return state; }
+    
+    public long getWaitingTime() {
+        if (startTime == 0) return 0;
+        return startTime - creationTime;
+    }
+    
+    public long getExecutionTime() {
+        if (finishTime == 0 || startTime == 0) return 0;
+        return finishTime - startTime;
+    }
+    
+    public long getTurnaroundTime() {
+        if (finishTime == 0) return 0;
+        return finishTime - creationTime;
+    }
+    
+    public double getProgress() {
+        if (startTime == 0) return 0;
+        if (finishTime > 0) return 100.0;
+        
+        long elapsed = System.currentTimeMillis() - startTime;
+        return Math.min(100.0, (elapsed * 100.0) / estimatedDuration);
+    }
+    
+    @Override
+    public int compareTo(CircuitSimulationTask other) {
+        return Long.compare(this.creationTime, other.creationTime);
+    }
+    
+    @Override
+    public String toString() {
+        return String.format("Tarea[%d: %s, %s, %dms]", 
+            id, name, complexity.getDisplayName(), estimatedDuration);
+    }
+    
+    @Override
+    public boolean equals(Object obj) {
+        if (this == obj) return true;
+        if (obj == null || getClass() != obj.getClass()) return false;
+        CircuitSimulationTask that = (CircuitSimulationTask) obj;
+        return id == that.id;
+    }
+    
+    @Override
+    public int hashCode() {
+        return Long.hashCode(id);
+    }
+}
+```
+
 ## C:\Users\joese\OneDrive\Escritorio\Projects\integrador_simulador\simuladordefisica\src\main\java\com\simulador\model\SimulationResult.java
 
 ```java
@@ -865,6 +1078,723 @@ public class SimulationResult {
             "SimulationResult[Z=%.3fΩ, I=%.3fA, φ=%.3frad, P=%.3fW, Q=%.3fVAR, S=%.3fVA, pf=%.3f]",
             impedance, current, phaseAngle, activePower, reactivePower, apparentPower, powerFactor
         );
+    }
+}
+```
+
+## C:\Users\joese\OneDrive\Escritorio\Projects\integrador_simulador\simuladordefisica\src\main\java\com\simulador\scheduler\FirstComeFirstServedScheduler.java
+
+```java
+package com.simulador.scheduler;
+
+import com.simulador.model.CircuitSimulationTask;
+import java.util.List;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
+
+/**
+ * Algoritmo First-Come, First-Served (FCFS)
+ * Ejecuta procesos en orden de llegada
+ */
+public class FirstComeFirstServedScheduler implements SchedulerStrategy {
+    private volatile boolean running = false;
+    private ExecutorService executor;
+    
+    @Override
+    public void schedule(List<CircuitSimulationTask> tasks) {
+        if (tasks == null || tasks.isEmpty()) {
+            System.out.println("Lista de tareas vacía para FCFS");
+            return;
+        }
+        
+        running = true;
+        executor = Executors.newSingleThreadExecutor();
+        
+        // Ejecutar en hilo separado para no bloquear la UI
+        new Thread(() -> {
+            System.out.println("=== Iniciando planificación FCFS ===");
+            System.out.printf("Total de tareas: %d%n", tasks.size());
+            
+            for (CircuitSimulationTask task : tasks) {
+                if (!running) break;
+                
+                try {
+                    System.out.printf("Ejecutando tarea: %s%n", task);
+                    executor.submit(task);
+                    
+                    // Esperar a que termine la tarea actual antes de continuar
+                    while (!executor.awaitTermination(100, TimeUnit.MILLISECONDS)) {
+                        if (!running) {
+                            executor.shutdownNow();
+                            break;
+                        }
+                    }
+                    
+                } catch (InterruptedException e) {
+                    System.out.println("Planificación FCFS interrumpida");
+                    Thread.currentThread().interrupt();
+                    break;
+                }
+            }
+            
+            if (running) {
+                executor.shutdown();
+                try {
+                    if (!executor.awaitTermination(1, TimeUnit.MINUTES)) {
+                        executor.shutdownNow();
+                    }
+                } catch (InterruptedException e) {
+                    executor.shutdownNow();
+                    Thread.currentThread().interrupt();
+                }
+            }
+            
+            running = false;
+            System.out.println("=== Planificación FCFS finalizada ===");
+            
+        }).start();
+    }
+    
+    @Override
+    public String getName() {
+        return "First-Come, First-Served (FCFS)";
+    }
+    
+    @Override
+    public String getDescription() {
+        return "Ejecuta procesos en orden de llegada (no apropiativo)";
+    }
+    
+    @Override
+    public void interrupt() {
+        running = false;
+        if (executor != null) {
+            executor.shutdownNow();
+        }
+    }
+    
+    @Override
+    public boolean isRunning() {
+        return running;
+    }
+}
+```
+
+## C:\Users\joese\OneDrive\Escritorio\Projects\integrador_simulador\simuladordefisica\src\main\java\com\simulador\scheduler\ProcessScheduler.java
+
+```java
+package com.simulador.scheduler;
+
+import com.simulador.model.CircuitSimulationTask;
+import java.beans.PropertyChangeListener;
+import java.beans.PropertyChangeSupport;
+import java.util.ArrayList;
+import java.util.List;
+
+/**
+ * Controlador principal para la planificación de procesos
+ * Main controller for process scheduling
+ */
+public class ProcessScheduler {
+    private SchedulerStrategy currentStrategy;
+    private final List<CircuitSimulationTask> tasks;
+    private SchedulerMetrics metrics;
+    private boolean simulationRunning;
+    private final PropertyChangeSupport propertyChangeSupport;
+    
+    // Constantes para eventos de propiedad
+    public static final String PROPERTY_MESSAGE = "message";
+    public static final String PROPERTY_SIMULATION_STATE = "simulationState";
+    public static final String PROPERTY_TASKS_UPDATED = "tasksUpdated";
+    
+    public ProcessScheduler() {
+        this.tasks = new ArrayList<>();
+        this.simulationRunning = false;
+        this.propertyChangeSupport = new PropertyChangeSupport(this);
+    }
+    
+    // Métodos para manejar PropertyChangeListeners
+    public void addPropertyChangeListener(PropertyChangeListener listener) {
+        propertyChangeSupport.addPropertyChangeListener(listener);
+    }
+    
+    public void addPropertyChangeListener(String propertyName, PropertyChangeListener listener) {
+        propertyChangeSupport.addPropertyChangeListener(propertyName, listener);
+    }
+    
+    public void removePropertyChangeListener(PropertyChangeListener listener) {
+        propertyChangeSupport.removePropertyChangeListener(listener);
+    }
+    
+    public void removePropertyChangeListener(String propertyName, PropertyChangeListener listener) {
+        propertyChangeSupport.removePropertyChangeListener(propertyName, listener);
+    }
+    
+    public void setStrategy(SchedulerStrategy strategy) {
+        if (simulationRunning) {
+            throw new IllegalStateException("No se puede cambiar estrategia durante simulación");
+        }
+        this.currentStrategy = strategy;
+        firePropertyChange(PROPERTY_MESSAGE, null, "Estrategia cambiada a: " + strategy.getName());
+    }
+    
+    public void addTask(CircuitSimulationTask task) {
+        tasks.add(task);
+        firePropertyChange(PROPERTY_MESSAGE, null, "Tarea agregada: " + task.getName());
+        firePropertyChange(PROPERTY_TASKS_UPDATED, null, tasks);
+    }
+    
+    public void addTasks(List<CircuitSimulationTask> newTasks) {
+        tasks.addAll(newTasks);
+        firePropertyChange(PROPERTY_MESSAGE, null, newTasks.size() + " tareas agregadas");
+        firePropertyChange(PROPERTY_TASKS_UPDATED, null, tasks);
+    }
+    
+    public void clearTasks() {
+        if (simulationRunning) {
+            throw new IllegalStateException("No se puede limpiar durante simulación");
+        }
+        tasks.clear();
+        firePropertyChange(PROPERTY_MESSAGE, null, "Todas las tareas eliminadas");
+        firePropertyChange(PROPERTY_TASKS_UPDATED, null, tasks);
+    }
+    
+    public void startSimulation() {
+        if (currentStrategy == null) {
+            throw new IllegalStateException("No se ha seleccionado algoritmo de planificación");
+        }
+        if (tasks.isEmpty()) {
+            throw new IllegalStateException("No hay tareas para planificar");
+        }
+        if (simulationRunning) {
+            throw new IllegalStateException("Simulación ya en ejecución");
+        }
+        
+        simulationRunning = true;
+        this.metrics = new SchedulerMetrics(new ArrayList<>(tasks));
+        
+        firePropertyChange(PROPERTY_MESSAGE, null, "Iniciando simulación con " + currentStrategy.getName());
+        firePropertyChange(PROPERTY_SIMULATION_STATE, false, true);
+        
+        // Ejecutar en hilo separado
+        new Thread(() -> {
+            try {
+                currentStrategy.schedule(tasks);
+                
+                // Monitorear finalización
+                while (currentStrategy.isRunning()) {
+                    Thread.sleep(100);
+                }
+                
+                metrics.setEndTime();
+                simulationRunning = false;
+                
+                // Mostrar métricas
+                metrics.printMetrics(currentStrategy.getName());
+                firePropertyChange(PROPERTY_MESSAGE, null, "Simulación completada");
+                firePropertyChange(PROPERTY_SIMULATION_STATE, true, false);
+                
+            } catch (InterruptedException e) {
+                simulationRunning = false;
+                firePropertyChange(PROPERTY_MESSAGE, null, "Simulación interrumpida");
+                firePropertyChange(PROPERTY_SIMULATION_STATE, true, false);
+                Thread.currentThread().interrupt();
+            }
+        }).start();
+    }
+    
+    public void stopSimulation() {
+        if (currentStrategy != null && simulationRunning) {
+            currentStrategy.interrupt();
+            simulationRunning = false;
+            firePropertyChange(PROPERTY_MESSAGE, null, "Simulación detenida");
+            firePropertyChange(PROPERTY_SIMULATION_STATE, true, false);
+        }
+    }
+    
+    public List<CircuitSimulationTask> generateHomogeneousBatch(CircuitSimulationTask.Complexity complexity, int count) {
+        List<CircuitSimulationTask> batch = new ArrayList<>();
+        for (int i = 1; i <= count; i++) {
+            String name = String.format("Circuito_%s_%d", complexity.getDisplayName(), i);
+            batch.add(new CircuitSimulationTask(name, complexity));
+        }
+        return batch;
+    }
+    
+    public List<CircuitSimulationTask> generateHeterogeneousBatch(int simpleCount, int mediumCount, int complexCount) {
+        List<CircuitSimulationTask> batch = new ArrayList<>();
+        
+        // Agregar tareas simples
+        for (int i = 1; i <= simpleCount; i++) {
+            batch.add(new CircuitSimulationTask(
+                String.format("Circuito_Simple_%d", i), 
+                CircuitSimulationTask.Complexity.SIMPLE
+            ));
+        }
+        
+        // Agregar tareas medias
+        for (int i = 1; i <= mediumCount; i++) {
+            batch.add(new CircuitSimulationTask(
+                String.format("Circuito_Medio_%d", i), 
+                CircuitSimulationTask.Complexity.MEDIUM
+            ));
+        }
+        
+        // Agregar tareas complejas
+        for (int i = 1; i <= complexCount; i++) {
+            batch.add(new CircuitSimulationTask(
+                String.format("Circuito_Complejo_%d", i), 
+                CircuitSimulationTask.Complexity.COMPLEX
+            ));
+        }
+        
+        return batch;
+    }
+    
+    // Getters
+    public List<CircuitSimulationTask> getTasks() { return new ArrayList<>(tasks); }
+    public SchedulerStrategy getCurrentStrategy() { return currentStrategy; }
+    public boolean isSimulationRunning() { return simulationRunning; }
+    public SchedulerMetrics getMetrics() { return metrics; }
+    
+    // Método helper para disparar eventos de propiedad
+    private void firePropertyChange(String propertyName, Object oldValue, Object newValue) {
+        propertyChangeSupport.firePropertyChange(propertyName, oldValue, newValue);
+    }
+}
+```
+
+## C:\Users\joese\OneDrive\Escritorio\Projects\integrador_simulador\simuladordefisica\src\main\java\com\simulador\scheduler\RoundRobinScheduler.java
+
+```java
+package com.simulador.scheduler;
+
+import com.simulador.model.CircuitSimulationTask;
+import java.util.List;
+import java.util.Queue;
+import java.util.LinkedList;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
+
+/**
+ * Algoritmo Round Robin con quantum fijo
+ * Asigna un quantum de tiempo a cada proceso
+ */
+public class RoundRobinScheduler implements SchedulerStrategy {
+    private static final long QUANTUM = 100; // 100 ms
+    private static final long CONTEXT_SWITCH_TIME = 10; // 10 ms para cambio de contexto
+    private volatile boolean running = false;
+    private ExecutorService executor;
+    
+    @Override
+    public void schedule(List<CircuitSimulationTask> tasks) {
+        if (tasks == null || tasks.isEmpty()) {
+            System.out.println("Lista de tareas vacía para Round Robin");
+            return;
+        }
+        
+        running = true;
+        executor = Executors.newFixedThreadPool(1);
+        
+        new Thread(() -> {
+            System.out.println("=== Iniciando planificación Round Robin ===");
+            System.out.printf("Total de tareas: %d, Quantum: %d ms%n", tasks.size(), QUANTUM);
+            
+            Queue<CircuitSimulationTask> readyQueue = new LinkedList<>(tasks);
+            AtomicInteger completedTasks = new AtomicInteger(0);
+            int totalTasks = tasks.size();
+            int cycles = 0;
+            
+            while (!readyQueue.isEmpty() && running) {
+                cycles++;
+                CircuitSimulationTask task = readyQueue.poll();
+                
+                // Si la tarea ya está completada, continuar con la siguiente
+                if (task.getState() == CircuitSimulationTask.TaskState.COMPLETED) {
+                    completedTasks.incrementAndGet();
+                    continue;
+                }
+                
+                System.out.printf("Ciclo %d - Ejecutando tarea: %s%n", cycles, task);
+                
+                // Simular ejecución por quantum
+                final CircuitSimulationTask currentTask = task;
+                executor.submit(() -> {
+                    try {
+                        // Calcular tiempo restante para esta tarea
+                        long remainingTime = currentTask.getEstimatedDuration() - 
+                                           currentTask.getExecutionTime();
+                        
+                        if (remainingTime > 0) {
+                            // Ejecutar por el quantum o el tiempo restante (lo que sea menor)
+                            long executionTime = Math.min(QUANTUM, remainingTime);
+                            
+                            // Simular la ejecución
+                            Thread.sleep(executionTime);
+                            
+                            // Actualizar el progreso de la tarea
+                            long newRemainingTime = remainingTime - executionTime;
+                            
+                            System.out.printf("Tarea %d ejecutada por %d ms, restante: %d ms%n",
+                                currentTask.getId(), executionTime, newRemainingTime);
+                            
+                            // Si la tarea no ha terminado, volver a la cola
+                            if (newRemainingTime > 0) {
+                                synchronized(readyQueue) {
+                                    readyQueue.offer(currentTask);
+                                    System.out.printf("Tarea %d vuelve a la cola (restante: %d ms)%n",
+                                        currentTask.getId(), newRemainingTime);
+                                }
+                            } else {
+                                // Tarea completada
+                                completedTasks.incrementAndGet();
+                                System.out.printf("Tarea %d COMPLETADA%n", currentTask.getId());
+                            }
+                        } else {
+                            // Tarea ya debería estar completada
+                            completedTasks.incrementAndGet();
+                            System.out.printf("Tarea %d ya completada%n", currentTask.getId());
+                        }
+                        
+                    } catch (InterruptedException e) {
+                        System.out.printf("Tarea %d interrumpida durante quantum%n", 
+                            currentTask.getId());
+                        Thread.currentThread().interrupt();
+                        
+                        // Si fue interrumpida, volver a la cola si no está completada
+                        if (currentTask.getState() != CircuitSimulationTask.TaskState.COMPLETED) {
+                            synchronized(readyQueue) {
+                                readyQueue.offer(currentTask);
+                            }
+                        }
+                    }
+                });
+                
+                // Simular tiempo de cambio de contexto entre tareas
+                try {
+                    Thread.sleep(CONTEXT_SWITCH_TIME);
+                } catch (InterruptedException e) {
+                    System.out.println("Planificación Round Robin interrumpida durante cambio de contexto");
+                    break;
+                }
+                
+                // Pequeña pausa para evitar saturación del CPU
+                try {
+                    Thread.sleep(5);
+                } catch (InterruptedException e) {
+                    break;
+                }
+            }
+            
+            // Esperar a que terminen todas las tareas en ejecución
+            executor.shutdown();
+            try {
+                if (!executor.awaitTermination(30, TimeUnit.SECONDS)) {
+                    System.out.println("Forzando terminación de tareas pendientes...");
+                    executor.shutdownNow();
+                    if (!executor.awaitTermination(10, TimeUnit.SECONDS)) {
+                        System.err.println("No se pudieron terminar todas las tareas");
+                    }
+                }
+            } catch (InterruptedException e) {
+                executor.shutdownNow();
+                Thread.currentThread().interrupt();
+            }
+            
+            running = false;
+            int finalCompleted = completedTasks.get();
+            System.out.printf("=== Planificación Round Robin finalizada ===%n");
+            System.out.printf("Ciclos ejecutados: %d%n", cycles);
+            System.out.printf("Tareas completadas: %d/%d%n", finalCompleted, totalTasks);
+            System.out.printf("Eficiencia: %.1f%%%n", (finalCompleted * 100.0) / totalTasks);
+            
+        }).start();
+    }
+    
+    @Override
+    public String getName() {
+        return "Round Robin (RR)";
+    }
+    
+    @Override
+    public String getDescription() {
+        return "Planificación por turnos con quantum fijo de " + QUANTUM + "ms y cambio de contexto de " + CONTEXT_SWITCH_TIME + "ms";
+    }
+    
+    @Override
+    public void interrupt() {
+        running = false;
+        if (executor != null) {
+            executor.shutdownNow();
+        }
+    }
+    
+    @Override
+    public boolean isRunning() {
+        return running;
+    }
+}
+```
+
+## C:\Users\joese\OneDrive\Escritorio\Projects\integrador_simulador\simuladordefisica\src\main\java\com\simulador\scheduler\SchedulerMetrics.java
+
+```java
+package com.simulador.scheduler;
+
+import com.simulador.model.CircuitSimulationTask;
+import java.util.List;
+import java.util.stream.Collectors;
+
+/**
+ * Calcula métricas de rendimiento para algoritmos de planificación
+ * Calculates performance metrics for scheduling algorithms
+ */
+public class SchedulerMetrics {
+    private final List<CircuitSimulationTask> tasks;
+    private final long startTime;
+    private long endTime;
+    
+    public SchedulerMetrics(List<CircuitSimulationTask> tasks) {
+        this.tasks = tasks;
+        this.startTime = System.currentTimeMillis();
+    }
+    
+    public void setEndTime() {
+        this.endTime = System.currentTimeMillis();
+    }
+    
+    public long getTotalExecutionTime() {
+        return endTime - startTime;
+    }
+    
+    public double getThroughput() {
+        long completedTasks = tasks.stream()
+            .filter(t -> t.getState() == CircuitSimulationTask.TaskState.COMPLETED)
+            .count();
+        double timeSeconds = getTotalExecutionTime() / 1000.0;
+        return timeSeconds > 0 ? completedTasks / timeSeconds : 0;
+    }
+    
+    public double getAverageWaitingTime() {
+        return tasks.stream()
+            .filter(t -> t.getState() == CircuitSimulationTask.TaskState.COMPLETED)
+            .mapToLong(CircuitSimulationTask::getWaitingTime)
+            .average()
+            .orElse(0);
+    }
+    
+    public double getAverageTurnaroundTime() {
+        return tasks.stream()
+            .filter(t -> t.getState() == CircuitSimulationTask.TaskState.COMPLETED)
+            .mapToLong(CircuitSimulationTask::getTurnaroundTime)
+            .average()
+            .orElse(0);
+    }
+    
+    public double getCPUUtilization() {
+        long totalTaskTime = tasks.stream()
+            .filter(t -> t.getState() == CircuitSimulationTask.TaskState.COMPLETED)
+            .mapToLong(CircuitSimulationTask::getExecutionTime)
+            .sum();
+        return (totalTaskTime * 100.0) / getTotalExecutionTime();
+    }
+    
+    public double getStandardDeviationWaitingTime() {
+        double avg = getAverageWaitingTime();
+        double variance = tasks.stream()
+            .filter(t -> t.getState() == CircuitSimulationTask.TaskState.COMPLETED)
+            .mapToLong(CircuitSimulationTask::getWaitingTime)
+            .mapToDouble(w -> Math.pow(w - avg, 2))
+            .average()
+            .orElse(0);
+        return Math.sqrt(variance);
+    }
+    
+    public void printMetrics(String algorithmName) {
+        System.out.println("\n=== MÉTRICAS DE RENDIMIENTO: " + algorithmName + " ===");
+        System.out.printf("Tiempo total de ejecución: %d ms%n", getTotalExecutionTime());
+        System.out.printf("Throughput: %.2f tareas/segundo%n", getThroughput());
+        System.out.printf("Tiempo de espera promedio: %.2f ms%n", getAverageWaitingTime());
+        System.out.printf("Tiempo de retorno promedio: %.2f ms%n", getAverageTurnaroundTime());
+        System.out.printf("Utilización de CPU: %.2f%%%n", getCPUUtilization());
+        System.out.printf("Desviación estándar tiempo de espera: %.2f ms%n", 
+            getStandardDeviationWaitingTime());
+        
+        // Métricas por tipo de complejidad
+        System.out.println("\n--- Por tipo de circuito ---");
+        for (CircuitSimulationTask.Complexity complexity : CircuitSimulationTask.Complexity.values()) {
+            List<CircuitSimulationTask> complexityTasks = tasks.stream()
+                .filter(t -> t.getComplexity() == complexity)
+                .collect(Collectors.toList());
+            
+            if (!complexityTasks.isEmpty()) {
+                double avgTime = complexityTasks.stream()
+                    .filter(t -> t.getState() == CircuitSimulationTask.TaskState.COMPLETED)
+                    .mapToLong(CircuitSimulationTask::getTurnaroundTime)
+                    .average()
+                    .orElse(0);
+                
+                System.out.printf("%s: %.2f ms promedio (%d tareas)%n", 
+                    complexity.getDisplayName(), avgTime, complexityTasks.size());
+            }
+        }
+        System.out.println("====================================\n");
+    }
+}
+```
+
+## C:\Users\joese\OneDrive\Escritorio\Projects\integrador_simulador\simuladordefisica\src\main\java\com\simulador\scheduler\SchedulerStrategy.java
+
+```java
+package com.simulador.scheduler;
+
+import com.simulador.model.CircuitSimulationTask;
+import java.util.List;
+
+/**
+ * Interfaz Strategy para algoritmos de planificación
+ * Strategy interface for scheduling algorithms
+ */
+public interface SchedulerStrategy {
+    
+    /**
+     * Planifica y ejecuta las tareas según el algoritmo específico
+     * Schedules and executes tasks according to the specific algorithm
+     */
+    void schedule(List<CircuitSimulationTask> tasks);
+    
+    /**
+     * Obtiene el nombre del algoritmo
+     * Gets the algorithm name
+     */
+    String getName();
+    
+    /**
+     * Obtiene la descripción del algoritmo
+     * Gets the algorithm description  
+     */
+    String getDescription();
+    
+    /**
+     * Interrumpe la ejecución actual
+     * Interrupts current execution
+     */
+    void interrupt();
+    
+    /**
+     * Verifica si el planificador está ejecutando
+     * Checks if scheduler is running
+     */
+    boolean isRunning();
+}
+```
+
+## C:\Users\joese\OneDrive\Escritorio\Projects\integrador_simulador\simuladordefisica\src\main\java\com\simulador\scheduler\ShortestJobFirstScheduler.java
+
+```java
+package com.simulador.scheduler;
+
+import com.simulador.model.CircuitSimulationTask;
+import java.util.List;
+import java.util.PriorityQueue;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
+
+/**
+ * Algoritmo Shortest Job First (SJF)
+ * Prioriza procesos con menor duración estimada
+ */
+public class ShortestJobFirstScheduler implements SchedulerStrategy {
+    private volatile boolean running = false;
+    private ExecutorService executor;
+    
+    @Override
+    public void schedule(List<CircuitSimulationTask> tasks) {
+        if (tasks == null || tasks.isEmpty()) {
+            System.out.println("Lista de tareas vacía para SJF");
+            return;
+        }
+        
+        running = true;
+        executor = Executors.newSingleThreadExecutor();
+        
+        new Thread(() -> {
+            System.out.println("=== Iniciando planificación Shortest Job First ===");
+            System.out.printf("Total de tareas: %d%n", tasks.size());
+            
+            // Ordenar por duración estimada (más corta primero)
+            PriorityQueue<CircuitSimulationTask> queue = new PriorityQueue<>(
+                (t1, t2) -> Long.compare(t1.getEstimatedDuration(), t2.getEstimatedDuration())
+            );
+            queue.addAll(tasks);
+            
+            for (CircuitSimulationTask task : queue) {
+                if (!running) break;
+                
+                try {
+                    System.out.printf("Ejecutando tarea (duración: %d ms): %s%n", 
+                        task.getEstimatedDuration(), task);
+                    
+                    executor.submit(task);
+                    
+                    // Esperar a que termine la tarea actual antes de continuar
+                    while (!executor.awaitTermination(100, TimeUnit.MILLISECONDS)) {
+                        if (!running) {
+                            executor.shutdownNow();
+                            break;
+                        }
+                    }
+                    
+                } catch (InterruptedException e) {
+                    System.out.println("Planificación SJF interrumpida");
+                    Thread.currentThread().interrupt();
+                    break;
+                }
+            }
+            
+            if (running) {
+                executor.shutdown();
+                try {
+                    if (!executor.awaitTermination(1, TimeUnit.MINUTES)) {
+                        executor.shutdownNow();
+                    }
+                } catch (InterruptedException e) {
+                    executor.shutdownNow();
+                    Thread.currentThread().interrupt();
+                }
+            }
+            
+            running = false;
+            System.out.println("=== Planificación SJF finalizada ===");
+            
+        }).start();
+    }
+    
+    @Override
+    public String getName() {
+        return "Shortest Job First (SJF)";
+    }
+    
+    @Override
+    public String getDescription() {
+        return "Prioriza tareas con menor duración estimada (no apropiativo)";
+    }
+    
+    @Override
+    public void interrupt() {
+        running = false;
+        if (executor != null) {
+            executor.shutdownNow();
+        }
+    }
+    
+    @Override
+    public boolean isRunning() {
+        return running;
     }
 }
 ```
@@ -1513,33 +2443,7 @@ public class MainSimulatorFrame extends JFrame {
     }
 
     private JPanel createOSSimulatorPanel() {
-        JPanel panel = new JPanel(new BorderLayout());
-        panel.setBackground(new Color(240, 240, 240));
-
-        // Panel de contenido centrado
-        JPanel contentPanel = new JPanel(new GridBagLayout());
-        contentPanel.setBackground(new Color(240, 240, 240));
-
-        JLabel messageLabel = new JLabel("Simulador de Sistema Operativo - En Desarrollo");
-        messageLabel.setFont(new Font("Arial", Font.BOLD, 24));
-        messageLabel.setForeground(new Color(100, 100, 100));
-
-        JLabel subMessageLabel = new JLabel("Esta funcionalidad estará disponible en futuras versiones");
-        subMessageLabel.setFont(new Font("Arial", Font.PLAIN, 16));
-        subMessageLabel.setForeground(new Color(150, 150, 150));
-
-        JPanel messagePanel = new JPanel();
-        messagePanel.setLayout(new BoxLayout(messagePanel, BoxLayout.Y_AXIS));
-        messagePanel.setBackground(new Color(240, 240, 240));
-        messagePanel.add(messageLabel);
-        messagePanel.add(Box.createVerticalStrut(10));
-        messagePanel.add(subMessageLabel);
-
-        contentPanel.add(messagePanel);
-
-        panel.add(contentPanel, BorderLayout.CENTER);
-
-        return panel;
+        return new OSSimulatorPanel();
     }
 
     private void setupMenu() {
@@ -1587,22 +2491,22 @@ public class MainSimulatorFrame extends JFrame {
 
         // NUEVO: Menú Idioma en la barra superior
         languageMenu = new JMenu("Idioma");
-        
+
         // Opciones de idioma
         JRadioButtonMenuItem spanishItem = new JRadioButtonMenuItem("Español");
         JRadioButtonMenuItem portugueseItem = new JRadioButtonMenuItem("Português");
-        
+
         // Seleccionar español por defecto
         spanishItem.setSelected(true);
-        
+
         ButtonGroup languageGroup = new ButtonGroup();
         languageGroup.add(spanishItem);
         languageGroup.add(portugueseItem);
-        
+
         // Listeners para cambiar idioma
         spanishItem.addActionListener(e -> changeLanguage("es"));
         portugueseItem.addActionListener(e -> changeLanguage("pt"));
-        
+
         languageMenu.add(spanishItem);
         languageMenu.add(portugueseItem);
 
@@ -1616,7 +2520,7 @@ public class MainSimulatorFrame extends JFrame {
         // Agregar menús a la barra en el orden correcto
         menuBar.add(fileMenu);
         menuBar.add(settingsMenu);
-        menuBar.add(languageMenu);  // NUEVO: Menú de idioma en la barra
+        menuBar.add(languageMenu); // NUEVO: Menú de idioma en la barra
         menuBar.add(helpMenu);
 
         setJMenuBar(menuBar);
@@ -1628,10 +2532,10 @@ public class MainSimulatorFrame extends JFrame {
         if (physicsSimulator != null) {
             physicsSimulator.changeLanguage(languageCode);
         }
-        
+
         // Actualizar textos de los menús
         updateMenuTexts(languageCode);
-        
+
         // Actualizar título de la ventana según el idioma
         updateWindowTitle(languageCode);
     }
@@ -1643,7 +2547,7 @@ public class MainSimulatorFrame extends JFrame {
             settingsMenu.setText("Configuración");
             languageMenu.setText("Idioma");
             helpMenu.setText("Ayuda");
-            
+
             // Actualizar textos de los items del menú
             updateMenuItemsSpanish();
         } else if ("pt".equals(languageCode)) {
@@ -1651,7 +2555,7 @@ public class MainSimulatorFrame extends JFrame {
             settingsMenu.setText("Configuração");
             languageMenu.setText("Idioma");
             helpMenu.setText("Ajuda");
-            
+
             // Actualizar textos de los items del menú
             updateMenuItemsPortuguese();
         }
@@ -1661,11 +2565,11 @@ public class MainSimulatorFrame extends JFrame {
     private void updateMenuItemsSpanish() {
         // Menú Archivo
         fileMenu.getItem(0).setText("Salir");
-        
+
         // Menú Configuración
         settingsMenu.getItem(0).setText("Tamaño de Letra");
         settingsMenu.getItem(2).setText("Restablecer Configuración");
-        
+
         // Menú Ayuda
         helpMenu.getItem(0).setText("Acerca de");
     }
@@ -1674,11 +2578,11 @@ public class MainSimulatorFrame extends JFrame {
     private void updateMenuItemsPortuguese() {
         // Menú Archivo
         fileMenu.getItem(0).setText("Sair");
-        
+
         // Menú Configuración
         settingsMenu.getItem(0).setText("Tamanho da Fonte");
         settingsMenu.getItem(2).setText("Restabelecer Configuração");
-        
+
         // Menú Ayuda
         helpMenu.getItem(0).setText("Sobre");
     }
@@ -1795,9 +2699,19 @@ public class MainSimulatorFrame extends JFrame {
     }
 
     private void closeApplication() {
+        // Limpiar recursos del simulador de física
         if (physicsSimulator != null) {
             physicsSimulator.disposeResources();
         }
+
+        // Limpiar recursos del simulador de SO
+        Component[] components = tabbedPane.getComponents();
+        for (Component comp : components) {
+            if (comp instanceof OSSimulatorPanel) {
+                ((OSSimulatorPanel) comp).dispose();
+            }
+        }
+
         dispose();
         System.exit(0);
     }
@@ -1847,6 +2761,448 @@ public class MainSimulatorFrame extends JFrame {
                         "\n\nVer consola para más detalles.",
                 "Error de Inicio",
                 JOptionPane.ERROR_MESSAGE);
+    }
+}
+```
+
+## C:\Users\joese\OneDrive\Escritorio\Projects\integrador_simulador\simuladordefisica\src\main\java\com\simulador\ui\NavigatorPanel.java
+
+```java
+package com.simulador.ui;
+
+import com.simulador.scheduler.*;
+import com.simulador.model.CircuitSimulationTask;
+import javax.swing.*;
+import javax.swing.table.DefaultTableModel;
+import java.awt.*;
+import java.beans.PropertyChangeEvent;
+import java.beans.PropertyChangeListener;
+import java.util.List;
+
+/**
+ * Panel principal para la pestaña Navigator con planificación de procesos
+ * Main panel for Navigator tab with process scheduling
+ */
+public class NavigatorPanel extends JPanel implements PropertyChangeListener {
+    private ProcessScheduler scheduler;
+    private JComboBox<String> algorithmCombo;
+    private JComboBox<String> batchTypeCombo;
+    private JSpinner simpleSpinner, mediumSpinner, complexSpinner;
+    private JButton startButton, stopButton, clearButton;
+    private JTable tasksTable;
+    private DefaultTableModel tableModel;
+    private JTextArea logArea;
+    private JProgressBar progressBar;
+    private Timer updateTimer;
+    
+    // Constantes locales para mayor claridad
+    private static final String PROPERTY_MESSAGE = "message";
+    private static final String PROPERTY_SIMULATION_STATE = "simulationState";
+    private static final String PROPERTY_TASKS_UPDATED = "tasksUpdated";
+    
+    public NavigatorPanel() {
+        this.scheduler = new ProcessScheduler();
+        // Registrar como listener de PropertyChange events
+        this.scheduler.addPropertyChangeListener(this);
+        
+        initializeUI();
+        setupEventHandlers();
+        startUpdateTimer();
+    }
+    
+    private void initializeUI() {
+        setLayout(new BorderLayout(10, 10));
+        setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
+        
+        add(createControlPanel(), BorderLayout.NORTH);
+        add(createTasksPanel(), BorderLayout.CENTER);
+        add(createLogPanel(), BorderLayout.SOUTH);
+    }
+    
+    private JPanel createControlPanel() {
+        JPanel panel = new JPanel();
+        panel.setLayout(new BoxLayout(panel, BoxLayout.Y_AXIS));
+        panel.setBorder(BorderFactory.createTitledBorder("Configuración de Planificación"));
+        
+        // Panel de algoritmo
+        JPanel algorithmPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
+        algorithmPanel.add(new JLabel("Algoritmo:"));
+        
+        algorithmCombo = new JComboBox<>(new String[]{
+            "First-Come, First-Served (FCFS)",
+            "Round Robin (RR)", 
+            "Shortest Job First (SJF)"
+        });
+        algorithmCombo.setToolTipText("Seleccione el algoritmo de planificación");
+        algorithmPanel.add(algorithmCombo);
+        
+        // Panel de tipo de lote
+        JPanel batchPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
+        batchPanel.add(new JLabel("Tipo de Lote:"));
+        
+        batchTypeCombo = new JComboBox<>(new String[]{
+            "Homogéneo - Simple",
+            "Homogéneo - Medio", 
+            "Homogéneo - Complejo",
+            "Heterogéneo - Mixto"
+        });
+        batchTypeCombo.addActionListener(e -> updateBatchControls());
+        batchPanel.add(batchTypeCombo);
+        
+        // Panel de controles de batch
+        JPanel batchControlsPanel = createBatchControlsPanel();
+        
+        // Panel de botones
+        JPanel buttonPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
+        startButton = new JButton("Iniciar Simulación");
+        stopButton = new JButton("Detener");
+        clearButton = new JButton("Limpiar Todo");
+        
+        stopButton.setEnabled(false);
+        
+        buttonPanel.add(startButton);
+        buttonPanel.add(stopButton);
+        buttonPanel.add(clearButton);
+        
+        // Barra de progreso
+        progressBar = new JProgressBar();
+        progressBar.setStringPainted(true);
+        progressBar.setVisible(false);
+        
+        panel.add(algorithmPanel);
+        panel.add(Box.createVerticalStrut(5));
+        panel.add(batchPanel);
+        panel.add(Box.createVerticalStrut(5));
+        panel.add(batchControlsPanel);
+        panel.add(Box.createVerticalStrut(5));
+        panel.add(buttonPanel);
+        panel.add(Box.createVerticalStrut(5));
+        panel.add(progressBar);
+        
+        return panel;
+    }
+    
+    private JPanel createBatchControlsPanel() {
+        JPanel panel = new JPanel(new FlowLayout(FlowLayout.LEFT));
+        
+        panel.add(new JLabel("Simples:"));
+        simpleSpinner = new JSpinner(new SpinnerNumberModel(3, 0, 20, 1));
+        panel.add(simpleSpinner);
+        
+        panel.add(new JLabel("Medios:"));
+        mediumSpinner = new JSpinner(new SpinnerNumberModel(2, 0, 15, 1));
+        panel.add(mediumSpinner);
+        
+        panel.add(new JLabel("Complejos:"));
+        complexSpinner = new JSpinner(new SpinnerNumberModel(1, 0, 10, 1));
+        panel.add(complexSpinner);
+        
+        JButton generateButton = new JButton("Generar Lote");
+        generateButton.addActionListener(e -> generateBatch());
+        panel.add(generateButton);
+        
+        return panel;
+    }
+    
+    private JPanel createTasksPanel() {
+        JPanel panel = new JPanel(new BorderLayout());
+        panel.setBorder(BorderFactory.createTitledBorder("Tareas de Simulación"));
+        
+        // Modelo de tabla
+        String[] columns = {"ID", "Nombre", "Complejidad", "Duración (ms)", "Estado", "Progreso"};
+        tableModel = new DefaultTableModel(columns, 0) {
+            @Override
+            public boolean isCellEditable(int row, int column) {
+                return false;
+            }
+        };
+        
+        tasksTable = new JTable(tableModel);
+        tasksTable.setAutoCreateRowSorter(true);
+        
+        JScrollPane scrollPane = new JScrollPane(tasksTable);
+        panel.add(scrollPane, BorderLayout.CENTER);
+        
+        return panel;
+    }
+    
+    private JPanel createLogPanel() {
+        JPanel panel = new JPanel(new BorderLayout());
+        panel.setBorder(BorderFactory.createTitledBorder("Log de Ejecución"));
+        panel.setPreferredSize(new Dimension(800, 150));
+        
+        logArea = new JTextArea(8, 70);
+        logArea.setEditable(false);
+        logArea.setFont(new Font("Monospaced", Font.PLAIN, 11));
+        
+        JScrollPane scrollPane = new JScrollPane(logArea);
+        panel.add(scrollPane, BorderLayout.CENTER);
+        
+        return panel;
+    }
+    
+    private void setupEventHandlers() {
+        startButton.addActionListener(e -> startSimulation());
+        stopButton.addActionListener(e -> stopSimulation());
+        clearButton.addActionListener(e -> clearAll());
+    }
+    
+    private void startUpdateTimer() {
+        updateTimer = new Timer(500, e -> updateTasksTable());
+        updateTimer.start();
+    }
+    
+    private void updateBatchControls() {
+        String selected = (String) batchTypeCombo.getSelectedItem();
+        boolean isHeterogeneous = selected != null && selected.contains("Heterogéneo");
+        
+        simpleSpinner.setEnabled(isHeterogeneous);
+        mediumSpinner.setEnabled(isHeterogeneous);
+        complexSpinner.setEnabled(isHeterogeneous);
+    }
+    
+    private void generateBatch() {
+        String batchType = (String) batchTypeCombo.getSelectedItem();
+        
+        if (batchType == null) return;
+        
+        scheduler.clearTasks();
+        
+        if (batchType.contains("Homogéneo")) {
+            CircuitSimulationTask.Complexity complexity;
+            if (batchType.contains("Simple")) {
+                complexity = CircuitSimulationTask.Complexity.SIMPLE;
+            } else if (batchType.contains("Medio")) {
+                complexity = CircuitSimulationTask.Complexity.MEDIUM;
+            } else {
+                complexity = CircuitSimulationTask.Complexity.COMPLEX;
+            }
+            
+            List<CircuitSimulationTask> batch = scheduler.generateHomogeneousBatch(complexity, 5);
+            scheduler.addTasks(batch);
+            
+        } else if (batchType.contains("Heterogéneo")) {
+            int simpleCount = (Integer) simpleSpinner.getValue();
+            int mediumCount = (Integer) mediumSpinner.getValue();
+            int complexCount = (Integer) complexSpinner.getValue();
+            
+            List<CircuitSimulationTask> batch = scheduler.generateHeterogeneousBatch(
+                simpleCount, mediumCount, complexCount);
+            scheduler.addTasks(batch);
+        }
+        
+        updateTasksTable();
+    }
+    
+    private void startSimulation() {
+        try {
+            String algorithm = (String) algorithmCombo.getSelectedItem();
+            
+            if (algorithm != null) {
+                switch (algorithm) {
+                    case "First-Come, First-Served (FCFS)":
+                        scheduler.setStrategy(new FirstComeFirstServedScheduler());
+                        break;
+                    case "Round Robin (RR)":
+                        scheduler.setStrategy(new RoundRobinScheduler());
+                        break;
+                    case "Shortest Job First (SJF)":
+                        scheduler.setStrategy(new ShortestJobFirstScheduler());
+                        break;
+                }
+            }
+            
+            scheduler.startSimulation();
+            startButton.setEnabled(false);
+            stopButton.setEnabled(true);
+            progressBar.setVisible(true);
+            
+        } catch (Exception ex) {
+            JOptionPane.showMessageDialog(this, ex.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
+        }
+    }
+    
+    private void stopSimulation() {
+        scheduler.stopSimulation();
+        startButton.setEnabled(true);
+        stopButton.setEnabled(false);
+        progressBar.setVisible(false);
+    }
+    
+    private void clearAll() {
+        if (!scheduler.isSimulationRunning()) {
+            scheduler.clearTasks();
+            logArea.setText("");
+            updateTasksTable();
+        } else {
+            JOptionPane.showMessageDialog(this, 
+                "No se puede limpiar durante la simulación", 
+                "Advertencia", JOptionPane.WARNING_MESSAGE);
+        }
+    }
+    
+    private void updateTasksTable() {
+        tableModel.setRowCount(0);
+        
+        for (CircuitSimulationTask task : scheduler.getTasks()) {
+            Object[] row = {
+                task.getId(),
+                task.getName(),
+                task.getComplexity().getDisplayName(),
+                task.getEstimatedDuration(),
+                task.getState().getDisplayName(),
+                String.format("%.1f%%", task.getProgress())
+            };
+            tableModel.addRow(row);
+        }
+        
+        // Actualizar barra de progreso general
+        if (scheduler.isSimulationRunning()) {
+            long completed = scheduler.getTasks().stream()
+                .filter(t -> t.getState() == CircuitSimulationTask.TaskState.COMPLETED)
+                .count();
+            long total = scheduler.getTasks().size();
+            
+            int progress = total > 0 ? (int)((completed * 100) / total) : 0;
+            progressBar.setValue(progress);
+            progressBar.setString(String.format("%d/%d tareas completadas (%d%%)", 
+                completed, total, progress));
+        }
+    }
+    
+    private void log(String message) {
+        SwingUtilities.invokeLater(() -> {
+            logArea.append("[" + java.time.LocalTime.now().format(
+                java.time.format.DateTimeFormatter.ofPattern("HH:mm:ss")) + "] " + 
+                message + "\n");
+            logArea.setCaretPosition(logArea.getDocument().getLength());
+        });
+    }
+    
+    @Override
+    public void propertyChange(PropertyChangeEvent evt) {
+        String propertyName = evt.getPropertyName();
+        Object newValue = evt.getNewValue();
+        
+        switch (propertyName) {
+            case PROPERTY_MESSAGE:
+                if (newValue instanceof String) {
+                    log((String) newValue);
+                }
+                break;
+                
+            case PROPERTY_SIMULATION_STATE:
+                // Actualizar estado de los botones cuando cambia el estado de simulación
+                SwingUtilities.invokeLater(() -> {
+                    boolean isRunning = Boolean.TRUE.equals(newValue);
+                    startButton.setEnabled(!isRunning);
+                    stopButton.setEnabled(isRunning);
+                    progressBar.setVisible(isRunning);
+                    
+                    if (!isRunning) {
+                        // Cuando termina la simulación, actualizar la tabla una última vez
+                        updateTasksTable();
+                    }
+                });
+                break;
+                
+            case PROPERTY_TASKS_UPDATED:
+                // Actualizar tabla cuando cambian las tareas
+                SwingUtilities.invokeLater(this::updateTasksTable);
+                break;
+        }
+    }
+    
+    @Override
+    public void removeNotify() {
+        super.removeNotify();
+        if (updateTimer != null) {
+            updateTimer.stop();
+        }
+        if (scheduler != null && scheduler.isSimulationRunning()) {
+            scheduler.stopSimulation();
+        }
+        
+        // Remover el listener para evitar memory leaks
+        if (scheduler != null) {
+            scheduler.removePropertyChangeListener(this);
+        }
+    }
+}
+```
+
+## C:\Users\joese\OneDrive\Escritorio\Projects\integrador_simulador\simuladordefisica\src\main\java\com\simulador\ui\OSSimulatorPanel.java
+
+```java
+package com.simulador.ui;
+
+import javax.swing.*;
+import java.awt.*;
+
+/**
+ * Panel del simulador de sistema operativo que reemplaza el placeholder
+ * Operating system simulator panel that replaces the placeholder
+ */
+public class OSSimulatorPanel extends JPanel {
+    private JTabbedPane tabbedPane;
+    private NavigatorPanel navigatorPanel;
+    
+    public OSSimulatorPanel() {
+        initializeUI();
+    }
+    
+    private void initializeUI() {
+        setLayout(new BorderLayout());
+        
+        // Crear pestañas para diferentes funcionalidades del SO
+        tabbedPane = new JTabbedPane();
+        
+        // Pestaña Navigator (planificación de procesos)
+        navigatorPanel = new NavigatorPanel();
+        tabbedPane.addTab("Navigator - Planificación", navigatorPanel);
+        
+        // Pestaña de métricas (placeholder para futuras expansiones)
+        JPanel metricsPanel = createMetricsPanel();
+        tabbedPane.addTab("Métricas del Sistema", metricsPanel);
+        
+        // Pestaña de monitorización (placeholder)
+        JPanel monitorPanel = createMonitorPanel();
+        tabbedPane.addTab("Monitorización", monitorPanel);
+        
+        add(tabbedPane, BorderLayout.CENTER);
+    }
+    
+    private JPanel createMetricsPanel() {
+        JPanel panel = new JPanel(new BorderLayout());
+        panel.setBorder(BorderFactory.createEmptyBorder(20, 20, 20, 20));
+        
+        JLabel label = new JLabel("Panel de Métricas del Sistema - En Desarrollo", JLabel.CENTER);
+        label.setFont(new Font("Arial", Font.BOLD, 16));
+        label.setForeground(new Color(100, 100, 100));
+        
+        panel.add(label, BorderLayout.CENTER);
+        return panel;
+    }
+    
+    private JPanel createMonitorPanel() {
+        JPanel panel = new JPanel(new BorderLayout());
+        panel.setBorder(BorderFactory.createEmptyBorder(20, 20, 20, 20));
+        
+        JLabel label = new JLabel("Monitorización en Tiempo Real - En Desarrollo", JLabel.CENTER);
+        label.setFont(new Font("Arial", Font.BOLD, 16));
+        label.setForeground(new Color(100, 100, 100));
+        
+        panel.add(label, BorderLayout.CENTER);
+        return panel;
+    }
+    
+    /**
+     * Libera recursos cuando el panel se cierra
+     */
+    public void dispose() {
+        if (navigatorPanel != null) {
+            navigatorPanel.removeNotify();
+        }
     }
 }
 ```

@@ -38,16 +38,16 @@ public class MainSimulatorFrame extends JFrame {
     private void initializeUI() {
         setTitle("Simulador Integrado - Sistema Operativo y Física");
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-        setPreferredSize(new Dimension(1300, 850));
+        setPreferredSize(new Dimension(1400, 900)); // Aumentado para nuevo diseño
 
         // Crear el panel de pestañas
         tabbedPane = new JTabbedPane();
 
-        // Pestaña de Simulador de Sistema Operativo (en blanco)
+        // Pestaña de Simulador de Sistema Operativo
         osSimulatorPanel = createOSSimulatorPanel();
         tabbedPane.addTab("Simulador de Sistema Operativo", osSimulatorPanel);
 
-        // Pestaña de Simulador de Física
+        // Pestaña de Simulador de Física (ahora con diseño de dos columnas)
         physicsSimulator = new RLCSimulator();
         tabbedPane.addTab("Simulador de Física", physicsSimulator);
 

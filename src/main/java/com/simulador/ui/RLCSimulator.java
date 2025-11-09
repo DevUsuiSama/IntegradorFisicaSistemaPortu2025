@@ -12,8 +12,8 @@ import java.text.DecimalFormat;
 import java.util.*;
 
 /**
- * Panel principal del simulador de circuitos RLC
- * Main panel for RLC circuit simulator
+ * Panel principal del simulador de circuitos RLC con diseño de dos columnas
+ * Main panel for RLC circuit simulator with two-column layout
  */
 public class RLCSimulator extends JPanel implements SimulationObserver {
     private CircuitEngine engine;
@@ -28,9 +28,16 @@ public class RLCSimulator extends JPanel implements SimulationObserver {
     private JList<String> componentsList;
     private DefaultListModel<String> componentsModel;
     private JTextArea resultsArea;
-    private JLabel circuitDiagram;
-    private JButton addButton, removeButton, simulateButton, graphButton, clearButton;
+    private CircuitDiagramPanel circuitDiagram;
+    private JButton addButton, removeButton, simulateButton, clearButton;
     private JProgressBar progressBar;
+
+    // Nuevos componentes para el diseño de dos columnas
+    private JPanel leftPanel, rightPanel;
+    private JSplitPane splitPane;
+    private BaseGraph currentGraph;
+    private JPanel graphContainer;
+    private JComboBox<String> graphTypeCombo;
 
     public RLCSimulator() {
         this.engine = new CircuitEngine();
@@ -48,86 +55,165 @@ public class RLCSimulator extends JPanel implements SimulationObserver {
     }
 
     private void initializeUI() {
-        setLayout(new BorderLayout(10, 10));
-        setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
+        setLayout(new BorderLayout(5, 5));
+        setBorder(BorderFactory.createEmptyBorder(5, 5, 5, 5));
 
-        add(createControlPanel(), BorderLayout.NORTH);
-        add(createCircuitPanel(), BorderLayout.CENTER);
-        add(createResultsPanel(), BorderLayout.SOUTH);
+        // Crear el diseño de dos columnas
+        createTwoColumnLayout();
     }
 
-    private JPanel createControlPanel() {
+    private void createTwoColumnLayout() {
+        // Crear paneles izquierdo y derecho
+        leftPanel = createLeftPanel();
+        rightPanel = createRightPanel();
+
+        // Crear split pane con proporción 35%-65%
+        splitPane = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT, leftPanel, rightPanel);
+        splitPane.setDividerLocation(0.35); // 35% izquierda, 65% derecha
+        splitPane.setResizeWeight(0.35); // Mantener la proporción al redimensionar
+        splitPane.setOneTouchExpandable(true);
+        splitPane.setContinuousLayout(true);
+        splitPane.setBorder(BorderFactory.createEmptyBorder());
+
+        add(splitPane, BorderLayout.CENTER);
+    }
+
+    private JPanel createLeftPanel() {
+        JPanel panel = new JPanel();
+        panel.setLayout(new BorderLayout(5, 5));
+        panel.setBorder(BorderFactory.createEmptyBorder(5, 5, 5, 5));
+        panel.setPreferredSize(new Dimension(350, 700));
+
+        // Panel de controles (scrollable para muchos controles)
+        JPanel controlsPanel = createControlsPanel();
+        JScrollPane controlsScroll = new JScrollPane(controlsPanel);
+        controlsScroll.setBorder(BorderFactory.createTitledBorder(languageManager.getTranslation("configuration")));
+        controlsScroll.setVerticalScrollBarPolicy(JScrollPane.VERTICAL_SCROLLBAR_AS_NEEDED);
+        controlsScroll.setHorizontalScrollBarPolicy(JScrollPane.HORIZONTAL_SCROLLBAR_NEVER);
+
+        panel.add(controlsScroll, BorderLayout.CENTER);
+        return panel;
+    }
+
+    private JPanel createRightPanel() {
+        JPanel panel = new JPanel(new BorderLayout(5, 5));
+        panel.setBorder(BorderFactory.createEmptyBorder(5, 5, 5, 5));
+
+        // Panel superior: Diagrama del circuito con scroll
+        JPanel diagramPanel = createCircuitPanel();
+
+        // Panel central: Gráfico con scroll
+        JPanel graphPanel = createGraphPanel();
+
+        // Panel inferior: Resultados con scroll
+        JPanel resultsPanel = createResultsPanel();
+
+        // Usar un split pane vertical para los tres paneles
+        JSplitPane topSplit = new JSplitPane(JSplitPane.VERTICAL_SPLIT, diagramPanel, graphPanel);
+        topSplit.setDividerLocation(0.3); // 30% diagrama, 70% gráfico
+        topSplit.setResizeWeight(0.3);
+
+        JSplitPane mainSplit = new JSplitPane(JSplitPane.VERTICAL_SPLIT, topSplit, resultsPanel);
+        mainSplit.setDividerLocation(0.7); // 70% superior, 30% resultados
+        mainSplit.setResizeWeight(0.7);
+
+        panel.add(mainSplit, BorderLayout.CENTER);
+        return panel;
+    }
+
+    private JPanel createControlsPanel() {
         JPanel panel = new JPanel();
         panel.setLayout(new BoxLayout(panel, BoxLayout.Y_AXIS));
-        panel.setBorder(BorderFactory.createTitledBorder(languageManager.getTranslation("controls")));
-
-        // ELIMINADO: Panel de idioma (se movió al menú superior)
+        panel.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
 
         // Panel de entrada principal
         JPanel inputPanel = createInputPanel();
+        inputPanel.setAlignmentX(Component.LEFT_ALIGNMENT);
 
         // Selector de método
         JPanel methodPanel = createMethodPanel();
+        methodPanel.setAlignmentX(Component.LEFT_ALIGNMENT);
 
         // Presets de circuito
         JPanel presetPanel = createPresetPanel();
+        presetPanel.setAlignmentX(Component.LEFT_ALIGNMENT);
 
         // Panel de componentes
         JPanel componentPanel = createComponentPanel();
+        componentPanel.setAlignmentX(Component.LEFT_ALIGNMENT);
 
         // Lista de componentes
         JPanel listPanel = createComponentListPanel();
+        listPanel.setAlignmentX(Component.LEFT_ALIGNMENT);
 
-        // ELIMINADO: panel.add(langPanel);
-        panel.add(Box.createVerticalStrut(5));
+        // Panel de botones de acción
+        JPanel actionPanel = createActionPanel();
+        actionPanel.setAlignmentX(Component.LEFT_ALIGNMENT);
+
         panel.add(inputPanel);
-        panel.add(Box.createVerticalStrut(5));
+        panel.add(Box.createVerticalStrut(15));
         panel.add(methodPanel);
-        panel.add(Box.createVerticalStrut(5));
+        panel.add(Box.createVerticalStrut(15));
         panel.add(presetPanel);
-        panel.add(Box.createVerticalStrut(5));
+        panel.add(Box.createVerticalStrut(15));
         panel.add(componentPanel);
-        panel.add(Box.createVerticalStrut(5));
+        panel.add(Box.createVerticalStrut(15));
         panel.add(listPanel);
+        panel.add(Box.createVerticalStrut(15));
+        panel.add(actionPanel);
+        panel.add(Box.createVerticalGlue());
 
         return panel;
     }
 
     private JPanel createInputPanel() {
-        JPanel panel = new JPanel(new FlowLayout(FlowLayout.LEFT));
+        JPanel panel = new JPanel();
+        panel.setLayout(new BoxLayout(panel, BoxLayout.Y_AXIS));
+        panel.setBorder(BorderFactory.createTitledBorder(languageManager.getTranslation("power_supply")));
 
-        panel.add(new JLabel(languageManager.getTranslation("voltage")));
-        voltageField = new JTextField("10", 8);
+        JPanel voltagePanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
+        voltagePanel.add(new JLabel(languageManager.getTranslation("voltage")));
+        voltageField = new JTextField("10", 10);
         voltageField.setToolTipText(languageManager.getTranslation("voltage_range"));
-        panel.add(voltageField);
+        voltagePanel.add(voltageField);
+        voltagePanel.add(new JLabel("V"));
 
-        panel.add(new JLabel(languageManager.getTranslation("frequency")));
-        frequencyField = new JTextField("60", 8);
+        JPanel frequencyPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
+        frequencyPanel.add(new JLabel(languageManager.getTranslation("frequency")));
+        frequencyField = new JTextField("60", 10);
         frequencyField.setToolTipText(languageManager.getTranslation("frequency_range"));
-        panel.add(frequencyField);
+        frequencyPanel.add(frequencyField);
+        frequencyPanel.add(new JLabel("Hz"));
+
+        panel.add(voltagePanel);
+        panel.add(Box.createVerticalStrut(5));
+        panel.add(frequencyPanel);
 
         return panel;
     }
 
     private JPanel createMethodPanel() {
-        JPanel panel = new JPanel(new FlowLayout(FlowLayout.LEFT));
-        panel.add(new JLabel(languageManager.getTranslation("method")));
+        JPanel panel = new JPanel();
+        panel.setLayout(new BoxLayout(panel, BoxLayout.Y_AXIS));
+        panel.setBorder(BorderFactory.createTitledBorder(languageManager.getTranslation("simulation_method")));
 
         methodCombo = new JComboBox<>();
         for (SimulationStrategy strategy : CircuitEngine.getAvailableStrategies()) {
-            // Usar las claves de traducción para los métodos
             String methodKey = strategy.getName().toLowerCase().replace("-", "");
             methodCombo.addItem(languageManager.getTranslation(methodKey));
         }
         methodCombo.setToolTipText(languageManager.getTranslation("method"));
-        panel.add(methodCombo);
+        methodCombo.setAlignmentX(Component.LEFT_ALIGNMENT);
+        methodCombo.setMaximumSize(new Dimension(300, 25));
 
+        panel.add(methodCombo);
         return panel;
     }
 
     private JPanel createPresetPanel() {
-        JPanel panel = new JPanel(new FlowLayout(FlowLayout.LEFT));
-        panel.add(new JLabel(languageManager.getTranslation("preset")));
+        JPanel panel = new JPanel();
+        panel.setLayout(new BoxLayout(panel, BoxLayout.Y_AXIS));
+        panel.setBorder(BorderFactory.createTitledBorder(languageManager.getTranslation("circuit_presets")));
 
         String[] presetKeys = {
                 "custom", "underdamped", "critical", "overdamped",
@@ -139,30 +225,42 @@ public class RLCSimulator extends JPanel implements SimulationObserver {
             presetCombo.addItem(languageManager.getTranslation(key));
         }
         presetCombo.setToolTipText(languageManager.getTranslation("preset"));
-        panel.add(presetCombo);
+        presetCombo.setAlignmentX(Component.LEFT_ALIGNMENT);
+        presetCombo.setMaximumSize(new Dimension(300, 25));
 
+        panel.add(presetCombo);
         return panel;
     }
 
     private JPanel createComponentPanel() {
-        JPanel panel = new JPanel(new FlowLayout(FlowLayout.LEFT));
+        JPanel panel = new JPanel();
+        panel.setLayout(new BoxLayout(panel, BoxLayout.Y_AXIS));
+        panel.setBorder(BorderFactory.createTitledBorder(languageManager.getTranslation("components")));
 
-        panel.add(new JLabel(languageManager.getTranslation("component_type")));
+        JPanel typePanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
+        typePanel.add(new JLabel(languageManager.getTranslation("component_type")));
 
         String[] componentTypes = { "resistance", "inductor", "capacitor" };
         componentTypeCombo = new JComboBox<>();
         for (String type : componentTypes) {
             componentTypeCombo.addItem(languageManager.getTranslation(type));
         }
-        panel.add(componentTypeCombo);
+        componentTypeCombo.setMaximumSize(new Dimension(150, 25));
+        typePanel.add(componentTypeCombo);
 
-        panel.add(new JLabel(languageManager.getTranslation("value")));
-        valueField = new JTextField("100", 8);
+        JPanel valuePanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
+        valuePanel.add(new JLabel(languageManager.getTranslation("value")));
+        valueField = new JTextField("100", 10);
         valueField.setToolTipText(languageManager.getTranslation("component_value_positive"));
-        panel.add(valueField);
+        valuePanel.add(valueField);
 
         addButton = new JButton(languageManager.getTranslation("add_component"));
         addButton.setToolTipText(languageManager.getTranslation("add_component"));
+
+        panel.add(typePanel);
+        panel.add(Box.createVerticalStrut(5));
+        panel.add(valuePanel);
+        panel.add(Box.createVerticalStrut(5));
         panel.add(addButton);
 
         return panel;
@@ -170,6 +268,8 @@ public class RLCSimulator extends JPanel implements SimulationObserver {
 
     private JPanel createComponentListPanel() {
         JPanel panel = new JPanel(new BorderLayout());
+        panel.setBorder(BorderFactory.createTitledBorder(languageManager.getTranslation("component_list")));
+        panel.setMaximumSize(new Dimension(350, 200));
 
         componentsModel = new DefaultListModel<>();
         componentsList = new JList<>(componentsModel);
@@ -177,14 +277,42 @@ public class RLCSimulator extends JPanel implements SimulationObserver {
         componentsList.setToolTipText(languageManager.getTranslation("component_list"));
 
         JScrollPane listScroll = new JScrollPane(componentsList);
-        listScroll.setPreferredSize(new Dimension(400, 100));
+        listScroll.setPreferredSize(new Dimension(300, 120));
 
         removeButton = new JButton(languageManager.getTranslation("remove_selected"));
         removeButton.setToolTipText(languageManager.getTranslation("remove_selected"));
 
-        panel.add(new JLabel(languageManager.getTranslation("component_list")), BorderLayout.NORTH);
         panel.add(listScroll, BorderLayout.CENTER);
         panel.add(removeButton, BorderLayout.SOUTH);
+
+        return panel;
+    }
+
+    private JPanel createActionPanel() {
+        JPanel panel = new JPanel();
+        panel.setLayout(new BoxLayout(panel, BoxLayout.Y_AXIS));
+        panel.setBorder(BorderFactory.createTitledBorder(languageManager.getTranslation("actions")));
+
+        simulateButton = new JButton(languageManager.getTranslation("simulate"));
+        simulateButton.setToolTipText(languageManager.getTranslation("simulate"));
+        simulateButton.setAlignmentX(Component.LEFT_ALIGNMENT);
+
+        clearButton = new JButton(languageManager.getTranslation("clear_all"));
+        clearButton.setToolTipText(languageManager.getTranslation("clear_all"));
+        clearButton.setAlignmentX(Component.LEFT_ALIGNMENT);
+
+        // Barra de progreso
+        progressBar = new JProgressBar();
+        progressBar.setVisible(false);
+        progressBar.setStringPainted(true);
+        progressBar.setAlignmentX(Component.LEFT_ALIGNMENT);
+        progressBar.setMaximumSize(new Dimension(300, 20));
+
+        panel.add(simulateButton);
+        panel.add(Box.createVerticalStrut(8));
+        panel.add(clearButton);
+        panel.add(Box.createVerticalStrut(8));
+        panel.add(progressBar);
 
         return panel;
     }
@@ -192,81 +320,129 @@ public class RLCSimulator extends JPanel implements SimulationObserver {
     private JPanel createCircuitPanel() {
         JPanel panel = new JPanel(new BorderLayout());
         panel.setBorder(BorderFactory.createTitledBorder(languageManager.getTranslation("circuit_diagram")));
-        panel.setPreferredSize(new Dimension(600, 150));
+        panel.setPreferredSize(new Dimension(600, 200));
 
-        circuitDiagram = new JLabel("", JLabel.CENTER);
-        circuitDiagram.setFont(new Font("Arial", Font.PLAIN, 16));
-        circuitDiagram.setVerticalTextPosition(JLabel.CENTER);
-        circuitDiagram.setHorizontalTextPosition(JLabel.CENTER);
+        // Usar el nuevo CircuitDiagramPanel
+        circuitDiagram = new CircuitDiagramPanel();
 
-        updateCircuitDiagram();
+        JScrollPane diagramScroll = new JScrollPane(circuitDiagram);
+        diagramScroll.setVerticalScrollBarPolicy(JScrollPane.VERTICAL_SCROLLBAR_AS_NEEDED);
+        diagramScroll.setHorizontalScrollBarPolicy(JScrollPane.HORIZONTAL_SCROLLBAR_AS_NEEDED);
 
-        panel.add(circuitDiagram, BorderLayout.CENTER);
+        panel.add(diagramScroll, BorderLayout.CENTER);
+        return panel;
+    }
+
+    private JPanel createGraphPanel() {
+        JPanel panel = new JPanel(new BorderLayout());
+        panel.setBorder(BorderFactory.createTitledBorder(languageManager.getTranslation("simulation_graph")));
+
+        // Gráfico por defecto (se actualizará después de la simulación)
+        currentGraph = new TimeGraph(null);
+        graphContainer = new JPanel(new BorderLayout());
+
+        JScrollPane graphScroll = new JScrollPane(currentGraph);
+        graphScroll.setVerticalScrollBarPolicy(JScrollPane.VERTICAL_SCROLLBAR_AS_NEEDED);
+        graphScroll.setHorizontalScrollBarPolicy(JScrollPane.HORIZONTAL_SCROLLBAR_AS_NEEDED);
+        graphContainer.add(graphScroll, BorderLayout.CENTER);
+
+        // Panel de selección de tipo de gráfico
+        JPanel graphTypePanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
+        graphTypePanel.add(new JLabel("Tipo de Gráfico:"));
+
+        graphTypeCombo = new JComboBox<>(new String[] {
+                "Dominio de Tiempo", "Respuesta en Frecuencia", "Diagrama Fasorial", "Formas de Onda"
+        });
+        graphTypeCombo.addActionListener(e -> updateGraphType(graphTypeCombo.getSelectedIndex()));
+        graphTypePanel.add(graphTypeCombo);
+
+        panel.add(graphTypePanel, BorderLayout.NORTH);
+        panel.add(graphContainer, BorderLayout.CENTER);
+
         return panel;
     }
 
     private JPanel createResultsPanel() {
         JPanel panel = new JPanel(new BorderLayout());
         panel.setBorder(BorderFactory.createTitledBorder(languageManager.getTranslation("results")));
+        panel.setPreferredSize(new Dimension(600, 200));
 
-        // Panel de botones
-        JPanel buttonPanel = createButtonPanel();
-
-        // Área de resultados
-        JPanel resultsPanel = createResultsAreaPanel();
-
-        panel.add(buttonPanel, BorderLayout.NORTH);
-        panel.add(resultsPanel, BorderLayout.CENTER);
-
-        return panel;
-    }
-
-    private JPanel createButtonPanel() {
-        JPanel panel = new JPanel(new FlowLayout());
-
-        simulateButton = new JButton(languageManager.getTranslation("simulate"));
-        simulateButton.setToolTipText(languageManager.getTranslation("simulate"));
-
-        graphButton = new JButton(languageManager.getTranslation("view_graphs"));
-        graphButton.setEnabled(false);
-        graphButton.setToolTipText(languageManager.getTranslation("view_graphs"));
-
-        clearButton = new JButton(languageManager.getTranslation("clear_all"));
-        clearButton.setToolTipText(languageManager.getTranslation("clear_all"));
-
-        // Barra de progreso
-        progressBar = new JProgressBar();
-        progressBar.setVisible(false);
-        progressBar.setStringPainted(true);
-
-        panel.add(simulateButton);
-        panel.add(graphButton);
-        panel.add(clearButton);
-        panel.add(progressBar);
-
-        return panel;
-    }
-
-    private JPanel createResultsAreaPanel() {
-        JPanel panel = new JPanel(new BorderLayout());
-
-        resultsArea = new JTextArea(12, 70);
+        resultsArea = new JTextArea(8, 50);
         resultsArea.setEditable(false);
-        resultsArea.setFont(new Font("Monospaced", Font.PLAIN, 12));
+        resultsArea.setFont(new Font("Monospaced", Font.PLAIN, 11));
+        resultsArea.setLineWrap(true);
+        resultsArea.setWrapStyleWord(true);
 
         // Texto inicial en el idioma actual
         updateInitialResultsText();
 
         JScrollPane scroll = new JScrollPane(resultsArea);
+        scroll.setVerticalScrollBarPolicy(JScrollPane.VERTICAL_SCROLLBAR_AS_NEEDED);
+        scroll.setHorizontalScrollBarPolicy(JScrollPane.HORIZONTAL_SCROLLBAR_AS_NEEDED);
         scroll.setBorder(BorderFactory.createLineBorder(Color.LIGHT_GRAY));
 
         panel.add(scroll, BorderLayout.CENTER);
         return panel;
     }
 
+    private void updateGraphType(int graphType) {
+        if (lastResult == null || components == null) {
+            // Crear gráfico vacío con mensaje informativo
+            switch (graphType) {
+                case 0:
+                    currentGraph = new TimeGraph(null);
+                    break;
+                case 1:
+                    currentGraph = new FrequencyGraph(components != null ? components : new ArrayList<>());
+                    break;
+                case 2:
+                    currentGraph = new PhasorDiagram(null, components != null ? components : new ArrayList<>());
+                    break;
+                case 3:
+                    currentGraph = new WaveformGraph(null);
+                    break;
+            }
+        } else {
+            // Crear gráfico con datos de simulación
+            switch (graphType) {
+                case 0:
+                    currentGraph = new TimeGraph(lastResult);
+                    break;
+                case 1:
+                    currentGraph = new FrequencyGraph(components);
+                    break;
+                case 2:
+                    currentGraph = new PhasorDiagram(lastResult, components);
+                    break;
+                case 3:
+                    currentGraph = new WaveformGraph(lastResult);
+                    break;
+            }
+        }
+
+        // Actualizar el contenedor del gráfico
+        graphContainer.removeAll();
+        JScrollPane graphScroll = new JScrollPane(currentGraph);
+        graphScroll.setVerticalScrollBarPolicy(JScrollPane.VERTICAL_SCROLLBAR_AS_NEEDED);
+        graphScroll.setHorizontalScrollBarPolicy(JScrollPane.HORIZONTAL_SCROLLBAR_AS_NEEDED);
+        graphContainer.add(graphScroll, BorderLayout.CENTER);
+        graphContainer.revalidate();
+        graphContainer.repaint();
+
+        // Actualizar tooltip del combo box
+        String[] tooltips = {
+                "Muestra la corriente en función del tiempo",
+                "Muestra la impedancia en función de la frecuencia",
+                "Muestra el diagrama fasorial de voltajes y corriente",
+                "Muestra las formas de onda de voltaje y corriente"
+        };
+
+        if (graphType >= 0 && graphType < tooltips.length) {
+            graphTypeCombo.setToolTipText(tooltips[graphType]);
+        }
+    }
+
     private void setupEventHandlers() {
-        // ELIMINADO: Selector de idioma (ahora está en el menú superior)
-        
         // Selector de método
         methodCombo.addActionListener(e -> updateStrategy());
 
@@ -279,7 +455,6 @@ public class RLCSimulator extends JPanel implements SimulationObserver {
 
         // Botones principales
         simulateButton.addActionListener(e -> simulateCircuit());
-        graphButton.addActionListener(e -> showGraphs());
         clearButton.addActionListener(e -> clearAll());
 
         // Enter en campos de texto
@@ -319,11 +494,24 @@ public class RLCSimulator extends JPanel implements SimulationObserver {
 
             // Mapear títulos a claves de traducción
             if (title != null) {
-                if (title.contains("Controles") || title.contains("Controls")
-                        || title.contains("Controles de Entrada")) {
-                    titledBorder.setTitle(languageManager.getTranslation("controls"));
+                if (title.contains("Configuración") || title.contains("Configuration")) {
+                    titledBorder.setTitle(languageManager.getTranslation("configuration"));
+                } else if (title.contains("Fuente") || title.contains("Power")) {
+                    titledBorder.setTitle(languageManager.getTranslation("power_supply"));
+                } else if (title.contains("Método") || title.contains("Method")) {
+                    titledBorder.setTitle(languageManager.getTranslation("simulation_method"));
+                } else if (title.contains("Circuitos Predefinidos") || title.contains("Circuit Presets")) {
+                    titledBorder.setTitle(languageManager.getTranslation("circuit_presets"));
+                } else if (title.contains("Componentes") || title.contains("Components")) {
+                    titledBorder.setTitle(languageManager.getTranslation("components"));
+                } else if (title.contains("Lista de Componentes") || title.contains("Component List")) {
+                    titledBorder.setTitle(languageManager.getTranslation("component_list"));
+                } else if (title.contains("Acciones") || title.contains("Actions")) {
+                    titledBorder.setTitle(languageManager.getTranslation("actions"));
                 } else if (title.contains("Diagrama") || title.contains("Diagram")) {
                     titledBorder.setTitle(languageManager.getTranslation("circuit_diagram"));
+                } else if (title.contains("Gráfico") || title.contains("Graph")) {
+                    titledBorder.setTitle(languageManager.getTranslation("simulation_graph"));
                 } else if (title.contains("Resultados") || title.contains("Results")) {
                     titledBorder.setTitle(languageManager.getTranslation("results"));
                 }
@@ -370,6 +558,8 @@ public class RLCSimulator extends JPanel implements SimulationObserver {
                     } else if (text.contains("Lista de Componentes") || text.contains("Component List")
                             || text.contains("Lista de Componentes")) {
                         label.setText(languageManager.getTranslation("component_list"));
+                    } else if (text.contains("Tipo de Gráfico") || text.contains("Graph Type")) {
+                        label.setText("Tipo de Gráfico:");
                     }
                 }
             } else if (comp instanceof JButton) {
@@ -385,9 +575,6 @@ public class RLCSimulator extends JPanel implements SimulationObserver {
                     } else if (text.contains("Simular Circuito") || text.contains("Simulate Circuit")
                             || text.contains("Simular Circuito")) {
                         button.setText(languageManager.getTranslation("simulate"));
-                    } else if (text.contains("Ver Gráficos") || text.contains("View Graphs")
-                            || text.contains("Ver Gráficos")) {
-                        button.setText(languageManager.getTranslation("view_graphs"));
                     } else if (text.contains("Limpiar Todo") || text.contains("Clear All")
                             || text.contains("Limpar Tudo")) {
                         button.setText(languageManager.getTranslation("clear_all"));
@@ -518,7 +705,6 @@ public class RLCSimulator extends JPanel implements SimulationObserver {
             progressBar.setString(languageManager.getTranslation("simulation_in_progress"));
 
             simulateButton.setEnabled(false);
-            graphButton.setEnabled(false);
 
             engine.simulate(components, voltage, frequency);
 
@@ -550,27 +736,16 @@ public class RLCSimulator extends JPanel implements SimulationObserver {
         }
     }
 
-    private void showGraphs() {
-        if (lastResult != null) {
-            // Necesitamos obtener el JFrame padre para crear el GraphWindow
-            Window parentWindow = SwingUtilities.getWindowAncestor(this);
-            if (parentWindow instanceof JFrame) {
-                GraphWindow graphWindow = new GraphWindow((JFrame) parentWindow, lastResult, components);
-                graphWindow.setVisible(true);
-            } else {
-                showError("No se puede mostrar la ventana de gráficos: ventana padre no disponible");
-            }
-        }
-    }
-
     private void clearAll() {
         components.clear();
         updateComponentList();
         updateCircuitDiagram();
 
         resultsArea.setText(languageManager.getTranslation("circuit_cleared"));
-        graphButton.setEnabled(false);
         lastResult = null;
+
+        // Resetear gráfico
+        updateGraphType(0);
 
         showInfo(languageManager.getTranslation("circuit_results_cleared"));
     }
@@ -583,51 +758,10 @@ public class RLCSimulator extends JPanel implements SimulationObserver {
     }
 
     private void updateCircuitDiagram() {
-        StringBuilder html = new StringBuilder("<html><div style='text-align:center;'>");
-
-        if (components.isEmpty()) {
-            html.append("<p style='color:gray;font-size:14px;'>")
-                    .append(languageManager.getTranslation("empty_circuit"))
-                    .append("</p>");
-            html.append("<p style='color:gray;font-size:12px;'>")
-                    .append(languageManager.getTranslation("add_components_start"))
-                    .append("</p>");
-        } else {
-            html.append("<p style='font-size:16px;margin-bottom:10px;'>⚡ ");
-
-            for (int i = 0; i < components.size(); i++) {
-                if (i > 0)
-                    html.append(" — ");
-                String type = components.get(i).getType();
-                if (type.equals("Resistance"))
-                    html.append("R");
-                else if (type.equals("Inductor"))
-                    html.append("L");
-                else
-                    html.append("C");
-
-                html.append(" (").append(components.get(i).getValue()).append(")");
-            }
-
-            html.append(" ⚡</p>");
-
-            // Información resumida
-            double totalR = 0, totalL = 0, totalC = 0;
-            for (CircuitComponent comp : components) {
-                totalR += comp.getResistance();
-                totalL += comp.getInductance();
-                totalC += comp.getCapacitance();
-            }
-
-            html.append("<p style='font-size:12px;color:darkblue;'>");
-            html.append("R: ").append(String.format("%.2f Ω", totalR)).append(" | ");
-            html.append("L: ").append(String.format("%.4f H", totalL)).append(" | ");
-            html.append("C: ").append(String.format("%.6f F", totalC));
-            html.append("</p>");
+        if (circuitDiagram != null) {
+            circuitDiagram.setComponents(components);
+            circuitDiagram.repaint();
         }
-
-        html.append("</div></html>");
-        circuitDiagram.setText(html.toString());
     }
 
     @Override
@@ -636,7 +770,9 @@ public class RLCSimulator extends JPanel implements SimulationObserver {
             if (result instanceof SimulationResult) {
                 SimulationResult simResult = (SimulationResult) result;
                 lastResult = simResult;
-                graphButton.setEnabled(true);
+
+                // Actualizar el gráfico actual con los nuevos resultados
+                updateGraphType(graphTypeCombo.getSelectedIndex());
 
                 StringBuilder sb = new StringBuilder();
                 sb.append(languageManager.getTranslation("simulation_results")).append("\n\n");
@@ -655,22 +791,108 @@ public class RLCSimulator extends JPanel implements SimulationObserver {
                 sb.append(languageManager.getTranslation("power_factor")).append(" ")
                         .append(df.format(simResult.getPowerFactor())).append("\n\n");
 
-                // Información adicional
+                // Información adicional sobre el tipo de circuito
                 double phaseDeg = Math.toDegrees(simResult.getPhaseAngle());
+                String circuitType;
+                String behaviorDescription;
+
                 if (phaseDeg > 0) {
-                    sb.append(languageManager.getTranslation("inductive_circuit")).append("\n");
+                    circuitType = languageManager.getTranslation("inductive_circuit");
+                    behaviorDescription = "• La corriente está ATRASADA respecto al voltaje\n";
+                    behaviorDescription += "• La potencia reactiva es POSITIVA (Q > 0)\n";
+                    behaviorDescription += "• El inductor domina el comportamiento del circuito";
                 } else if (phaseDeg < 0) {
-                    sb.append(languageManager.getTranslation("capacitive_circuit")).append("\n");
+                    circuitType = languageManager.getTranslation("capacitive_circuit");
+                    behaviorDescription = "• La corriente está ADELANTADA respecto al voltaje\n";
+                    behaviorDescription += "• La potencia reactiva es NEGATIVA (Q < 0)\n";
+                    behaviorDescription += "• El capacitor domina el comportamiento del circuito";
                 } else {
-                    sb.append(languageManager.getTranslation("resistive_circuit")).append("\n");
+                    circuitType = languageManager.getTranslation("resistive_circuit");
+                    behaviorDescription = "• La corriente está EN FASE con el voltaje\n";
+                    behaviorDescription += "• La potencia reactiva es CERO (Q = 0)\n";
+                    behaviorDescription += "• Resonancia o circuito puramente resistivo";
+                }
+
+                sb.append(circuitType).append("\n\n");
+                sb.append("Comportamiento del Circuito:\n");
+                sb.append(behaviorDescription).append("\n\n");
+
+                // Análisis de resonancia si aplica
+                if (components != null && !components.isEmpty()) {
+                    double totalL = 0, totalC = 0;
+                    for (CircuitComponent comp : components) {
+                        totalL += comp.getInductance();
+                        totalC += comp.getCapacitance();
+                    }
+
+                    if (totalL > 0 && totalC > 0 && totalC < 1e10) {
+                        double resonantFreq = 1.0 / (2 * Math.PI * Math.sqrt(totalL * totalC));
+                        double currentFreq = Double.parseDouble(frequencyField.getText());
+
+                        sb.append("Análisis de Resonancia:\n");
+                        sb.append(String.format("• Frecuencia de resonancia: %.2f Hz\n", resonantFreq));
+                        sb.append(String.format("• Frecuencia actual: %.2f Hz\n", currentFreq));
+
+                        double ratio = currentFreq / resonantFreq;
+                        if (Math.abs(ratio - 1.0) < 0.1) {
+                            sb.append("• ⚡ El circuito está CERCA de la resonancia\n");
+                            sb.append("• La impedancia es MÍNIMA y la corriente MÁXIMA\n");
+                        } else if (currentFreq < resonantFreq) {
+                            sb.append("• Frecuencia por DEBAJO de la resonancia\n");
+                            sb.append("• Comportamiento CAPACITIVO dominante\n");
+                        } else {
+                            sb.append("• Frecuencia por ENCIMA de la resonancia\n");
+                            sb.append("• Comportamiento INDUCTIVO dominante\n");
+                        }
+                        sb.append("\n");
+                    }
+                }
+
+                // Información de calidad del circuito
+                if (simResult.getImpedance() > 0) {
+                    double qualityFactor = Math.abs(simResult.getReactivePower()) / simResult.getActivePower();
+                    sb.append("Factor de Calidad (Q):\n");
+                    sb.append(String.format("• Q = |Q| / P = %.3f\n", qualityFactor));
+
+                    if (qualityFactor > 10) {
+                        sb.append("• Circuito de ALTA calidad (subamortiguado)\n");
+                    } else if (qualityFactor > 1) {
+                        sb.append("• Circuito de calidad MODERADA\n");
+                    } else {
+                        sb.append("• Circuito de BAJA calidad (sobreamortiguado)\n");
+                    }
+                    sb.append("\n");
+                }
+
+                // Resumen de potencia
+                sb.append("Resumen de Potencia:\n");
+                sb.append(String.format("• Potencia Activa (P): %.3f W → Energía útil\n", simResult.getActivePower()));
+                sb.append(String.format("• Potencia Reactiva (Q): %.3f VAR → Energía oscilante\n",
+                        simResult.getReactivePower()));
+                sb.append(String.format("• Potencia Aparente (S): %.3f VA → Potencia total\n",
+                        simResult.getApparentPower()));
+                sb.append(String.format("• Factor de Potencia: %.3f → Eficiencia energética\n",
+                        simResult.getPowerFactor()));
+
+                // Evaluación del factor de potencia
+                if (simResult.getPowerFactor() >= 0.9) {
+                    sb.append("• ✅ Excelente factor de potencia (eficiente)\n");
+                } else if (simResult.getPowerFactor() >= 0.8) {
+                    sb.append("• ⚠️  Factor de potencia aceptable\n");
+                } else {
+                    sb.append("• ❌ Factor de potencia pobre (ineficiente)\n");
                 }
 
                 resultsArea.setText(sb.toString());
 
                 progressBar.setVisible(false);
                 simulateButton.setEnabled(true);
+
+                // Mostrar mensaje de éxito
+                showInfo("Simulación completada exitosamente. Los resultados están listos.");
+
             } else {
-                onSimulationError("Resultado de simulación inválido");
+                onSimulationError("Resultado de simulación inválido: tipo de objeto incorrecto");
             }
         });
     }
@@ -678,11 +900,31 @@ public class RLCSimulator extends JPanel implements SimulationObserver {
     @Override
     public void onSimulationError(String error) {
         SwingUtilities.invokeLater(() -> {
-            showError(languageManager.getFormattedTranslation("simulation_error", error));
+            // Mensaje de error más descriptivo
+            String detailedError = "Error en la simulación:\n\n" + error;
+
+            // Intentar dar más información según el tipo de error
+            if (error.contains("impedance") || error.contains("impedancia")) {
+                detailedError += "\n\nPosible causa: Valores de componentes que resultan en impedancia cero o negativa.";
+            } else if (error.contains("frequency") || error.contains("frecuencia")) {
+                detailedError += "\n\nPosible causa: Frecuencia fuera del rango permitido (0.1 - 10000 Hz).";
+            } else if (error.contains("voltage") || error.contains("voltaje")) {
+                detailedError += "\n\nPosible causa: Voltaje fuera del rango permitido (0.1 - 1000 V).";
+            } else if (error.contains("component") || error.contains("componente")) {
+                detailedError += "\n\nPosible causa: Configuración inválida de componentes del circuito.";
+            }
+
+            showError(detailedError);
 
             progressBar.setVisible(false);
             simulateButton.setEnabled(true);
-            graphButton.setEnabled(false);
+
+            // Limpiar resultados en caso de error
+            resultsArea.setText("Error en la simulación. Por favor, verifique los parámetros e intente nuevamente.\n\n"
+                    + "Detalles del error: " + error);
+
+            // Limpiar gráficos
+            updateGraphType(0); // Resetear al gráfico de tiempo vacío
         });
     }
 
@@ -724,7 +966,7 @@ public class RLCSimulator extends JPanel implements SimulationObserver {
         for (Component comp : container.getComponents()) {
             if (comp instanceof JComponent) {
                 JComponent jcomp = (JComponent) comp;
-                
+
                 if (jcomp instanceof JLabel) {
                     JLabel label = (JLabel) jcomp;
                     Font currentFont = label.getFont();
@@ -755,7 +997,7 @@ public class RLCSimulator extends JPanel implements SimulationObserver {
                     list.setFont(currentFont.deriveFont(newSize));
                 }
             }
-            
+
             if (comp instanceof Container) {
                 updateComponentFonts((Container) comp, newSize);
             }
@@ -793,7 +1035,7 @@ public class RLCSimulator extends JPanel implements SimulationObserver {
      */
     public static void main(String[] args) {
         setupLookAndFeel();
-        
+
         SwingUtilities.invokeLater(() -> {
             try {
                 System.out.println("Iniciando Simulador RLC en modo independiente...");
@@ -829,11 +1071,11 @@ public class RLCSimulator extends JPanel implements SimulationObserver {
     private static void handleStartupError(Exception e) {
         System.err.println("Error crítico iniciando la aplicación: " + e.getMessage());
         e.printStackTrace();
-        
+
         JOptionPane.showMessageDialog(null,
-            "Error iniciando la aplicación:\n" + e.getMessage() +
-            "\n\nVer consola para más detalles.",
-            "Error de Inicio",
-            JOptionPane.ERROR_MESSAGE);
+                "Error iniciando la aplicación:\n" + e.getMessage() +
+                        "\n\nVer consola para más detalles.",
+                "Error de Inicio",
+                JOptionPane.ERROR_MESSAGE);
     }
 }
