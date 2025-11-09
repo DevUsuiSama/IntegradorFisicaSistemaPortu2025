@@ -24,7 +24,7 @@ public class RLCSimulator extends JPanel implements SimulationObserver {
 
     // Componentes de UI
     private JTextField voltageField, frequencyField, valueField;
-    private JComboBox<String> componentTypeCombo, methodCombo, presetCombo, langCombo;
+    private JComboBox<String> componentTypeCombo, methodCombo, presetCombo;
     private JList<String> componentsList;
     private DefaultListModel<String> componentsModel;
     private JTextArea resultsArea;
@@ -61,8 +61,7 @@ public class RLCSimulator extends JPanel implements SimulationObserver {
         panel.setLayout(new BoxLayout(panel, BoxLayout.Y_AXIS));
         panel.setBorder(BorderFactory.createTitledBorder(languageManager.getTranslation("controls")));
 
-        // Selector de idioma
-        JPanel langPanel = createLanguagePanel();
+        // ELIMINADO: Panel de idioma (se movió al menú superior)
 
         // Panel de entrada principal
         JPanel inputPanel = createInputPanel();
@@ -79,7 +78,7 @@ public class RLCSimulator extends JPanel implements SimulationObserver {
         // Lista de componentes
         JPanel listPanel = createComponentListPanel();
 
-        panel.add(langPanel);
+        // ELIMINADO: panel.add(langPanel);
         panel.add(Box.createVerticalStrut(5));
         panel.add(inputPanel);
         panel.add(Box.createVerticalStrut(5));
@@ -90,17 +89,6 @@ public class RLCSimulator extends JPanel implements SimulationObserver {
         panel.add(componentPanel);
         panel.add(Box.createVerticalStrut(5));
         panel.add(listPanel);
-
-        return panel;
-    }
-
-    private JPanel createLanguagePanel() {
-        JPanel panel = new JPanel(new FlowLayout(FlowLayout.LEFT));
-        panel.add(new JLabel(languageManager.getTranslation("language")));
-
-        langCombo = new JComboBox<>(languageManager.getAvailableLanguageNames());
-        langCombo.setSelectedItem("Español");
-        panel.add(langCombo);
 
         return panel;
     }
@@ -277,9 +265,8 @@ public class RLCSimulator extends JPanel implements SimulationObserver {
     }
 
     private void setupEventHandlers() {
-        // Selector de idioma
-        langCombo.addActionListener(e -> changeLanguage());
-
+        // ELIMINADO: Selector de idioma (ahora está en el menú superior)
+        
         // Selector de método
         methodCombo.addActionListener(e -> updateStrategy());
 
@@ -301,13 +288,9 @@ public class RLCSimulator extends JPanel implements SimulationObserver {
         frequencyField.addActionListener(e -> simulateCircuit());
     }
 
-    private void changeLanguage() {
-        String selected = (String) langCombo.getSelectedItem();
-        if ("Español".equals(selected)) {
-            languageManager.setLanguage("es");
-        } else if ("Português".equals(selected)) {
-            languageManager.setLanguage("pt");
-        }
+    // NUEVO: Método público para cambiar idioma desde el menú superior
+    public void changeLanguage(String languageCode) {
+        languageManager.setLanguage(languageCode);
         updateUITexts();
     }
 
@@ -370,9 +353,7 @@ public class RLCSimulator extends JPanel implements SimulationObserver {
                 JLabel label = (JLabel) comp;
                 String text = label.getText();
                 if (text != null) {
-                    if (text.contains("Idioma:") || text.contains("Language:") || text.contains("Idioma:")) {
-                        label.setText(languageManager.getTranslation("language"));
-                    } else if (text.contains("Voltaje") || text.contains("Voltage") || text.contains("Tensão")) {
+                    if (text.contains("Voltaje") || text.contains("Voltage") || text.contains("Tensão")) {
                         label.setText(languageManager.getTranslation("voltage"));
                     } else if (text.contains("Frecuencia") || text.contains("Frequency")
                             || text.contains("Frequência")) {
@@ -575,12 +556,6 @@ public class RLCSimulator extends JPanel implements SimulationObserver {
             Window parentWindow = SwingUtilities.getWindowAncestor(this);
             if (parentWindow instanceof JFrame) {
                 GraphWindow graphWindow = new GraphWindow((JFrame) parentWindow, lastResult, components);
-
-                // Agregar listener para cambios de idioma
-                langCombo.addActionListener(e -> {
-                    graphWindow.updateUITexts();
-                });
-
                 graphWindow.setVisible(true);
             } else {
                 showError("No se puede mostrar la ventana de gráficos: ventana padre no disponible");
@@ -733,7 +708,7 @@ public class RLCSimulator extends JPanel implements SimulationObserver {
                 languageManager.getTranslation("information"), JOptionPane.INFORMATION_MESSAGE);
     }
 
-    // ========== NUEVOS MÉTODOS AGREGADOS PARA LA INTEGRACIÓN ==========
+    // ========== MÉTODOS PARA LA INTEGRACIÓN ==========
 
     /**
      * Actualiza el tamaño de fuente en el simulador

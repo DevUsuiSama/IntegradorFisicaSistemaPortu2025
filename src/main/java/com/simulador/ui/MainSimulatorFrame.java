@@ -16,7 +16,7 @@ public class MainSimulatorFrame extends JFrame {
     private RLCSimulator physicsSimulator;
     private JPanel osSimulatorPanel;
     private JMenuBar menuBar;
-    private JMenu settingsMenu;
+    private JMenu fileMenu, settingsMenu, languageMenu, helpMenu;
     private Map<String, Float> fontSizeMap;
     private float currentFontSize;
 
@@ -63,40 +63,14 @@ public class MainSimulatorFrame extends JFrame {
     }
 
     private JPanel createOSSimulatorPanel() {
-        JPanel panel = new JPanel(new BorderLayout());
-        panel.setBackground(new Color(240, 240, 240));
-
-        // Panel de contenido centrado
-        JPanel contentPanel = new JPanel(new GridBagLayout());
-        contentPanel.setBackground(new Color(240, 240, 240));
-
-        JLabel messageLabel = new JLabel("Simulador de Sistema Operativo - En Desarrollo");
-        messageLabel.setFont(new Font("Arial", Font.BOLD, 24));
-        messageLabel.setForeground(new Color(100, 100, 100));
-
-        JLabel subMessageLabel = new JLabel("Esta funcionalidad estará disponible en futuras versiones");
-        subMessageLabel.setFont(new Font("Arial", Font.PLAIN, 16));
-        subMessageLabel.setForeground(new Color(150, 150, 150));
-
-        JPanel messagePanel = new JPanel();
-        messagePanel.setLayout(new BoxLayout(messagePanel, BoxLayout.Y_AXIS));
-        messagePanel.setBackground(new Color(240, 240, 240));
-        messagePanel.add(messageLabel);
-        messagePanel.add(Box.createVerticalStrut(10));
-        messagePanel.add(subMessageLabel);
-
-        contentPanel.add(messagePanel);
-
-        panel.add(contentPanel, BorderLayout.CENTER);
-
-        return panel;
+        return new OSSimulatorPanel();
     }
 
     private void setupMenu() {
         menuBar = new JMenuBar();
 
         // Menú Archivo
-        JMenu fileMenu = new JMenu("Archivo");
+        fileMenu = new JMenu("Archivo");
 
         JMenuItem exitItem = new JMenuItem("Salir");
         exitItem.addActionListener(e -> closeApplication());
@@ -135,19 +109,111 @@ public class MainSimulatorFrame extends JFrame {
         resetItem.addActionListener(e -> resetSettings());
         settingsMenu.add(resetItem);
 
+        // NUEVO: Menú Idioma en la barra superior
+        languageMenu = new JMenu("Idioma");
+
+        // Opciones de idioma
+        JRadioButtonMenuItem spanishItem = new JRadioButtonMenuItem("Español");
+        JRadioButtonMenuItem portugueseItem = new JRadioButtonMenuItem("Português");
+
+        // Seleccionar español por defecto
+        spanishItem.setSelected(true);
+
+        ButtonGroup languageGroup = new ButtonGroup();
+        languageGroup.add(spanishItem);
+        languageGroup.add(portugueseItem);
+
+        // Listeners para cambiar idioma
+        spanishItem.addActionListener(e -> changeLanguage("es"));
+        portugueseItem.addActionListener(e -> changeLanguage("pt"));
+
+        languageMenu.add(spanishItem);
+        languageMenu.add(portugueseItem);
+
         // Menú Ayuda
-        JMenu helpMenu = new JMenu("Ayuda");
+        helpMenu = new JMenu("Ayuda");
 
         JMenuItem aboutItem = new JMenuItem("Acerca de");
         aboutItem.addActionListener(e -> showAboutDialog());
         helpMenu.add(aboutItem);
 
-        // Agregar menús a la barra
+        // Agregar menús a la barra en el orden correcto
         menuBar.add(fileMenu);
         menuBar.add(settingsMenu);
+        menuBar.add(languageMenu); // NUEVO: Menú de idioma en la barra
         menuBar.add(helpMenu);
 
         setJMenuBar(menuBar);
+    }
+
+    // NUEVO: Método para cambiar idioma desde el menú
+    private void changeLanguage(String languageCode) {
+        // Actualizar el simulador de física si está activo
+        if (physicsSimulator != null) {
+            physicsSimulator.changeLanguage(languageCode);
+        }
+
+        // Actualizar textos de los menús
+        updateMenuTexts(languageCode);
+
+        // Actualizar título de la ventana según el idioma
+        updateWindowTitle(languageCode);
+    }
+
+    // NUEVO: Actualizar textos de los menús según el idioma
+    private void updateMenuTexts(String languageCode) {
+        if ("es".equals(languageCode)) {
+            fileMenu.setText("Archivo");
+            settingsMenu.setText("Configuración");
+            languageMenu.setText("Idioma");
+            helpMenu.setText("Ayuda");
+
+            // Actualizar textos de los items del menú
+            updateMenuItemsSpanish();
+        } else if ("pt".equals(languageCode)) {
+            fileMenu.setText("Arquivo");
+            settingsMenu.setText("Configuração");
+            languageMenu.setText("Idioma");
+            helpMenu.setText("Ajuda");
+
+            // Actualizar textos de los items del menú
+            updateMenuItemsPortuguese();
+        }
+    }
+
+    // NUEVO: Actualizar items del menú en español
+    private void updateMenuItemsSpanish() {
+        // Menú Archivo
+        fileMenu.getItem(0).setText("Salir");
+
+        // Menú Configuración
+        settingsMenu.getItem(0).setText("Tamaño de Letra");
+        settingsMenu.getItem(2).setText("Restablecer Configuración");
+
+        // Menú Ayuda
+        helpMenu.getItem(0).setText("Acerca de");
+    }
+
+    // NUEVO: Actualizar items del menú en portugués
+    private void updateMenuItemsPortuguese() {
+        // Menú Archivo
+        fileMenu.getItem(0).setText("Sair");
+
+        // Menú Configuración
+        settingsMenu.getItem(0).setText("Tamanho da Fonte");
+        settingsMenu.getItem(2).setText("Restabelecer Configuração");
+
+        // Menú Ayuda
+        helpMenu.getItem(0).setText("Sobre");
+    }
+
+    // NUEVO: Actualizar título de la ventana según idioma
+    private void updateWindowTitle(String languageCode) {
+        if ("es".equals(languageCode)) {
+            setTitle("Simulador Integrado - Sistema Operativo y Física");
+        } else if ("pt".equals(languageCode)) {
+            setTitle("Simulador Integrado - Sistema Operativo e Física");
+        }
     }
 
     private void changeFontSize(float newSize) {
@@ -253,9 +319,19 @@ public class MainSimulatorFrame extends JFrame {
     }
 
     private void closeApplication() {
+        // Limpiar recursos del simulador de física
         if (physicsSimulator != null) {
             physicsSimulator.disposeResources();
         }
+
+        // Limpiar recursos del simulador de SO
+        Component[] components = tabbedPane.getComponents();
+        for (Component comp : components) {
+            if (comp instanceof OSSimulatorPanel) {
+                ((OSSimulatorPanel) comp).dispose();
+            }
+        }
+
         dispose();
         System.exit(0);
     }
