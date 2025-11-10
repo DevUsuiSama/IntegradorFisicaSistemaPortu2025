@@ -47,7 +47,7 @@ public class CircuitDiagramPanel extends JPanel {
         
         g2d.setColor(Color.GRAY);
         g2d.setFont(new Font("Arial", Font.BOLD, 16));
-        String message = "Circuito Vacío - Agregue componentes";
+        String message = "Circuito Vacio - Agregue componentes";
         int textWidth = g2d.getFontMetrics().stringWidth(message);
         g2d.drawString(message, (width - textWidth) / 2, height / 2);
         

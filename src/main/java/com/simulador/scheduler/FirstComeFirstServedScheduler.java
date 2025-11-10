@@ -22,7 +22,7 @@ public class FirstComeFirstServedScheduler implements SchedulerStrategy {
         }
         
         running = true;
-        executor = Executors.newSingleThreadExecutor();
+        executor = Executors.newFixedThreadPool(Math.min(4, tasks.size())); // Mejorar concurrencia
         
         // Ejecutar en hilo separado para no bloquear la UI
         new Thread(() -> {
@@ -34,20 +34,15 @@ public class FirstComeFirstServedScheduler implements SchedulerStrategy {
                 
                 try {
                     System.out.printf("Ejecutando tarea: %s%n", task);
-                    executor.submit(task);
                     
-                    // Esperar a que termine la tarea actual antes de continuar
-                    while (!executor.awaitTermination(100, TimeUnit.MILLISECONDS)) {
-                        if (!running) {
-                            executor.shutdownNow();
-                            break;
-                        }
-                    }
+                    // Ejecutar la tarea
+                    executor.submit(task).get(); // Esperar a que termine
                     
-                } catch (InterruptedException e) {
-                    System.out.println("Planificación FCFS interrumpida");
-                    Thread.currentThread().interrupt();
-                    break;
+                    System.out.printf("Tarea %d completada%n", task.getId());
+                    
+                } catch (Exception e) {
+                    System.out.println("Error ejecutando tarea " + task.getId() + ": " + e.getMessage());
+                    if (!running) break;
                 }
             }
             

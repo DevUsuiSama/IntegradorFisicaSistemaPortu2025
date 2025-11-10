@@ -73,6 +73,9 @@ public class RLCSimulator extends JPanel implements SimulationObserver {
     private JPanel graphContainer;
     private JComboBox<String> graphTypeCombo;
 
+    // Componentes para análisis
+    private JTextArea analysisArea;
+
     public RLCSimulator() {
         this.engine = new CircuitEngine();
         this.scheduler = new ProcessScheduler();
@@ -164,12 +167,12 @@ public class RLCSimulator extends JPanel implements SimulationObserver {
         headerPanel.setLayout(new BorderLayout());
         headerPanel.setPreferredSize(new Dimension(800, 100));
         
-        JLabel titleLabel = new JLabel("⚡ Simulador Avanzado de Circuitos RLC", JLabel.CENTER);
+        JLabel titleLabel = new JLabel("Simulador Avanzado de Circuitos RLC", JLabel.CENTER);
         titleLabel.setFont(new Font("Segoe UI", Font.BOLD, 26));
         titleLabel.setForeground(Color.WHITE);
         titleLabel.setBorder(BorderFactory.createEmptyBorder(25, 0, 5, 0));
         
-        JLabel subtitleLabel = new JLabel("Con Algoritmos de Planificación Integrados • Análisis en Tiempo Real", JLabel.CENTER);
+        JLabel subtitleLabel = new JLabel("Con Algoritmos de Planificación Integrados - Analisis en Tiempo Real", JLabel.CENTER);
         subtitleLabel.setFont(new Font("Segoe UI", Font.PLAIN, 14));
         subtitleLabel.setForeground(new Color(255, 255, 255, 220));
         subtitleLabel.setBorder(BorderFactory.createEmptyBorder(0, 0, 25, 0));
@@ -198,7 +201,7 @@ public class RLCSimulator extends JPanel implements SimulationObserver {
         circuitScroll.setBorder(null);
         circuitScroll.getVerticalScrollBar().setUnitIncrement(16);
         circuitScroll.setBackground(LIGHT_SLATE);
-        tabbedPane.addTab("⚡ Circuito RLC", circuitScroll);
+        tabbedPane.addTab("Circuito RLC", circuitScroll);
 
         // Pestaña 2: Planificación de Procesos
         JPanel schedulingPanel = createSchedulingControlsPanel();
@@ -206,7 +209,7 @@ public class RLCSimulator extends JPanel implements SimulationObserver {
         schedulingScroll.setBorder(null);
         schedulingScroll.getVerticalScrollBar().setUnitIncrement(16);
         schedulingScroll.setBackground(LIGHT_SLATE);
-        tabbedPane.addTab("🔄 Planificación", schedulingScroll);
+        tabbedPane.addTab("Planificación", schedulingScroll);
 
         panel.add(tabbedPane, BorderLayout.CENTER);
         return panel;
@@ -276,32 +279,32 @@ public class RLCSimulator extends JPanel implements SimulationObserver {
         panel.setAlignmentX(Component.LEFT_ALIGNMENT);
 
         // Fuente de alimentación
-        JPanel inputPanel = createModernCardPanel("🔌 Fuente de Alimentación", createInputPanel());
+        JPanel inputPanel = createModernCardPanel("Fuente de Alimentación", createInputPanel());
         panel.add(inputPanel);
         panel.add(Box.createVerticalStrut(15));
 
         // Método de simulación
-        JPanel methodPanel = createModernCardPanel("📊 Método de Simulación", createMethodPanel());
+        JPanel methodPanel = createModernCardPanel("Metodo de Simulacion", createMethodPanel());
         panel.add(methodPanel);
         panel.add(Box.createVerticalStrut(15));
 
         // Circuitos predefinidos
-        JPanel presetPanel = createModernCardPanel("🎯 Circuitos Predefinidos", createPresetPanel());
+        JPanel presetPanel = createModernCardPanel("Circuitos Predefinidos", createPresetPanel());
         panel.add(presetPanel);
         panel.add(Box.createVerticalStrut(15));
 
         // Componentes
-        JPanel componentPanel = createModernCardPanel("⚡ Agregar Componentes", createComponentPanel());
+        JPanel componentPanel = createModernCardPanel("Agregar Componentes", createComponentPanel());
         panel.add(componentPanel);
         panel.add(Box.createVerticalStrut(15));
 
         // Lista de componentes
-        JPanel listPanel = createModernCardPanel("📋 Componentes en el Circuito", createComponentListPanel());
+        JPanel listPanel = createModernCardPanel("Componentes en el Circuito", createComponentListPanel());
         panel.add(listPanel);
         panel.add(Box.createVerticalStrut(15));
 
         // Botones de acción
-        JPanel actionPanel = createModernCardPanel("🚀 Acciones", createCircuitActionPanel());
+        JPanel actionPanel = createModernCardPanel("Acciones", createCircuitActionPanel());
         panel.add(actionPanel);
 
         return panel;
@@ -338,7 +341,6 @@ public class RLCSimulator extends JPanel implements SimulationObserver {
         titleLabel.setFont(new Font("Segoe UI", Font.BOLD, 14));
         titleLabel.setForeground(DARK_SLATE);
         titleLabel.setBorder(BorderFactory.createEmptyBorder(0, 0, 12, 0));
-        titleLabel.setIconTextGap(8);
         
         cardPanel.add(titleLabel, BorderLayout.NORTH);
         cardPanel.add(contentPanel, BorderLayout.CENTER);
@@ -359,7 +361,7 @@ public class RLCSimulator extends JPanel implements SimulationObserver {
         controlsPanel.setAlignmentX(Component.LEFT_ALIGNMENT);
 
         // Algoritmo de planificación
-        JPanel algorithmPanel = createModernCardPanel("🎯 Algoritmo de Planificación", 
+        JPanel algorithmPanel = createModernCardPanel("Algoritmo de Planificacion", 
             createSimpleComboBoxPanel("Seleccione algoritmo:", 
                 new String[] { "First-Come, First-Served (FCFS)", "Round Robin (RR)", "Shortest Job First (SJF)" }));
         algorithmCombo = findComboBoxInPanel(algorithmPanel);
@@ -367,14 +369,14 @@ public class RLCSimulator extends JPanel implements SimulationObserver {
         controlsPanel.add(Box.createVerticalStrut(15));
 
         // Tipo de lote
-        JPanel batchPanel = createModernCardPanel("📦 Tipo de Lote", 
-            createSimpleComboBoxPanel("Configuración del lote:",
-                new String[] { "Homogéneo - Simple", "Homogéneo - Medio", "Homogéneo - Complejo",
-                        "Heterogéneo - Mixto" }));
+        JPanel batchPanel = createModernCardPanel("Tipo de Lote", 
+            createSimpleComboBoxPanel("Configuracion del lote:",
+                new String[] { "Homogeneo - Simple", "Homogeneo - Medio", "Homogeneo - Complejo",
+                        "Heterogeneo - Mixto" }));
         batchTypeCombo = findComboBoxInPanel(batchPanel);
         if (batchTypeCombo == null) {
             batchTypeCombo = new JComboBox<>(new String[] {
-                    "Homogéneo - Simple", "Homogéneo - Medio", "Homogéneo - Complejo", "Heterogéneo - Mixto"
+                    "Homogeneo - Simple", "Homogeneo - Medio", "Homogeneo - Complejo", "Heterogeneo - Mixto"
             });
             batchPanel.add(batchTypeCombo);
         }
@@ -383,12 +385,12 @@ public class RLCSimulator extends JPanel implements SimulationObserver {
         controlsPanel.add(Box.createVerticalStrut(15));
 
         // Controles de batch
-        JPanel batchControlsPanel = createModernCardPanel("⚙️ Configuración del Lote", createBatchControlsPanel());
+        JPanel batchControlsPanel = createModernCardPanel("Configuracion del Lote", createBatchControlsPanel());
         controlsPanel.add(batchControlsPanel);
         controlsPanel.add(Box.createVerticalStrut(15));
 
         // Botones de control
-        JPanel buttonPanel = createModernCardPanel("🎮 Control de Ejecución", createSchedulingButtonPanel());
+        JPanel buttonPanel = createModernCardPanel("Control de Ejecucion", createSchedulingButtonPanel());
         controlsPanel.add(buttonPanel);
         controlsPanel.add(Box.createVerticalStrut(15));
 
@@ -474,7 +476,7 @@ public class RLCSimulator extends JPanel implements SimulationObserver {
         tasksPanel.setBackground(CARD_BACKGROUND);
         tasksPanel.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
 
-        String[] columns = { "ID", "Nombre", "Complejidad", "Duración (ms)", "Estado", "Progreso" };
+        String[] columns = { "ID", "Nombre", "Complejidad", "Duracion (ms)", "Estado", "Progreso" };
         tasksTableModel = new DefaultTableModel(columns, 0) {
             @Override
             public boolean isCellEditable(int row, int column) {
@@ -537,8 +539,8 @@ public class RLCSimulator extends JPanel implements SimulationObserver {
         logPanel.add(logScroll, BorderLayout.CENTER);
 
         // Agregar pestañas
-        logTabs.addTab("📊 Tareas", tasksPanel);
-        logTabs.addTab("📝 Log", logPanel);
+        logTabs.addTab("Tareas", tasksPanel);
+        logTabs.addTab("Log", logPanel);
 
         panel.add(logTabs, BorderLayout.CENTER);
         return panel;
@@ -594,17 +596,17 @@ public class RLCSimulator extends JPanel implements SimulationObserver {
 
         // Pestaña 1: Visualización (Gráficos)
         JPanel graphPanel = createGraphPanel();
-        centerTabs.addTab("📈 Visualización", graphPanel);
+        centerTabs.addTab("Visualizacion", graphPanel);
 
         // Pestaña 2: Resultados
         JPanel resultsPanel = createResultsPanel();
         JScrollPane resultsScroll = new JScrollPane(resultsPanel);
         resultsScroll.setBorder(BorderFactory.createEmptyBorder(5, 5, 5, 5));
-        centerTabs.addTab("📊 Resultados", resultsScroll);
+        centerTabs.addTab("Resultados", resultsScroll);
 
-        // Pestaña 3: Análisis Detallado
+        // Pestaña 3: Analisis Detallado
         JPanel analysisPanel = createAnalysisPanel();
-        centerTabs.addTab("🔍 Análisis", analysisPanel);
+        centerTabs.addTab("Analisis", analysisPanel);
 
         panel.add(centerTabs, BorderLayout.CENTER);
 
@@ -616,7 +618,7 @@ public class RLCSimulator extends JPanel implements SimulationObserver {
         panel.setBackground(CARD_BACKGROUND);
         panel.setBorder(BorderFactory.createEmptyBorder(20, 20, 20, 20));
 
-        JTextArea analysisArea = new JTextArea();
+        analysisArea = new JTextArea();
         analysisArea.setEditable(false);
         analysisArea.setFont(new Font("Segoe UI", Font.PLAIN, 12));
         analysisArea.setBackground(CARD_BACKGROUND);
@@ -624,14 +626,14 @@ public class RLCSimulator extends JPanel implements SimulationObserver {
         analysisArea.setLineWrap(true);
         analysisArea.setWrapStyleWord(true);
         analysisArea.setText(
-                "=== ANÁLISIS DETALLADO DEL CIRCUITO ===\n\n" +
-                "Esta sección muestra análisis avanzados:\n\n" +
-                "• 📈 Parámetros del circuito en diferentes frecuencias\n" +
-                "• ⚡ Comportamiento transitorio vs permanente\n" +
-                "• 🎯 Análisis de estabilidad del sistema\n" +
-                "• 📊 Respuesta a diferentes tipos de entrada\n" +
-                "• 🔄 Análisis de sensibilidad de componentes\n\n" +
-                "Ejecute una simulación para ver los análisis detallados.");
+                "=== ANALISIS DETALLADO DEL CIRCUITO ===\n\n" +
+                "Esta seccion muestra analisis avanzados:\n\n" +
+                "- Parametros del circuito en diferentes frecuencias\n" +
+                "- Comportamiento transitorio vs permanente\n" +
+                "- Analisis de estabilidad del sistema\n" +
+                "- Respuesta a diferentes tipos de entrada\n" +
+                "- Analisis de sensibilidad de componentes\n\n" +
+                "Ejecute una simulacion para ver los analisis detallados.");
 
         JScrollPane scroll = new JScrollPane(analysisArea);
         scroll.setBorder(BorderFactory.createLineBorder(new Color(226, 232, 240)));
@@ -682,7 +684,7 @@ public class RLCSimulator extends JPanel implements SimulationObserver {
             String methodKey = strategy.getName().toLowerCase().replace("-", "");
             methodCombo.addItem(languageManager.getTranslation(methodKey));
         }
-        methodCombo.setToolTipText("Método de cálculo para la simulación");
+        methodCombo.setToolTipText("Metodo de calculo para la simulacion");
         methodCombo.setAlignmentX(Component.LEFT_ALIGNMENT);
         methodCombo.setMaximumSize(new Dimension(300, 35));
         panel.add(methodCombo);
@@ -742,7 +744,7 @@ public class RLCSimulator extends JPanel implements SimulationObserver {
 
         panel.add(Box.createVerticalStrut(12));
 
-        addButton = createModernButton("➕ Agregar Componente", SECONDARY_BLUE);
+        addButton = createModernButton("Agregar Componente", SECONDARY_BLUE);
         addButton.setToolTipText("Agregar componente al circuito");
         addButton.setAlignmentX(Component.LEFT_ALIGNMENT);
         addButton.setMaximumSize(new Dimension(220, 40));
@@ -771,7 +773,7 @@ public class RLCSimulator extends JPanel implements SimulationObserver {
         listScroll.setBorder(BorderFactory.createLineBorder(new Color(226, 232, 240)));
         panel.add(listScroll, BorderLayout.CENTER);
 
-        removeButton = createModernButton("🗑️ Eliminar Seleccionado", ERROR_ROSE);
+        removeButton = createModernButton("Eliminar Seleccionado", ERROR_ROSE);
         removeButton.setToolTipText("Eliminar componente seleccionado");
         removeButton.setMaximumSize(new Dimension(220, 35));
         panel.add(removeButton, BorderLayout.SOUTH);
@@ -785,14 +787,14 @@ public class RLCSimulator extends JPanel implements SimulationObserver {
         panel.setBackground(CARD_BACKGROUND);
         panel.setAlignmentX(Component.LEFT_ALIGNMENT);
 
-        simulateButton = createModernButton("🚀 Simular Circuito", SUCCESS_EMERALD);
-        simulateButton.setToolTipText("Ejecutar simulación del circuito actual");
+        simulateButton = createModernButton("Simular Circuito", SUCCESS_EMERALD);
+        simulateButton.setToolTipText("Ejecutar simulacion del circuito actual");
         simulateButton.setAlignmentX(Component.LEFT_ALIGNMENT);
         simulateButton.setMaximumSize(new Dimension(220, 45));
 
         panel.add(Box.createVerticalStrut(8));
 
-        clearButton = createModernButton("🗑️ Limpiar Todo", ERROR_ROSE);
+        clearButton = createModernButton("Limpiar Todo", ERROR_ROSE);
         clearButton.setToolTipText("Limpiar circuito y resultados");
         clearButton.setAlignmentX(Component.LEFT_ALIGNMENT);
         clearButton.setMaximumSize(new Dimension(220, 40));
@@ -863,7 +865,7 @@ public class RLCSimulator extends JPanel implements SimulationObserver {
 
         panel.add(Box.createVerticalStrut(12));
 
-        generateBatchButton = createModernButton("📦 Generar Lote de Simulaciones", WARNING_AMBER);
+        generateBatchButton = createModernButton("Generar Lote de Simulaciones", WARNING_AMBER);
         generateBatchButton.addActionListener(e -> generateBatch());
         generateBatchButton.setAlignmentX(Component.LEFT_ALIGNMENT);
         generateBatchButton.setMaximumSize(new Dimension(350, 40));
@@ -878,10 +880,10 @@ public class RLCSimulator extends JPanel implements SimulationObserver {
         panel.setBackground(CARD_BACKGROUND);
         panel.setAlignmentX(Component.LEFT_ALIGNMENT);
 
-        startSchedulerButton = createModernButton("▶️ Iniciar Planificación", SUCCESS_EMERALD);
+        startSchedulerButton = createModernButton("Iniciar Planificacion", SUCCESS_EMERALD);
         startSchedulerButton.addActionListener(e -> startScheduling());
 
-        stopSchedulerButton = createModernButton("⏹️ Detener", ERROR_ROSE);
+        stopSchedulerButton = createModernButton("Detener", ERROR_ROSE);
         stopSchedulerButton.addActionListener(e -> stopScheduling());
         stopSchedulerButton.setEnabled(false);
 
@@ -915,7 +917,7 @@ public class RLCSimulator extends JPanel implements SimulationObserver {
         cardPanel.setBorder(BorderFactory.createEmptyBorder(15, 15, 15, 15));
 
         // Título del diagrama
-        JLabel titleLabel = new JLabel("🔌 Diagrama del Circuito");
+        JLabel titleLabel = new JLabel("Diagrama del Circuito");
         titleLabel.setFont(new Font("Segoe UI", Font.BOLD, 14));
         titleLabel.setForeground(DARK_SLATE);
         titleLabel.setBorder(BorderFactory.createEmptyBorder(0, 0, 10, 0));
@@ -952,11 +954,11 @@ public class RLCSimulator extends JPanel implements SimulationObserver {
 
         JPanel graphTypePanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
         graphTypePanel.setBackground(CARD_BACKGROUND);
-        graphTypePanel.add(createModernLabel("Tipo de Gráfico:"));
+        graphTypePanel.add(createModernLabel("Tipo de Grafico:"));
 
         graphTypeCombo = createModernComboBox();
         graphTypeCombo.setModel(new DefaultComboBoxModel<>(new String[] {
-                "📈 Dominio de Tiempo", "📊 Respuesta en Frecuencia", "🎯 Diagrama Fasorial", "🌊 Formas de Onda"
+                "Dominio de Tiempo", "Respuesta en Frecuencia", "Diagrama Fasorial", "Formas de Onda"
         }));
         graphTypeCombo.addActionListener(e -> updateGraphType());
         graphTypePanel.add(graphTypeCombo);
@@ -1132,7 +1134,7 @@ public class RLCSimulator extends JPanel implements SimulationObserver {
 
     private void updateBatchControls() {
         String selected = (String) batchTypeCombo.getSelectedItem();
-        boolean isHeterogeneous = selected != null && selected.contains("Heterogéneo");
+        boolean isHeterogeneous = selected != null && selected.contains("Heterogeneo");
 
         simpleSpinner.setEnabled(isHeterogeneous);
         mediumSpinner.setEnabled(isHeterogeneous);
@@ -1146,7 +1148,7 @@ public class RLCSimulator extends JPanel implements SimulationObserver {
 
         scheduler.clearTasks();
 
-        if (batchType.contains("Homogéneo")) {
+        if (batchType.contains("Homogeneo")) {
             CircuitSimulationTask.Complexity complexity;
             if (batchType.contains("Simple")) {
                 complexity = CircuitSimulationTask.Complexity.SIMPLE;
@@ -1158,7 +1160,7 @@ public class RLCSimulator extends JPanel implements SimulationObserver {
 
             List<CircuitSimulationTask> batch = scheduler.generateHomogeneousBatch(complexity, 5);
             scheduler.addTasks(batch);
-        } else if (batchType.contains("Heterogéneo")) {
+        } else if (batchType.contains("Heterogeneo")) {
             int simpleCount = (Integer) simpleSpinner.getValue();
             int mediumCount = (Integer) mediumSpinner.getValue();
             int complexCount = (Integer) complexSpinner.getValue();
@@ -1169,7 +1171,7 @@ public class RLCSimulator extends JPanel implements SimulationObserver {
         }
 
         updateTasksTable();
-        logSchedulingMessage("✅ Lote generado: " + scheduler.getTasks().size() + " tareas");
+        logSchedulingMessage("Lote generado: " + scheduler.getTasks().size() + " tareas");
     }
 
     private void startScheduling() {
@@ -1189,20 +1191,20 @@ public class RLCSimulator extends JPanel implements SimulationObserver {
                 }
             }
 
-            logSchedulingMessage("🚀 Iniciando planificación con " + algorithm);
+            logSchedulingMessage("Iniciando planificacion con " + algorithm);
             scheduler.startSimulation();
             startUpdateTimer();
 
         } catch (Exception ex) {
-            logSchedulingMessage("❌ ERROR: " + ex.getMessage());
-            showError("Error al iniciar planificación: " + ex.getMessage());
+            logSchedulingMessage("ERROR: " + ex.getMessage());
+            showError("Error al iniciar planificacion: " + ex.getMessage());
         }
     }
 
     private void stopScheduling() {
         scheduler.stopSimulation();
         stopUpdateTimer();
-        logSchedulingMessage("⏹️ Planificación detenida");
+        logSchedulingMessage("Planificacion detenida");
     }
 
     private void startUpdateTimer() {
@@ -1354,7 +1356,7 @@ public class RLCSimulator extends JPanel implements SimulationObserver {
         updateComponentList();
         updateCircuitDiagram();
 
-        showInfo("✅ Circuito predefinido '" + selected + "' cargado");
+        showInfo("Circuito predefinido '" + selected + "' cargado");
     }
 
     private void addComponent() {
@@ -1388,7 +1390,7 @@ public class RLCSimulator extends JPanel implements SimulationObserver {
             valueField.requestFocus();
 
         } catch (NumberFormatException ex) {
-            showError("Ingrese valores numéricos válidos");
+            showError("Ingrese valores numericos validos");
         }
     }
 
@@ -1418,14 +1420,14 @@ public class RLCSimulator extends JPanel implements SimulationObserver {
 
             progressBar.setVisible(true);
             progressBar.setIndeterminate(true);
-            progressBar.setString("Simulación en progreso...");
+            progressBar.setString("Simulacion en progreso...");
 
             simulateButton.setEnabled(false);
 
             engine.simulate(components, voltage, frequency);
 
         } catch (NumberFormatException ex) {
-            showError("Ingrese valores numéricos válidos");
+            showError("Ingrese valores numericos validos");
         }
     }
 
@@ -1447,7 +1449,7 @@ public class RLCSimulator extends JPanel implements SimulationObserver {
             return true;
 
         } catch (NumberFormatException e) {
-            showError("Ingrese valores numéricos válidos para voltaje y frecuencia");
+            showError("Ingrese valores numericos validos para voltaje y frecuencia");
             return false;
         }
     }
@@ -1457,12 +1459,12 @@ public class RLCSimulator extends JPanel implements SimulationObserver {
         updateComponentList();
         updateCircuitDiagram();
 
-        resultsArea.setText("✅ Circuito limpiado. Listo para nueva simulación.");
+        resultsArea.setText("Circuito limpiado. Listo para nueva simulacion.");
         lastResult = null;
 
         updateGraphType();
 
-        showInfo("✅ Circuito y resultados limpiados");
+        showInfo("Circuito y resultados limpiados");
     }
 
     private void updateComponentList() {
@@ -1482,19 +1484,19 @@ public class RLCSimulator extends JPanel implements SimulationObserver {
     private void updateInitialResultsText() {
         StringBuilder sb = new StringBuilder();
         sb.append("=== Simulador Avanzado de Circuitos RLC ===\n\n");
-        sb.append("📋 Instrucciones:\n");
+        sb.append("Instrucciones:\n");
         sb.append("   1. Agregue componentes (R, L, C) al circuito\n");
         sb.append("   2. Configure voltaje y frecuencia\n");
-        sb.append("   3. Seleccione método de simulación\n");
+        sb.append("   3. Seleccione metodo de simulacion\n");
         sb.append("   4. Haga clic en 'Simular Circuito'\n\n");
-        sb.append("✨ Características:\n");
-        sb.append("   • 📈 Análisis en dominio de tiempo y frecuencia\n");
-        sb.append("   • 🎯 Diagramas fasoriales interactivos\n");
-        sb.append("   • ⚡ Múltiples métodos de cálculo\n");
-        sb.append("   • 🔌 Circuitos predefinidos\n");
-        sb.append("   • 🔄 Algoritmos de planificación integrados\n");
-        sb.append("   • 🎨 Interfaz moderna e intuitiva\n\n");
-        sb.append("🚀 ¡Comience agregando componentes y ejecutando una simulación!");
+        sb.append("Caracteristicas:\n");
+        sb.append("   - Analisis en dominio de tiempo y frecuencia\n");
+        sb.append("   - Diagramas fasoriales interactivos\n");
+        sb.append("   - Multiples metodos de calculo\n");
+        sb.append("   - Circuitos predefinidos\n");
+        sb.append("   - Algoritmos de planificacion integrados\n");
+        sb.append("   - Interfaz moderna e intuitiva\n\n");
+        sb.append("¡Comience agregando componentes y ejecutando una simulacion!");
 
         resultsArea.setText(sb.toString());
     }
@@ -1509,26 +1511,27 @@ public class RLCSimulator extends JPanel implements SimulationObserver {
                 lastResult = simResult;
 
                 updateGraphType();
+                updateAnalysisPanel(simResult);
 
                 StringBuilder sb = new StringBuilder();
-                sb.append("=== ✅ RESULTADOS DE SIMULACIÓN ===\n\n");
-                sb.append("• 🔌 Impedancia: ").append(df.format(simResult.getImpedance())).append(" Ω\n");
-                sb.append("• ⚡ Corriente: ").append(df.format(simResult.getCurrent())).append(" A\n");
-                sb.append("• 📐 Ángulo de Fase: ").append(df.format(Math.toDegrees(simResult.getPhaseAngle())))
+                sb.append("=== RESULTADOS DE SIMULACION ===\n\n");
+                sb.append("- Impedancia: ").append(df.format(simResult.getImpedance())).append(" Ω\n");
+                sb.append("- Corriente: ").append(df.format(simResult.getCurrent())).append(" A\n");
+                sb.append("- Angulo de Fase: ").append(df.format(Math.toDegrees(simResult.getPhaseAngle())))
                         .append("°\n");
-                sb.append("• 💡 Potencia Activa: ").append(df.format(simResult.getActivePower())).append(" W\n");
-                sb.append("• 🔄 Potencia Reactiva: ").append(df.format(simResult.getReactivePower())).append(" VAR\n");
-                sb.append("• 📊 Potencia Aparente: ").append(df.format(simResult.getApparentPower())).append(" VA\n");
-                sb.append("• 🎯 Factor de Potencia: ").append(df.format(simResult.getPowerFactor())).append("\n\n");
+                sb.append("- Potencia Activa: ").append(df.format(simResult.getActivePower())).append(" W\n");
+                sb.append("- Potencia Reactiva: ").append(df.format(simResult.getReactivePower())).append(" VAR\n");
+                sb.append("- Potencia Aparente: ").append(df.format(simResult.getApparentPower())).append(" VA\n");
+                sb.append("- Factor de Potencia: ").append(df.format(simResult.getPowerFactor())).append("\n\n");
 
                 double phaseDeg = Math.toDegrees(simResult.getPhaseAngle());
                 String circuitType;
                 if (phaseDeg > 0) {
-                    circuitType = "→ 🔄 Circuito INDUCTIVO (corriente atrasada)";
+                    circuitType = "-> Circuito INDUCTIVO (corriente atrasada)";
                 } else if (phaseDeg < 0) {
-                    circuitType = "→ ⚡ Circuito CAPACITIVO (corriente adelantada)";
+                    circuitType = "-> Circuito CAPACITIVO (corriente adelantada)";
                 } else {
-                    circuitType = "→ 🔌 Circuito RESISTIVO (corriente en fase)";
+                    circuitType = "-> Circuito RESISTIVO (corriente en fase)";
                 }
 
                 sb.append(circuitType).append("\n");
@@ -1538,10 +1541,10 @@ public class RLCSimulator extends JPanel implements SimulationObserver {
                 progressBar.setVisible(false);
                 simulateButton.setEnabled(true);
 
-                showInfo("✅ Simulación completada exitosamente");
+                showInfo("Simulacion completada exitosamente");
 
             } else {
-                onSimulationError("Resultado de simulación inválido");
+                onSimulationError("Resultado de simulacion invalido");
             }
         });
     }
@@ -1549,14 +1552,14 @@ public class RLCSimulator extends JPanel implements SimulationObserver {
     @Override
     public void onSimulationError(String error) {
         SwingUtilities.invokeLater(() -> {
-            String detailedError = "❌ Error en la simulación:\n\n" + error;
+            String detailedError = "Error en la simulacion:\n\n" + error;
 
             showError(detailedError);
 
             progressBar.setVisible(false);
             simulateButton.setEnabled(true);
 
-            resultsArea.setText("❌ Error en la simulación. Por favor, verifique los parámetros e intente nuevamente.\n\n"
+            resultsArea.setText("Error en la simulacion. Por favor, verifique los parametros e intente nuevamente.\n\n"
                     + "Detalles del error: " + error);
 
             updateGraphType();
@@ -1566,19 +1569,80 @@ public class RLCSimulator extends JPanel implements SimulationObserver {
     @Override
     public void onSimulationStart() {
         SwingUtilities.invokeLater(() -> {
-            resultsArea.setText("🔄 Simulación en progreso...\n\n⏳ Por favor espere...");
+            resultsArea.setText("Simulacion en progreso...\n\nPor favor espere...");
             progressBar.setVisible(true);
             progressBar.setIndeterminate(true);
-            progressBar.setString("🔄 Simulación en progreso...");
+            progressBar.setString("Simulacion en progreso...");
         });
     }
 
+    private void updateAnalysisPanel(SimulationResult result) {
+        if (analysisArea == null) return;
+        
+        StringBuilder analysis = new StringBuilder();
+        analysis.append("=== ANALISIS DETALLADO DEL CIRCUITO ===\n\n");
+        
+        // Análisis básico del circuito
+        double totalR = components.stream().mapToDouble(CircuitComponent::getResistance).sum();
+        double totalL = components.stream().mapToDouble(CircuitComponent::getInductance).sum();
+        double totalC = components.stream().mapToDouble(CircuitComponent::getCapacitance).sum();
+        
+        analysis.append("PARAMETROS DEL CIRCUITO:\n");
+        analysis.append(String.format("- Resistencia total: %.2f Ω\n", totalR));
+        analysis.append(String.format("- Inductancia total: %.4f H\n", totalL));
+        analysis.append(String.format("- Capacitancia total: %.6f F\n", totalC));
+        
+        // Análisis de potencia
+        analysis.append("\nANALISIS DE POTENCIA:\n");
+        analysis.append(String.format("- Potencia activa: %.2f W\n", result.getActivePower()));
+        analysis.append(String.format("- Potencia reactiva: %.2f VAR\n", result.getReactivePower()));
+        analysis.append(String.format("- Potencia aparente: %.2f VA\n", result.getApparentPower()));
+        analysis.append(String.format("- Factor de potencia: %.3f\n", result.getPowerFactor()));
+        
+        // Análisis de eficiencia
+        double efficiency = (result.getActivePower() / result.getApparentPower()) * 100;
+        analysis.append(String.format("- Eficiencia energetica: %.1f%%\n", efficiency));
+        
+        // Análisis de comportamiento
+        analysis.append("\nCOMPORTAMIENTO DEL CIRCUITO:\n");
+        double phaseDeg = Math.toDegrees(result.getPhaseAngle());
+        if (phaseDeg > 5) {
+            analysis.append("- Comportamiento predominantemente INDUCTIVO\n");
+            analysis.append("- La corriente se atrasa respecto al voltaje\n");
+        } else if (phaseDeg < -5) {
+            analysis.append("- Comportamiento predominantemente CAPACITIVO\n");
+            analysis.append("- La corriente se adelanta respecto al voltaje\n");
+        } else {
+            analysis.append("- Comportamiento predominantemente RESISTIVO\n");
+            analysis.append("- Corriente y voltaje estan en fase\n");
+        }
+        
+        // Recomendaciones
+        analysis.append("\nRECOMENDACIONES:\n");
+        if (Math.abs(result.getPowerFactor()) < 0.9) {
+            analysis.append("- Considerar correccion del factor de potencia\n");
+            if (result.getPowerFactor() < 0) {
+                analysis.append("- Agregar inductancia para mejorar el factor de potencia\n");
+            } else {
+                analysis.append("- Agregar capacitancia para mejorar el factor de potencia\n");
+            }
+        } else {
+            analysis.append("- Factor de potencia dentro de rangos aceptables\n");
+        }
+        
+        if (result.getCurrent() > 10) {
+            analysis.append("- Alta corriente detectada, verificar especificaciones de componentes\n");
+        }
+        
+        analysisArea.setText(analysis.toString());
+    }
+
     private void showError(String message) {
-        JOptionPane.showMessageDialog(this, message, "❌ Error", JOptionPane.ERROR_MESSAGE);
+        JOptionPane.showMessageDialog(this, message, "Error", JOptionPane.ERROR_MESSAGE);
     }
 
     private void showInfo(String message) {
-        JOptionPane.showMessageDialog(this, message, "ℹ️ Información", JOptionPane.INFORMATION_MESSAGE);
+        JOptionPane.showMessageDialog(this, message, "Informacion", JOptionPane.INFORMATION_MESSAGE);
     }
 
     public void disposeResources() {

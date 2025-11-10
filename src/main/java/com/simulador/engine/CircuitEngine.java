@@ -50,8 +50,6 @@ public class CircuitEngine {
      * Ejecuta la simulación del circuito
      * Executes circuit simulation
      */
-    // En CircuitEngine.java - MODIFICAR el método simulate:
-
     public void simulate(List<CircuitComponent> components,
             double voltage, double frequency) {
         if (isSimulating) {

@@ -317,8 +317,6 @@ public class CircuitEngine {
      * Ejecuta la simulación del circuito
      * Executes circuit simulation
      */
-    // En CircuitEngine.java - MODIFICAR el método simulate:
-
     public void simulate(List<CircuitComponent> components,
             double voltage, double frequency) {
         if (isSimulating) {
@@ -1819,76 +1817,76 @@ public abstract class BaseGraph extends JPanel {
     protected Color axisColor = new Color(60, 60, 60);
     protected Color infoPanelColor = new Color(255, 255, 255, 230);
     protected Color infoTextColor = new Color(30, 30, 30);
-    
+
     protected BasicStroke axisStroke = new BasicStroke(2.0f);
     protected BasicStroke gridStroke = new BasicStroke(1.0f);
     protected BasicStroke dataStroke = new BasicStroke(2.5f);
-    
+
     protected Font labelFont = new Font("Segoe UI", Font.BOLD, 13);
     protected Font scaleFont = new Font("Segoe UI", Font.PLAIN, 11);
     protected Font infoFont = new Font("Segoe UI", Font.PLAIN, 11);
-    
+
     public BaseGraph() {
         setPreferredSize(new Dimension(800, 550));
         setBackground(Color.WHITE);
         setOpaque(true);
     }
-    
+
     @Override
     protected void paintComponent(Graphics g) {
         super.paintComponent(g);
         Graphics2D g2d = (Graphics2D) g;
-        
-        g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, 
-                            RenderingHints.VALUE_ANTIALIAS_ON);
+
+        g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING,
+                RenderingHints.VALUE_ANTIALIAS_ON);
         g2d.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING,
-                            RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
+                RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
         g2d.setRenderingHint(RenderingHints.KEY_RENDERING,
-                            RenderingHints.VALUE_RENDER_QUALITY);
-        
+                RenderingHints.VALUE_RENDER_QUALITY);
+
         drawGraph(g2d);
     }
-    
+
     protected abstract void drawGraph(Graphics2D g2d);
-    
+
     protected void drawAxes(Graphics2D g2d, String xLabel, String yLabel) {
         int width = getWidth();
         int height = getHeight();
-        
+
         g2d.setColor(axisColor);
         g2d.setStroke(axisStroke);
         g2d.drawLine(padding, padding, padding, height - padding);
         g2d.drawLine(padding, height - padding, width - padding, height - padding);
-        
+
         g2d.setFont(labelFont);
         g2d.setColor(axisColor);
-        
+
         g2d.drawString(yLabel, 20, height / 2);
-        
+
         int xLabelWidth = g2d.getFontMetrics().stringWidth(xLabel);
         g2d.drawString(xLabel, width - padding - xLabelWidth, height - 20);
     }
-    
+
     protected void drawGrid(Graphics2D g2d, int xDivs, int yDivs) {
         int width = getWidth();
         int height = getHeight();
         int graphWidth = width - 2 * padding;
         int graphHeight = height - 2 * padding;
-        
+
         g2d.setColor(gridColor);
         g2d.setStroke(gridStroke);
-        
+
         for (int i = 1; i < yDivs; i++) {
             int y = padding + (i * graphHeight) / yDivs;
             g2d.drawLine(padding, y, width - padding, y);
         }
-        
+
         for (int i = 1; i < xDivs; i++) {
             int x = padding + (i * graphWidth) / xDivs;
             g2d.drawLine(x, padding, x, height - padding);
         }
     }
-    
+
     // NUEVO MÉTODO: Dibujar panel de información en el lado derecho
     protected void drawInfoPanel(Graphics2D g2d, String title, String[] contentLines) {
         int width = getWidth();
@@ -1896,79 +1894,79 @@ public abstract class BaseGraph extends JPanel {
         int panelHeight = 60 + contentLines.length * 18;
         int x = width - panelWidth - 20;
         int y = 30;
-        
+
         // Fondo del panel semi-transparente
         g2d.setColor(infoPanelColor);
         g2d.fillRoundRect(x, y, panelWidth, panelHeight, 12, 12);
-        
+
         // Borde del panel
         g2d.setColor(new Color(200, 200, 200));
         g2d.setStroke(new BasicStroke(1));
         g2d.drawRoundRect(x, y, panelWidth, panelHeight, 12, 12);
-        
+
         // Título del panel
         g2d.setColor(infoTextColor);
         g2d.setFont(new Font("Segoe UI", Font.BOLD, 12));
         g2d.drawString(title, x + 10, y + 20);
-        
+
         // Contenido del panel
         g2d.setFont(infoFont);
         for (int i = 0; i < contentLines.length; i++) {
             g2d.drawString(contentLines[i], x + 10, y + 40 + i * 18);
         }
     }
-    
+
     protected void drawYScale(Graphics2D g2d, double minValue, double maxValue, int divisions, String format) {
         int height = getHeight();
         int graphHeight = height - 2 * padding;
-        
+
         g2d.setFont(scaleFont);
         g2d.setColor(axisColor);
-        
+
         for (int i = 0; i <= divisions; i++) {
             int y = height - padding - (i * graphHeight) / divisions;
             double value = minValue + (i * (maxValue - minValue)) / divisions;
-            
+
             g2d.drawLine(padding - 5, y, padding + 5, y);
-            
+
             String text = String.format(format, value);
             int textWidth = g2d.getFontMetrics().stringWidth(text);
             g2d.drawString(text, padding - textWidth - 8, y + 4);
         }
     }
-    
+
     protected void drawXScale(Graphics2D g2d, double minValue, double maxValue, int divisions, String format) {
         int width = getWidth();
         int height = getHeight();
         int graphWidth = width - 2 * padding;
-        
+
         g2d.setFont(scaleFont);
         g2d.setColor(axisColor);
-        
+
         for (int i = 0; i <= divisions; i++) {
             int x = padding + (i * graphWidth) / divisions;
             double value = minValue + (i * (maxValue - minValue)) / divisions;
-            
+
             g2d.drawLine(x, height - padding - 5, x, height - padding + 5);
-            
+
             String text = String.format(format, value);
             int textWidth = g2d.getFontMetrics().stringWidth(text);
             g2d.drawString(text, x - textWidth / 2, height - padding + 20);
         }
     }
-    
+
     protected void drawLegend(Graphics2D g2d, String[] labels, Color[] colors, int x, int y) {
         g2d.setFont(infoFont);
-        
+
         // Fondo de la leyenda
         g2d.setColor(infoPanelColor);
         int legendHeight = labels.length * 20 + 10;
         g2d.fillRoundRect(x - 5, y - 15, 200, legendHeight, 8, 8);
-        
+
         // Borde de la leyenda
         g2d.setColor(new Color(200, 200, 200));
         g2d.drawRoundRect(x - 5, y - 15, 200, legendHeight, 8, 8);
-        
+
         // Elementos de la leyenda
         for (int i = 0; i < labels.length; i++) {
             if (i < colors.length) {
@@ -1976,17 +1974,17 @@ public abstract class BaseGraph extends JPanel {
                 g2d.setStroke(new BasicStroke(3));
                 g2d.drawLine(x, y + i * 20, x + 20, y + i * 20);
             }
-            
+
             g2d.setColor(infoTextColor);
             g2d.drawString(labels[i], x + 25, y + i * 20 + 4);
         }
     }
-    
+
     // Método auxiliar para mostrar mensaje cuando no hay datos
     protected void drawNoDataMessage(Graphics2D g2d, String message) {
         int width = getWidth();
         int height = getHeight();
-        
+
         g2d.setColor(new Color(200, 0, 0));
         g2d.setFont(new Font("Segoe UI", Font.BOLD, 16));
         int textWidth = g2d.getFontMetrics().stringWidth(message);
@@ -3194,7 +3192,8 @@ import com.simulador.utils.LanguageManager;
 import com.simulador.utils.SimulationObserver;
 
 import javax.swing.*;
-import javax.swing.border.TitledBorder;
+import javax.swing.plaf.basic.BasicProgressBarUI;
+import javax.swing.table.DefaultTableCellRenderer;
 import javax.swing.table.DefaultTableModel;
 
 import java.awt.*;
@@ -3204,7 +3203,7 @@ import java.util.List;
 
 /**
  * Panel principal del simulador de circuitos RLC con algoritmos de
- * planificación integrados
+ * planificación integrados - Versión Mejorada Visualmente
  */
 public class RLCSimulator extends JPanel implements SimulationObserver {
     private CircuitEngine engine;
@@ -3214,13 +3213,16 @@ public class RLCSimulator extends JPanel implements SimulationObserver {
     private DecimalFormat df = new DecimalFormat("0.000");
     private LanguageManager languageManager;
 
-    // PALETA DE COLORES
-    private final Color PRIMARY_BLUE = Color.decode("#1e40af");
+    // PALETA DE COLORES MEJORADA
+    private final Color PRIMARY_BLUE = Color.decode("#2563eb");
     private final Color SECONDARY_BLUE = Color.decode("#3b82f6");
-    private final Color DARK_GRAY = Color.decode("#374151");
-    private final Color MEDIUM_GRAY = Color.decode("#6b7280");
-    private final Color LIGHT_GRAY = Color.decode("#f5f7fa");
-    private final Color SUCCESS_GREEN = Color.decode("#10b981");
+    private final Color ACCENT_PURPLE = Color.decode("#8b5cf6");
+    private final Color SUCCESS_EMERALD = Color.decode("#10b981");
+    private final Color WARNING_AMBER = Color.decode("#f59e0b");
+    private final Color ERROR_ROSE = Color.decode("#f43f5e");
+    private final Color DARK_SLATE = Color.decode("#1e293b");
+    private final Color LIGHT_SLATE = Color.decode("#f1f5f9");
+    private final Color CARD_BACKGROUND = Color.WHITE;
 
     // Componentes de UI para planificación
     private JComboBox<String> algorithmCombo;
@@ -3287,13 +3289,17 @@ public class RLCSimulator extends JPanel implements SimulationObserver {
 
     private void initializeUI() {
         setLayout(new BorderLayout(10, 10));
-        setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
-        setBackground(LIGHT_GRAY);
+        setBorder(BorderFactory.createEmptyBorder(15, 15, 15, 15));
+        setBackground(LIGHT_SLATE);
+
+        // Header mejorado
+        add(createHeaderPanel(), BorderLayout.NORTH);
 
         // Panel principal dividido en izquierda y derecha
         JSplitPane mainSplitPane = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT);
         mainSplitPane.setDividerLocation(400);
         mainSplitPane.setResizeWeight(0.4);
+        mainSplitPane.setBorder(BorderFactory.createEmptyBorder());
 
         // Panel izquierdo - Controles
         JPanel leftPanel = createControlsPanel();
@@ -3306,29 +3312,69 @@ public class RLCSimulator extends JPanel implements SimulationObserver {
         add(mainSplitPane, BorderLayout.CENTER);
     }
 
+    private JPanel createHeaderPanel() {
+        JPanel headerPanel = new JPanel() {
+            @Override
+            protected void paintComponent(Graphics g) {
+                super.paintComponent(g);
+                Graphics2D g2d = (Graphics2D) g;
+                g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+                
+                // Gradiente de fondo
+                GradientPaint gradient = new GradientPaint(
+                    0, 0, PRIMARY_BLUE, 
+                    getWidth(), 0, ACCENT_PURPLE
+                );
+                g2d.setPaint(gradient);
+                g2d.fillRect(0, 0, getWidth(), getHeight());
+                
+                // Patrón sutil
+                g2d.setColor(new Color(255, 255, 255, 10));
+                for (int i = 0; i < getWidth(); i += 20) {
+                    for (int j = 0; j < getHeight(); j += 20) {
+                        g2d.fillOval(i, j, 2, 2);
+                    }
+                }
+            }
+        };
+        
+        headerPanel.setLayout(new BorderLayout());
+        headerPanel.setPreferredSize(new Dimension(800, 100));
+        
+        JLabel titleLabel = new JLabel("⚡ Simulador Avanzado de Circuitos RLC", JLabel.CENTER);
+        titleLabel.setFont(new Font("Segoe UI", Font.BOLD, 26));
+        titleLabel.setForeground(Color.WHITE);
+        titleLabel.setBorder(BorderFactory.createEmptyBorder(25, 0, 5, 0));
+        
+        JLabel subtitleLabel = new JLabel("Con Algoritmos de Planificación Integrados • Análisis en Tiempo Real", JLabel.CENTER);
+        subtitleLabel.setFont(new Font("Segoe UI", Font.PLAIN, 14));
+        subtitleLabel.setForeground(new Color(255, 255, 255, 220));
+        subtitleLabel.setBorder(BorderFactory.createEmptyBorder(0, 0, 25, 0));
+        
+        headerPanel.add(titleLabel, BorderLayout.CENTER);
+        headerPanel.add(subtitleLabel, BorderLayout.SOUTH);
+        
+        return headerPanel;
+    }
+
     private JPanel createControlsPanel() {
         JPanel panel = new JPanel(new BorderLayout(10, 10));
         panel.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
-        panel.setBackground(Color.WHITE);
+        panel.setBackground(LIGHT_SLATE);
         panel.setPreferredSize(new Dimension(400, 700));
-
-        // Título
-        JLabel titleLabel = new JLabel("Simulador RLC con Planificación", JLabel.CENTER);
-        titleLabel.setFont(new Font("Segoe UI", Font.BOLD, 18));
-        titleLabel.setForeground(PRIMARY_BLUE);
-        titleLabel.setBorder(BorderFactory.createEmptyBorder(0, 0, 15, 0));
-        panel.add(titleLabel, BorderLayout.NORTH);
 
         // Crear pestañas para navegación
         JTabbedPane tabbedPane = new JTabbedPane(JTabbedPane.TOP);
         tabbedPane.setFont(new Font("Segoe UI", Font.BOLD, 12));
-        tabbedPane.setBackground(Color.WHITE);
+        tabbedPane.setBackground(LIGHT_SLATE);
+        setupModernTabbedPane(tabbedPane);
 
         // Pestaña 1: Simulación de Circuitos
         JPanel circuitPanel = createCircuitControlsPanel();
         JScrollPane circuitScroll = new JScrollPane(circuitPanel);
         circuitScroll.setBorder(null);
         circuitScroll.getVerticalScrollBar().setUnitIncrement(16);
+        circuitScroll.setBackground(LIGHT_SLATE);
         tabbedPane.addTab("⚡ Circuito RLC", circuitScroll);
 
         // Pestaña 2: Planificación de Procesos
@@ -3336,80 +3382,172 @@ public class RLCSimulator extends JPanel implements SimulationObserver {
         JScrollPane schedulingScroll = new JScrollPane(schedulingPanel);
         schedulingScroll.setBorder(null);
         schedulingScroll.getVerticalScrollBar().setUnitIncrement(16);
+        schedulingScroll.setBackground(LIGHT_SLATE);
         tabbedPane.addTab("🔄 Planificación", schedulingScroll);
 
         panel.add(tabbedPane, BorderLayout.CENTER);
         return panel;
     }
 
+    private void setupModernTabbedPane(JTabbedPane tabbedPane) {
+        tabbedPane.setUI(new javax.swing.plaf.basic.BasicTabbedPaneUI() {
+            @Override
+            protected void installDefaults() {
+                super.installDefaults();
+                tabbedPane.setOpaque(false);
+                tabbedPane.setBackground(LIGHT_SLATE);
+            }
+            
+            @Override
+            protected void paintTabBackground(Graphics g, int tabPlacement, 
+                                            int tabIndex, int x, int y, int w, int h, 
+                                            boolean isSelected) {
+                Graphics2D g2d = (Graphics2D) g;
+                g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+                
+                if (isSelected) {
+                    GradientPaint gradient = new GradientPaint(
+                        x, y, PRIMARY_BLUE,
+                        x, y + h, SECONDARY_BLUE
+                    );
+                    g2d.setPaint(gradient);
+                    g2d.fillRoundRect(x + 2, y + 2, w - 4, h - 2, 12, 12);
+                } else {
+                    g2d.setColor(new Color(255, 255, 255, 180));
+                    g2d.fillRoundRect(x + 2, y + 2, w - 4, h - 2, 12, 12);
+                }
+            }
+            
+            @Override
+            protected void paintText(Graphics g, int tabPlacement, Font font, 
+                                   FontMetrics metrics, int tabIndex, 
+                                   String title, Rectangle textRect, boolean isSelected) {
+                g.setFont(font.deriveFont(isSelected ? Font.BOLD : Font.PLAIN, 12));
+                g.setColor(isSelected ? Color.WHITE : DARK_SLATE);
+                super.paintText(g, tabPlacement, font, metrics, tabIndex, title, textRect, isSelected);
+            }
+            
+            @Override
+            protected void paintTabBorder(Graphics g, int tabPlacement, int tabIndex, 
+                                        int x, int y, int w, int h, boolean isSelected) {
+                // Sin bordes para un look más limpio
+            }
+            
+            @Override
+            protected void paintContentBorder(Graphics g, int tabPlacement, int selectedIndex) {
+                // Borde sutil para el área de contenido
+                Graphics2D g2d = (Graphics2D) g;
+                g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+                g2d.setColor(new Color(255, 255, 255, 150));
+                g2d.setStroke(new BasicStroke(1.5f));
+                g2d.drawRoundRect(1, 1, tabbedPane.getWidth()-3, tabbedPane.getHeight()-3, 8, 8);
+            }
+        });
+    }
+
     private JPanel createCircuitControlsPanel() {
         JPanel panel = new JPanel();
         panel.setLayout(new BoxLayout(panel, BoxLayout.Y_AXIS));
-        panel.setBorder(createTitledBorder("Simulación de Circuitos RLC"));
-        panel.setBackground(Color.WHITE);
+        panel.setBorder(BorderFactory.createEmptyBorder(10, 5, 10, 5));
+        panel.setBackground(LIGHT_SLATE);
         panel.setAlignmentX(Component.LEFT_ALIGNMENT);
 
         // Fuente de alimentación
-        JPanel inputPanel = createInputPanel();
+        JPanel inputPanel = createModernCardPanel("🔌 Fuente de Alimentación", createInputPanel());
         panel.add(inputPanel);
-        panel.add(Box.createVerticalStrut(10));
+        panel.add(Box.createVerticalStrut(15));
 
         // Método de simulación
-        JPanel methodPanel = createMethodPanel();
+        JPanel methodPanel = createModernCardPanel("📊 Método de Simulación", createMethodPanel());
         panel.add(methodPanel);
-        panel.add(Box.createVerticalStrut(10));
+        panel.add(Box.createVerticalStrut(15));
 
         // Circuitos predefinidos
-        JPanel presetPanel = createPresetPanel();
+        JPanel presetPanel = createModernCardPanel("🎯 Circuitos Predefinidos", createPresetPanel());
         panel.add(presetPanel);
-        panel.add(Box.createVerticalStrut(10));
+        panel.add(Box.createVerticalStrut(15));
 
         // Componentes
-        JPanel componentPanel = createComponentPanel();
+        JPanel componentPanel = createModernCardPanel("⚡ Agregar Componentes", createComponentPanel());
         panel.add(componentPanel);
-        panel.add(Box.createVerticalStrut(10));
+        panel.add(Box.createVerticalStrut(15));
 
         // Lista de componentes
-        JPanel listPanel = createComponentListPanel();
+        JPanel listPanel = createModernCardPanel("📋 Componentes en el Circuito", createComponentListPanel());
         panel.add(listPanel);
-        panel.add(Box.createVerticalStrut(10));
+        panel.add(Box.createVerticalStrut(15));
 
         // Botones de acción
-        JPanel actionPanel = createCircuitActionPanel();
+        JPanel actionPanel = createModernCardPanel("🚀 Acciones", createCircuitActionPanel());
         panel.add(actionPanel);
 
         return panel;
     }
 
+    private JPanel createModernCardPanel(String title, JPanel contentPanel) {
+        JPanel cardPanel = new JPanel() {
+            @Override
+            protected void paintComponent(Graphics g) {
+                Graphics2D g2d = (Graphics2D) g;
+                g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+                
+                // Sombra suave
+                g2d.setColor(new Color(0, 0, 0, 15));
+                g2d.fillRoundRect(2, 2, getWidth()-2, getHeight()-2, 16, 16);
+                
+                // Fondo de la tarjeta
+                g2d.setColor(CARD_BACKGROUND);
+                g2d.fillRoundRect(0, 0, getWidth()-2, getHeight()-2, 14, 14);
+                
+                // Borde sutil
+                g2d.setColor(new Color(226, 232, 240));
+                g2d.setStroke(new BasicStroke(1.2f));
+                g2d.drawRoundRect(0, 0, getWidth()-2, getHeight()-2, 14, 14);
+            }
+        };
+        
+        cardPanel.setLayout(new BorderLayout());
+        cardPanel.setBorder(BorderFactory.createEmptyBorder(15, 15, 15, 15));
+        cardPanel.setMaximumSize(new Dimension(380, Integer.MAX_VALUE));
+        
+        // Título de la tarjeta
+        JLabel titleLabel = new JLabel(title);
+        titleLabel.setFont(new Font("Segoe UI", Font.BOLD, 14));
+        titleLabel.setForeground(DARK_SLATE);
+        titleLabel.setBorder(BorderFactory.createEmptyBorder(0, 0, 12, 0));
+        titleLabel.setIconTextGap(8);
+        
+        cardPanel.add(titleLabel, BorderLayout.NORTH);
+        cardPanel.add(contentPanel, BorderLayout.CENTER);
+        
+        return cardPanel;
+    }
+
     private JPanel createSchedulingControlsPanel() {
-        JPanel panel = new JPanel(new BorderLayout(10, 10)); // Cambiar a BorderLayout
-        panel.setBorder(createTitledBorder("Planificación de Procesos"));
-        panel.setBackground(Color.WHITE);
+        JPanel panel = new JPanel(new BorderLayout(10, 10));
+        panel.setBorder(BorderFactory.createEmptyBorder(10, 5, 10, 5));
+        panel.setBackground(LIGHT_SLATE);
         panel.setAlignmentX(Component.LEFT_ALIGNMENT);
 
         // Panel superior - Controles de configuración
         JPanel controlsPanel = new JPanel();
         controlsPanel.setLayout(new BoxLayout(controlsPanel, BoxLayout.Y_AXIS));
-        controlsPanel.setBackground(Color.WHITE);
+        controlsPanel.setBackground(LIGHT_SLATE);
         controlsPanel.setAlignmentX(Component.LEFT_ALIGNMENT);
 
         // Algoritmo de planificación
-        JPanel algorithmPanel = createSimpleComboBoxPanel("Algoritmo:",
-                new String[] { "First-Come, First-Served (FCFS)", "Round Robin (RR)", "Shortest Job First (SJF)" });
+        JPanel algorithmPanel = createModernCardPanel("🎯 Algoritmo de Planificación", 
+            createSimpleComboBoxPanel("Seleccione algoritmo:", 
+                new String[] { "First-Come, First-Served (FCFS)", "Round Robin (RR)", "Shortest Job First (SJF)" }));
         algorithmCombo = findComboBoxInPanel(algorithmPanel);
-        if (algorithmCombo == null) {
-            algorithmCombo = new JComboBox<>(new String[] {
-                    "First-Come, First-Served (FCFS)", "Round Robin (RR)", "Shortest Job First (SJF)"
-            });
-            algorithmPanel.add(algorithmCombo);
-        }
         controlsPanel.add(algorithmPanel);
-        controlsPanel.add(Box.createVerticalStrut(10));
+        controlsPanel.add(Box.createVerticalStrut(15));
 
         // Tipo de lote
-        JPanel batchPanel = createSimpleComboBoxPanel("Tipo de Lote:",
+        JPanel batchPanel = createModernCardPanel("📦 Tipo de Lote", 
+            createSimpleComboBoxPanel("Configuración del lote:",
                 new String[] { "Homogéneo - Simple", "Homogéneo - Medio", "Homogéneo - Complejo",
-                        "Heterogéneo - Mixto" });
+                        "Heterogéneo - Mixto" }));
         batchTypeCombo = findComboBoxInPanel(batchPanel);
         if (batchTypeCombo == null) {
             batchTypeCombo = new JComboBox<>(new String[] {
@@ -3419,24 +3557,23 @@ public class RLCSimulator extends JPanel implements SimulationObserver {
         }
         batchTypeCombo.addActionListener(e -> updateBatchControls());
         controlsPanel.add(batchPanel);
-        controlsPanel.add(Box.createVerticalStrut(10));
+        controlsPanel.add(Box.createVerticalStrut(15));
 
         // Controles de batch
-        JPanel batchControlsPanel = createBatchControlsPanel();
+        JPanel batchControlsPanel = createModernCardPanel("⚙️ Configuración del Lote", createBatchControlsPanel());
         controlsPanel.add(batchControlsPanel);
-        controlsPanel.add(Box.createVerticalStrut(10));
+        controlsPanel.add(Box.createVerticalStrut(15));
 
         // Botones de control
-        JPanel buttonPanel = createSchedulingButtonPanel();
+        JPanel buttonPanel = createModernCardPanel("🎮 Control de Ejecución", createSchedulingButtonPanel());
         controlsPanel.add(buttonPanel);
-        controlsPanel.add(Box.createVerticalStrut(10));
+        controlsPanel.add(Box.createVerticalStrut(15));
 
         // Barra de progreso
         schedulingProgressBar = new JProgressBar();
-        schedulingProgressBar.setStringPainted(true);
+        setupModernProgressBar(schedulingProgressBar);
         schedulingProgressBar.setVisible(false);
-        schedulingProgressBar.setForeground(SUCCESS_GREEN);
-        schedulingProgressBar.setMaximumSize(new Dimension(350, 20));
+        schedulingProgressBar.setMaximumSize(new Dimension(350, 25));
         schedulingProgressBar.setAlignmentX(Component.LEFT_ALIGNMENT);
         controlsPanel.add(schedulingProgressBar);
 
@@ -3449,26 +3586,70 @@ public class RLCSimulator extends JPanel implements SimulationObserver {
         JSplitPane splitPane = new JSplitPane(JSplitPane.VERTICAL_SPLIT);
         splitPane.setTopComponent(createScrollPanel(controlsPanel));
         splitPane.setBottomComponent(logPanel);
-        splitPane.setDividerLocation(300); // Ajustar según necesidad
-        splitPane.setResizeWeight(0.6); // El panel superior ocupa 60% inicialmente
+        splitPane.setDividerLocation(320);
+        splitPane.setResizeWeight(0.6);
+        splitPane.setBorder(BorderFactory.createEmptyBorder());
 
         panel.add(splitPane, BorderLayout.CENTER);
         return panel;
     }
 
+    private void setupModernProgressBar(JProgressBar progressBar) {
+        progressBar.setUI(new BasicProgressBarUI() {
+            @Override
+            protected Color getSelectionBackground() { return Color.WHITE; }
+            @Override
+            protected Color getSelectionForeground() { return Color.WHITE; }
+            
+            @Override
+            protected void paintDeterminate(Graphics g, JComponent c) {
+                Graphics2D g2d = (Graphics2D) g;
+                g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+                
+                int width = progressBar.getWidth();
+                int height = progressBar.getHeight();
+                int progress = (int) (width * progressBar.getPercentComplete());
+                
+                // Fondo
+                g2d.setColor(LIGHT_SLATE);
+                g2d.fillRoundRect(0, 0, width, height, height, height);
+                
+                // Progreso con gradiente
+                if (progress > 0) {
+                    GradientPaint gradient = new GradientPaint(
+                        0, 0, SUCCESS_EMERALD, 
+                        width, 0, SUCCESS_EMERALD.brighter()
+                    );
+                    g2d.setPaint(gradient);
+                    g2d.fillRoundRect(0, 0, progress, height, height, height);
+                }
+                
+                // Borde
+                g2d.setColor(new Color(203, 213, 225));
+                g2d.setStroke(new BasicStroke(1.2f));
+                g2d.drawRoundRect(0, 0, width-1, height-1, height, height);
+            }
+        });
+        
+        progressBar.setStringPainted(true);
+        progressBar.setFont(new Font("Segoe UI", Font.BOLD, 11));
+    }
+
     private JPanel createSchedulingLogPanelForLeft() {
         JPanel panel = new JPanel(new BorderLayout());
-        panel.setBorder(createTitledBorder("Log de Planificación y Tareas"));
-        panel.setBackground(Color.WHITE);
+        panel.setBorder(BorderFactory.createEmptyBorder(5, 0, 0, 0));
+        panel.setBackground(LIGHT_SLATE);
         panel.setPreferredSize(new Dimension(350, 250));
 
         // Crear pestañas para Log y Tareas
         JTabbedPane logTabs = new JTabbedPane(JTabbedPane.TOP);
         logTabs.setFont(new Font("Segoe UI", Font.PLAIN, 11));
+        setupModernTabbedPane(logTabs);
 
         // Pestaña de Tareas
         JPanel tasksPanel = new JPanel(new BorderLayout());
-        tasksPanel.setBackground(Color.WHITE);
+        tasksPanel.setBackground(CARD_BACKGROUND);
+        tasksPanel.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
 
         String[] columns = { "ID", "Nombre", "Complejidad", "Duración (ms)", "Estado", "Progreso" };
         tasksTableModel = new DefaultTableModel(columns, 0) {
@@ -3482,31 +3663,59 @@ public class RLCSimulator extends JPanel implements SimulationObserver {
         tasksTable.setAutoCreateRowSorter(true);
         tasksTable.setFont(new Font("Segoe UI", Font.PLAIN, 10));
         tasksTable.setBackground(Color.WHITE);
-        tasksTable.setRowHeight(20);
+        tasksTable.setRowHeight(25);
+        tasksTable.setShowGrid(false);
+        tasksTable.setIntercellSpacing(new Dimension(0, 0));
+
+        // Renderizado mejorado para la tabla
+        tasksTable.setDefaultRenderer(Object.class, new DefaultTableCellRenderer() {
+            @Override
+            public Component getTableCellRendererComponent(JTable table, Object value,
+                    boolean isSelected, boolean hasFocus, int row, int column) {
+                Component c = super.getTableCellRendererComponent(table, value, isSelected, hasFocus, row, column);
+                
+                if (isSelected) {
+                    c.setBackground(PRIMARY_BLUE);
+                    c.setForeground(Color.WHITE);
+                } else {
+                    c.setBackground(row % 2 == 0 ? new Color(248, 250, 252) : Color.WHITE);
+                    c.setForeground(DARK_SLATE);
+                }
+                
+                setBorder(BorderFactory.createEmptyBorder(5, 8, 5, 8));
+                setFont(new Font("Segoe UI", Font.PLAIN, 10));
+                
+                return c;
+            }
+        });
 
         JScrollPane tableScroll = new JScrollPane(tasksTable);
         tableScroll.setPreferredSize(new Dimension(300, 120));
-        tableScroll.setBorder(BorderFactory.createLineBorder(MEDIUM_GRAY));
+        tableScroll.setBorder(BorderFactory.createLineBorder(new Color(226, 232, 240)));
+        tableScroll.getViewport().setBackground(Color.WHITE);
         tasksPanel.add(tableScroll, BorderLayout.CENTER);
 
         // Pestaña de Log
         JPanel logPanel = new JPanel(new BorderLayout());
-        logPanel.setBackground(Color.WHITE);
+        logPanel.setBackground(CARD_BACKGROUND);
+        logPanel.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
 
         schedulingLogArea = new JTextArea(8, 30);
         schedulingLogArea.setEditable(false);
-        schedulingLogArea.setFont(new Font("Segoe UI", Font.PLAIN, 10));
-        schedulingLogArea.setBackground(Color.WHITE);
+        schedulingLogArea.setFont(new Font("Consolas", Font.PLAIN, 10));
+        schedulingLogArea.setBackground(new Color(248, 250, 252));
+        schedulingLogArea.setForeground(DARK_SLATE);
         schedulingLogArea.setLineWrap(true);
         schedulingLogArea.setWrapStyleWord(true);
+        schedulingLogArea.setBorder(BorderFactory.createEmptyBorder(8, 8, 8, 8));
 
         JScrollPane logScroll = new JScrollPane(schedulingLogArea);
-        logScroll.setBorder(BorderFactory.createLineBorder(MEDIUM_GRAY));
+        logScroll.setBorder(BorderFactory.createLineBorder(new Color(226, 232, 240)));
         logPanel.add(logScroll, BorderLayout.CENTER);
 
         // Agregar pestañas
-        logTabs.addTab("Tareas", tasksPanel);
-        logTabs.addTab("Log", logPanel);
+        logTabs.addTab("📊 Tareas", tasksPanel);
+        logTabs.addTab("📝 Log", logPanel);
 
         panel.add(logTabs, BorderLayout.CENTER);
         return panel;
@@ -3518,25 +3727,23 @@ public class RLCSimulator extends JPanel implements SimulationObserver {
         scrollPane.setVerticalScrollBarPolicy(JScrollPane.VERTICAL_SCROLLBAR_AS_NEEDED);
         scrollPane.setHorizontalScrollBarPolicy(JScrollPane.HORIZONTAL_SCROLLBAR_NEVER);
         scrollPane.getVerticalScrollBar().setUnitIncrement(16);
+        scrollPane.getViewport().setBackground(LIGHT_SLATE);
         return scrollPane;
     }
 
     // Método auxiliar para encontrar JComboBox<String> de forma segura
     @SuppressWarnings("unchecked")
     private JComboBox<String> findComboBoxInPanel(JPanel panel) {
-        // Buscar directamente en los componentes del panel
         for (Component comp : panel.getComponents()) {
             if (comp instanceof JComboBox) {
                 try {
                     return (JComboBox<String>) comp;
                 } catch (ClassCastException e) {
-                    System.err.println("Error: JComboBox no es del tipo esperado");
                     continue;
                 }
             }
         }
 
-        // Si no se encuentra, buscar en sub-paneles
         for (Component comp : panel.getComponents()) {
             if (comp instanceof JPanel) {
                 JComboBox<String> found = findComboBoxInPanel((JPanel) comp);
@@ -3551,7 +3758,7 @@ public class RLCSimulator extends JPanel implements SimulationObserver {
 
     private JPanel createVisualizationPanel() {
         JPanel panel = new JPanel(new BorderLayout(10, 10));
-        panel.setBackground(LIGHT_GRAY);
+        panel.setBackground(LIGHT_SLATE);
 
         // Panel superior: Diagrama del circuito
         JPanel diagramPanel = createCircuitPanel();
@@ -3560,20 +3767,21 @@ public class RLCSimulator extends JPanel implements SimulationObserver {
         // Panel central: Pestañas para gráficos y resultados
         JTabbedPane centerTabs = new JTabbedPane(JTabbedPane.TOP);
         centerTabs.setFont(new Font("Segoe UI", Font.BOLD, 12));
+        setupModernTabbedPane(centerTabs);
 
         // Pestaña 1: Visualización (Gráficos)
         JPanel graphPanel = createGraphPanel();
-        centerTabs.addTab("⚡ Visualización", graphPanel);
+        centerTabs.addTab("📈 Visualización", graphPanel);
 
         // Pestaña 2: Resultados
         JPanel resultsPanel = createResultsPanel();
         JScrollPane resultsScroll = new JScrollPane(resultsPanel);
         resultsScroll.setBorder(BorderFactory.createEmptyBorder(5, 5, 5, 5));
-        centerTabs.addTab("📊 Resultados de Simulación", resultsScroll);
+        centerTabs.addTab("📊 Resultados", resultsScroll);
 
         // Pestaña 3: Análisis Detallado
         JPanel analysisPanel = createAnalysisPanel();
-        centerTabs.addTab("🔍 Análisis Detallado", analysisPanel);
+        centerTabs.addTab("🔍 Análisis", analysisPanel);
 
         panel.add(centerTabs, BorderLayout.CENTER);
 
@@ -3582,22 +3790,28 @@ public class RLCSimulator extends JPanel implements SimulationObserver {
 
     private JPanel createAnalysisPanel() {
         JPanel panel = new JPanel(new BorderLayout());
-        panel.setBackground(Color.WHITE);
+        panel.setBackground(CARD_BACKGROUND);
+        panel.setBorder(BorderFactory.createEmptyBorder(20, 20, 20, 20));
 
         JTextArea analysisArea = new JTextArea();
         analysisArea.setEditable(false);
-        analysisArea.setFont(new Font("Segoe UI", Font.PLAIN, 11));
-        analysisArea.setBackground(Color.WHITE);
+        analysisArea.setFont(new Font("Segoe UI", Font.PLAIN, 12));
+        analysisArea.setBackground(CARD_BACKGROUND);
+        analysisArea.setForeground(DARK_SLATE);
+        analysisArea.setLineWrap(true);
+        analysisArea.setWrapStyleWord(true);
         analysisArea.setText(
                 "=== ANÁLISIS DETALLADO DEL CIRCUITO ===\n\n" +
-                        "Esta sección muestra análisis avanzados:\n" +
-                        "• Parámetros del circuito en diferentes frecuencias\n" +
-                        "• Comportamiento transitorio vs permanente\n" +
-                        "• Análisis de estabilidad\n" +
-                        "• Respuesta a diferentes tipos de entrada\n\n" +
-                        "Ejecute una simulación para ver los análisis.");
+                "Esta sección muestra análisis avanzados:\n\n" +
+                "• 📈 Parámetros del circuito en diferentes frecuencias\n" +
+                "• ⚡ Comportamiento transitorio vs permanente\n" +
+                "• 🎯 Análisis de estabilidad del sistema\n" +
+                "• 📊 Respuesta a diferentes tipos de entrada\n" +
+                "• 🔄 Análisis de sensibilidad de componentes\n\n" +
+                "Ejecute una simulación para ver los análisis detallados.");
 
         JScrollPane scroll = new JScrollPane(analysisArea);
+        scroll.setBorder(BorderFactory.createLineBorder(new Color(226, 232, 240)));
         panel.add(scroll, BorderLayout.CENTER);
 
         return panel;
@@ -3606,32 +3820,28 @@ public class RLCSimulator extends JPanel implements SimulationObserver {
     private JPanel createInputPanel() {
         JPanel panel = new JPanel();
         panel.setLayout(new BoxLayout(panel, BoxLayout.Y_AXIS));
-        panel.setBackground(Color.WHITE);
+        panel.setBackground(CARD_BACKGROUND);
         panel.setAlignmentX(Component.LEFT_ALIGNMENT);
 
-        JLabel titleLabel = createLabel("Fuente de Alimentación");
-        titleLabel.setFont(new Font("Segoe UI", Font.BOLD, 12));
-        titleLabel.setAlignmentX(Component.LEFT_ALIGNMENT);
-        panel.add(titleLabel);
-        panel.add(Box.createVerticalStrut(5));
-
         JPanel voltagePanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
-        voltagePanel.setBackground(Color.WHITE);
-        voltagePanel.add(createLabel("Voltaje (V):"));
-        voltageField = new JTextField("10", 8);
+        voltagePanel.setBackground(CARD_BACKGROUND);
+        voltagePanel.add(createModernLabel("Voltaje (V):"));
+        voltageField = createModernTextField("10", 10);
         voltageField.setToolTipText("Voltaje entre 0.1 y 1000 V");
         voltagePanel.add(voltageField);
-        voltagePanel.add(createLabel("V"));
+        voltagePanel.add(createModernLabel("V"));
         voltagePanel.setAlignmentX(Component.LEFT_ALIGNMENT);
         panel.add(voltagePanel);
 
+        panel.add(Box.createVerticalStrut(8));
+
         JPanel frequencyPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
-        frequencyPanel.setBackground(Color.WHITE);
-        frequencyPanel.add(createLabel("Frecuencia (Hz):"));
-        frequencyField = new JTextField("60", 8);
+        frequencyPanel.setBackground(CARD_BACKGROUND);
+        frequencyPanel.add(createModernLabel("Frecuencia (Hz):"));
+        frequencyField = createModernTextField("60", 10);
         frequencyField.setToolTipText("Frecuencia entre 0.1 y 10000 Hz");
         frequencyPanel.add(frequencyField);
-        frequencyPanel.add(createLabel("Hz"));
+        frequencyPanel.add(createModernLabel("Hz"));
         frequencyPanel.setAlignmentX(Component.LEFT_ALIGNMENT);
         panel.add(frequencyPanel);
 
@@ -3641,23 +3851,17 @@ public class RLCSimulator extends JPanel implements SimulationObserver {
     private JPanel createMethodPanel() {
         JPanel panel = new JPanel();
         panel.setLayout(new BoxLayout(panel, BoxLayout.Y_AXIS));
-        panel.setBackground(Color.WHITE);
+        panel.setBackground(CARD_BACKGROUND);
         panel.setAlignmentX(Component.LEFT_ALIGNMENT);
 
-        JLabel titleLabel = createLabel("Método de Simulación");
-        titleLabel.setFont(new Font("Segoe UI", Font.BOLD, 12));
-        titleLabel.setAlignmentX(Component.LEFT_ALIGNMENT);
-        panel.add(titleLabel);
-        panel.add(Box.createVerticalStrut(5));
-
-        methodCombo = new JComboBox<>();
+        methodCombo = createModernComboBox();
         for (SimulationStrategy strategy : CircuitEngine.getAvailableStrategies()) {
             String methodKey = strategy.getName().toLowerCase().replace("-", "");
             methodCombo.addItem(languageManager.getTranslation(methodKey));
         }
         methodCombo.setToolTipText("Método de cálculo para la simulación");
         methodCombo.setAlignmentX(Component.LEFT_ALIGNMENT);
-        methodCombo.setMaximumSize(new Dimension(300, 25));
+        methodCombo.setMaximumSize(new Dimension(300, 35));
         panel.add(methodCombo);
 
         return panel;
@@ -3666,24 +3870,18 @@ public class RLCSimulator extends JPanel implements SimulationObserver {
     private JPanel createPresetPanel() {
         JPanel panel = new JPanel();
         panel.setLayout(new BoxLayout(panel, BoxLayout.Y_AXIS));
-        panel.setBackground(Color.WHITE);
+        panel.setBackground(CARD_BACKGROUND);
         panel.setAlignmentX(Component.LEFT_ALIGNMENT);
-
-        JLabel titleLabel = createLabel("Circuitos Predefinidos");
-        titleLabel.setFont(new Font("Segoe UI", Font.BOLD, 12));
-        titleLabel.setAlignmentX(Component.LEFT_ALIGNMENT);
-        panel.add(titleLabel);
-        panel.add(Box.createVerticalStrut(5));
 
         String[] presetKeys = { "custom", "underdamped", "critical", "overdamped", "series_rlc", "high_pass",
                 "low_pass" };
-        presetCombo = new JComboBox<>();
+        presetCombo = createModernComboBox();
         for (String key : presetKeys) {
             presetCombo.addItem(languageManager.getTranslation(key));
         }
         presetCombo.setToolTipText("Seleccione un circuito predefinido");
         presetCombo.setAlignmentX(Component.LEFT_ALIGNMENT);
-        presetCombo.setMaximumSize(new Dimension(300, 25));
+        presetCombo.setMaximumSize(new Dimension(300, 35));
         panel.add(presetCombo);
 
         return panel;
@@ -3692,42 +3890,39 @@ public class RLCSimulator extends JPanel implements SimulationObserver {
     private JPanel createComponentPanel() {
         JPanel panel = new JPanel();
         panel.setLayout(new BoxLayout(panel, BoxLayout.Y_AXIS));
-        panel.setBackground(Color.WHITE);
+        panel.setBackground(CARD_BACKGROUND);
         panel.setAlignmentX(Component.LEFT_ALIGNMENT);
 
-        JLabel titleLabel = createLabel("Agregar Componentes");
-        titleLabel.setFont(new Font("Segoe UI", Font.BOLD, 12));
-        titleLabel.setAlignmentX(Component.LEFT_ALIGNMENT);
-        panel.add(titleLabel);
-        panel.add(Box.createVerticalStrut(5));
-
         JPanel typePanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
-        typePanel.setBackground(Color.WHITE);
-        typePanel.add(createLabel("Tipo:"));
+        typePanel.setBackground(CARD_BACKGROUND);
+        typePanel.add(createModernLabel("Tipo:"));
         String[] componentTypes = { "resistance", "inductor", "capacitor" };
-        componentTypeCombo = new JComboBox<>();
+        componentTypeCombo = createModernComboBox();
         for (String type : componentTypes) {
             componentTypeCombo.addItem(languageManager.getTranslation(type));
         }
-        componentTypeCombo.setMaximumSize(new Dimension(120, 25));
+        componentTypeCombo.setMaximumSize(new Dimension(140, 35));
         typePanel.add(componentTypeCombo);
         typePanel.setAlignmentX(Component.LEFT_ALIGNMENT);
         panel.add(typePanel);
 
+        panel.add(Box.createVerticalStrut(8));
+
         JPanel valuePanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
-        valuePanel.setBackground(Color.WHITE);
-        valuePanel.add(createLabel("Valor:"));
-        valueField = new JTextField("100", 8);
+        valuePanel.setBackground(CARD_BACKGROUND);
+        valuePanel.add(createModernLabel("Valor:"));
+        valueField = createModernTextField("100", 12);
         valueField.setToolTipText("Ingrese un valor positivo para el componente");
         valuePanel.add(valueField);
         valuePanel.setAlignmentX(Component.LEFT_ALIGNMENT);
         panel.add(valuePanel);
 
-        addButton = createSecondaryButton("Agregar Componente");
+        panel.add(Box.createVerticalStrut(12));
+
+        addButton = createModernButton("➕ Agregar Componente", SECONDARY_BLUE);
         addButton.setToolTipText("Agregar componente al circuito");
         addButton.setAlignmentX(Component.LEFT_ALIGNMENT);
-        addButton.setMaximumSize(new Dimension(200, 30));
-        panel.add(Box.createVerticalStrut(5));
+        addButton.setMaximumSize(new Dimension(220, 40));
         panel.add(addButton);
 
         return panel;
@@ -3735,28 +3930,27 @@ public class RLCSimulator extends JPanel implements SimulationObserver {
 
     private JPanel createComponentListPanel() {
         JPanel panel = new JPanel(new BorderLayout());
-        panel.setBackground(Color.WHITE);
+        panel.setBackground(CARD_BACKGROUND);
         panel.setAlignmentX(Component.LEFT_ALIGNMENT);
-        panel.setMaximumSize(new Dimension(350, 120));
-
-        JLabel titleLabel = createLabel("Componentes en el Circuito");
-        titleLabel.setFont(new Font("Segoe UI", Font.BOLD, 12));
-        panel.add(titleLabel, BorderLayout.NORTH);
+        panel.setMaximumSize(new Dimension(350, 150));
 
         componentsModel = new DefaultListModel<>();
         componentsList = new JList<>(componentsModel);
         componentsList.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
         componentsList.setToolTipText("Componentes en el circuito actual");
-        componentsList.setBackground(Color.WHITE);
+        componentsList.setBackground(new Color(248, 250, 252));
+        componentsList.setForeground(DARK_SLATE);
+        componentsList.setFont(new Font("Segoe UI", Font.PLAIN, 11));
+        componentsList.setBorder(BorderFactory.createEmptyBorder(8, 8, 8, 8));
 
         JScrollPane listScroll = new JScrollPane(componentsList);
-        listScroll.setPreferredSize(new Dimension(300, 80));
-        listScroll.setBorder(BorderFactory.createLineBorder(MEDIUM_GRAY));
+        listScroll.setPreferredSize(new Dimension(300, 100));
+        listScroll.setBorder(BorderFactory.createLineBorder(new Color(226, 232, 240)));
         panel.add(listScroll, BorderLayout.CENTER);
 
-        removeButton = createSecondaryButton("Eliminar Seleccionado");
+        removeButton = createModernButton("🗑️ Eliminar Seleccionado", ERROR_ROSE);
         removeButton.setToolTipText("Eliminar componente seleccionado");
-        removeButton.setMaximumSize(new Dimension(200, 25));
+        removeButton.setMaximumSize(new Dimension(220, 35));
         panel.add(removeButton, BorderLayout.SOUTH);
 
         return panel;
@@ -3765,31 +3959,32 @@ public class RLCSimulator extends JPanel implements SimulationObserver {
     private JPanel createCircuitActionPanel() {
         JPanel panel = new JPanel();
         panel.setLayout(new BoxLayout(panel, BoxLayout.Y_AXIS));
-        panel.setBackground(Color.WHITE);
+        panel.setBackground(CARD_BACKGROUND);
         panel.setAlignmentX(Component.LEFT_ALIGNMENT);
 
-        simulateButton = createPrimaryButton("Simular Circuito");
+        simulateButton = createModernButton("🚀 Simular Circuito", SUCCESS_EMERALD);
         simulateButton.setToolTipText("Ejecutar simulación del circuito actual");
         simulateButton.setAlignmentX(Component.LEFT_ALIGNMENT);
-        simulateButton.setMaximumSize(new Dimension(200, 35));
+        simulateButton.setMaximumSize(new Dimension(220, 45));
 
-        clearButton = createSecondaryButton("Limpiar Todo");
+        panel.add(Box.createVerticalStrut(8));
+
+        clearButton = createModernButton("🗑️ Limpiar Todo", ERROR_ROSE);
         clearButton.setToolTipText("Limpiar circuito y resultados");
         clearButton.setAlignmentX(Component.LEFT_ALIGNMENT);
-        clearButton.setMaximumSize(new Dimension(200, 30));
+        clearButton.setMaximumSize(new Dimension(220, 40));
 
         // Barra de progreso
         progressBar = new JProgressBar();
+        setupModernProgressBar(progressBar);
         progressBar.setVisible(false);
-        progressBar.setStringPainted(true);
         progressBar.setAlignmentX(Component.LEFT_ALIGNMENT);
-        progressBar.setMaximumSize(new Dimension(200, 20));
-        progressBar.setForeground(SUCCESS_GREEN);
+        progressBar.setMaximumSize(new Dimension(220, 25));
 
         panel.add(simulateButton);
-        panel.add(Box.createVerticalStrut(8));
+        panel.add(Box.createVerticalStrut(12));
         panel.add(clearButton);
-        panel.add(Box.createVerticalStrut(8));
+        panel.add(Box.createVerticalStrut(12));
         panel.add(progressBar);
 
         return panel;
@@ -3798,21 +3993,21 @@ public class RLCSimulator extends JPanel implements SimulationObserver {
     private JPanel createSimpleComboBoxPanel(String labelText, String[] items) {
         JPanel panel = new JPanel();
         panel.setLayout(new BoxLayout(panel, BoxLayout.Y_AXIS));
-        panel.setBackground(Color.WHITE);
+        panel.setBackground(CARD_BACKGROUND);
         panel.setAlignmentX(Component.LEFT_ALIGNMENT);
 
-        JLabel label = createLabel(labelText);
+        JLabel label = createModernLabel(labelText);
         label.setFont(new Font("Segoe UI", Font.BOLD, 12));
         label.setAlignmentX(Component.LEFT_ALIGNMENT);
         panel.add(label);
-        panel.add(Box.createVerticalStrut(5));
+        panel.add(Box.createVerticalStrut(8));
 
-        JComboBox<String> comboBox = new JComboBox<>(items);
-        comboBox.setMaximumSize(new Dimension(350, 25));
+        JComboBox<String> comboBox = createModernComboBox();
+        for (String item : items) {
+            comboBox.addItem(item);
+        }
+        comboBox.setMaximumSize(new Dimension(350, 35));
         comboBox.setAlignmentX(Component.LEFT_ALIGNMENT);
-
-        // Asignar un nombre para debugging
-        comboBox.setName(labelText.replace(":", "").replace(" ", "_") + "_ComboBox");
 
         panel.add(comboBox);
 
@@ -3822,41 +4017,33 @@ public class RLCSimulator extends JPanel implements SimulationObserver {
     private JPanel createBatchControlsPanel() {
         JPanel panel = new JPanel();
         panel.setLayout(new BoxLayout(panel, BoxLayout.Y_AXIS));
-        panel.setBackground(Color.WHITE);
+        panel.setBackground(CARD_BACKGROUND);
         panel.setAlignmentX(Component.LEFT_ALIGNMENT);
 
-        JLabel titleLabel = createLabel("Configuración del Lote");
-        titleLabel.setFont(new Font("Segoe UI", Font.BOLD, 12));
-        titleLabel.setAlignmentX(Component.LEFT_ALIGNMENT);
-        panel.add(titleLabel);
-        panel.add(Box.createVerticalStrut(5));
-
         JPanel spinnersPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
-        spinnersPanel.setBackground(Color.WHITE);
+        spinnersPanel.setBackground(CARD_BACKGROUND);
 
-        spinnersPanel.add(createLabel("Simples:"));
-        simpleSpinner = new JSpinner(new SpinnerNumberModel(3, 0, 20, 1));
-        simpleSpinner.setPreferredSize(new Dimension(60, 25));
+        spinnersPanel.add(createModernLabel("Simples:"));
+        simpleSpinner = createModernSpinner(3, 0, 20, 1);
         spinnersPanel.add(simpleSpinner);
 
-        spinnersPanel.add(createLabel("Medios:"));
-        mediumSpinner = new JSpinner(new SpinnerNumberModel(2, 0, 15, 1));
-        mediumSpinner.setPreferredSize(new Dimension(60, 25));
+        spinnersPanel.add(createModernLabel("Medios:"));
+        mediumSpinner = createModernSpinner(2, 0, 15, 1);
         spinnersPanel.add(mediumSpinner);
 
-        spinnersPanel.add(createLabel("Complejos:"));
-        complexSpinner = new JSpinner(new SpinnerNumberModel(1, 0, 10, 1));
-        complexSpinner.setPreferredSize(new Dimension(60, 25));
+        spinnersPanel.add(createModernLabel("Complejos:"));
+        complexSpinner = createModernSpinner(1, 0, 10, 1);
         spinnersPanel.add(complexSpinner);
 
         spinnersPanel.setAlignmentX(Component.LEFT_ALIGNMENT);
         panel.add(spinnersPanel);
 
-        generateBatchButton = createSecondaryButton("Generar Lote de Simulaciones");
+        panel.add(Box.createVerticalStrut(12));
+
+        generateBatchButton = createModernButton("📦 Generar Lote de Simulaciones", WARNING_AMBER);
         generateBatchButton.addActionListener(e -> generateBatch());
         generateBatchButton.setAlignmentX(Component.LEFT_ALIGNMENT);
-        generateBatchButton.setMaximumSize(new Dimension(350, 30));
-        panel.add(Box.createVerticalStrut(5));
+        generateBatchButton.setMaximumSize(new Dimension(350, 40));
         panel.add(generateBatchButton);
 
         return panel;
@@ -3865,13 +4052,13 @@ public class RLCSimulator extends JPanel implements SimulationObserver {
     private JPanel createSchedulingButtonPanel() {
         JPanel panel = new JPanel();
         panel.setLayout(new FlowLayout(FlowLayout.LEFT));
-        panel.setBackground(Color.WHITE);
+        panel.setBackground(CARD_BACKGROUND);
         panel.setAlignmentX(Component.LEFT_ALIGNMENT);
 
-        startSchedulerButton = createPrimaryButton("Iniciar Planificación");
+        startSchedulerButton = createModernButton("▶️ Iniciar Planificación", SUCCESS_EMERALD);
         startSchedulerButton.addActionListener(e -> startScheduling());
 
-        stopSchedulerButton = createSecondaryButton("Detener");
+        stopSchedulerButton = createModernButton("⏹️ Detener", ERROR_ROSE);
         stopSchedulerButton.addActionListener(e -> stopScheduling());
         stopSchedulerButton.setEnabled(false);
 
@@ -3883,43 +4070,71 @@ public class RLCSimulator extends JPanel implements SimulationObserver {
 
     private JPanel createCircuitPanel() {
         JPanel panel = new JPanel(new BorderLayout());
-        panel.setBorder(createTitledBorder("Diagrama del Circuito"));
-        panel.setPreferredSize(new Dimension(600, 200));
-        panel.setBackground(Color.WHITE);
+        panel.setBorder(BorderFactory.createEmptyBorder(5, 0, 10, 0));
+        panel.setPreferredSize(new Dimension(600, 220));
+        panel.setBackground(LIGHT_SLATE);
+
+        JPanel cardPanel = new JPanel(new BorderLayout()) {
+            @Override
+            protected void paintComponent(Graphics g) {
+                Graphics2D g2d = (Graphics2D) g;
+                g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+                
+                g2d.setColor(CARD_BACKGROUND);
+                g2d.fillRoundRect(0, 0, getWidth(), getHeight(), 12, 12);
+                
+                g2d.setColor(new Color(226, 232, 240));
+                g2d.setStroke(new BasicStroke(1.2f));
+                g2d.drawRoundRect(0, 0, getWidth()-1, getHeight()-1, 12, 12);
+            }
+        };
+        
+        cardPanel.setBorder(BorderFactory.createEmptyBorder(15, 15, 15, 15));
+
+        // Título del diagrama
+        JLabel titleLabel = new JLabel("🔌 Diagrama del Circuito");
+        titleLabel.setFont(new Font("Segoe UI", Font.BOLD, 14));
+        titleLabel.setForeground(DARK_SLATE);
+        titleLabel.setBorder(BorderFactory.createEmptyBorder(0, 0, 10, 0));
+        cardPanel.add(titleLabel, BorderLayout.NORTH);
 
         circuitDiagram = new CircuitDiagramPanel();
 
         JScrollPane diagramScroll = new JScrollPane(circuitDiagram);
         diagramScroll.setVerticalScrollBarPolicy(JScrollPane.VERTICAL_SCROLLBAR_AS_NEEDED);
         diagramScroll.setHorizontalScrollBarPolicy(JScrollPane.HORIZONTAL_SCROLLBAR_AS_NEEDED);
-        diagramScroll.setBorder(BorderFactory.createLineBorder(MEDIUM_GRAY));
+        diagramScroll.setBorder(BorderFactory.createLineBorder(new Color(226, 232, 240)));
+        diagramScroll.getViewport().setBackground(Color.WHITE);
 
-        panel.add(diagramScroll, BorderLayout.CENTER);
+        cardPanel.add(diagramScroll, BorderLayout.CENTER);
+        panel.add(cardPanel, BorderLayout.CENTER);
         return panel;
     }
 
     private JPanel createGraphPanel() {
         JPanel panel = new JPanel(new BorderLayout());
-        panel.setBorder(createTitledBorder("Gráficas de Simulación"));
-        panel.setBackground(Color.WHITE);
+        panel.setBorder(BorderFactory.createEmptyBorder(15, 15, 15, 15));
+        panel.setBackground(CARD_BACKGROUND);
 
         currentGraph = new TimeGraph(null);
         graphContainer = new JPanel(new BorderLayout());
-        graphContainer.setBackground(Color.WHITE);
+        graphContainer.setBackground(CARD_BACKGROUND);
 
         JScrollPane graphScroll = new JScrollPane(currentGraph);
         graphScroll.setVerticalScrollBarPolicy(JScrollPane.VERTICAL_SCROLLBAR_AS_NEEDED);
         graphScroll.setHorizontalScrollBarPolicy(JScrollPane.HORIZONTAL_SCROLLBAR_AS_NEEDED);
-        graphScroll.setBorder(BorderFactory.createLineBorder(MEDIUM_GRAY));
+        graphScroll.setBorder(BorderFactory.createLineBorder(new Color(226, 232, 240)));
+        graphScroll.getViewport().setBackground(Color.WHITE);
         graphContainer.add(graphScroll, BorderLayout.CENTER);
 
         JPanel graphTypePanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
-        graphTypePanel.setBackground(Color.WHITE);
-        graphTypePanel.add(createLabel("Tipo de Gráfico:"));
+        graphTypePanel.setBackground(CARD_BACKGROUND);
+        graphTypePanel.add(createModernLabel("Tipo de Gráfico:"));
 
-        graphTypeCombo = new JComboBox<>(new String[] {
-                "Dominio de Tiempo", "Respuesta en Frecuencia", "Diagrama Fasorial", "Formas de Onda"
-        });
+        graphTypeCombo = createModernComboBox();
+        graphTypeCombo.setModel(new DefaultComboBoxModel<>(new String[] {
+                "📈 Dominio de Tiempo", "📊 Respuesta en Frecuencia", "🎯 Diagrama Fasorial", "🌊 Formas de Onda"
+        }));
         graphTypeCombo.addActionListener(e -> updateGraphType());
         graphTypePanel.add(graphTypeCombo);
 
@@ -3931,62 +4146,163 @@ public class RLCSimulator extends JPanel implements SimulationObserver {
 
     private JPanel createResultsPanel() {
         JPanel panel = new JPanel(new BorderLayout());
-        panel.setBackground(Color.WHITE);
+        panel.setBackground(CARD_BACKGROUND);
+        panel.setBorder(BorderFactory.createEmptyBorder(20, 20, 20, 20));
 
         resultsArea = new JTextArea(12, 50);
         resultsArea.setEditable(false);
-        resultsArea.setFont(new Font("Segoe UI", Font.PLAIN, 11));
+        resultsArea.setFont(new Font("Segoe UI", Font.PLAIN, 12));
         resultsArea.setLineWrap(true);
         resultsArea.setWrapStyleWord(true);
-        resultsArea.setBackground(Color.WHITE);
+        resultsArea.setBackground(CARD_BACKGROUND);
+        resultsArea.setForeground(DARK_SLATE);
+        resultsArea.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
 
         updateInitialResultsText();
 
         JScrollPane scroll = new JScrollPane(resultsArea);
         scroll.setVerticalScrollBarPolicy(JScrollPane.VERTICAL_SCROLLBAR_AS_NEEDED);
         scroll.setHorizontalScrollBarPolicy(JScrollPane.HORIZONTAL_SCROLLBAR_AS_NEEDED);
-        scroll.setBorder(BorderFactory.createLineBorder(MEDIUM_GRAY));
+        scroll.setBorder(BorderFactory.createLineBorder(new Color(226, 232, 240)));
+        scroll.getViewport().setBackground(CARD_BACKGROUND);
 
         panel.add(scroll, BorderLayout.CENTER);
         return panel;
     }
 
-    // ========== MÉTODOS DE UTILIDAD ==========
+    // ========== COMPONENTES MODERNOS ==========
 
-    private JLabel createLabel(String text) {
+    private JLabel createModernLabel(String text) {
         JLabel label = new JLabel(text);
-        label.setForeground(DARK_GRAY);
+        label.setForeground(DARK_SLATE);
         label.setFont(new Font("Segoe UI", Font.PLAIN, 11));
         return label;
     }
 
-    private JButton createPrimaryButton(String text) {
-        JButton button = new JButton(text);
-        button.setBackground(SECONDARY_BLUE);
+    private JTextField createModernTextField(String text, int columns) {
+        JTextField field = new JTextField(text, columns) {
+            @Override
+            protected void paintComponent(Graphics g) {
+                Graphics2D g2d = (Graphics2D) g;
+                g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+                
+                // Fondo
+                g2d.setColor(new Color(248, 250, 252));
+                g2d.fillRoundRect(0, 0, getWidth(), getHeight(), 8, 8);
+                
+                // Borde
+                g2d.setColor(isFocusOwner() ? PRIMARY_BLUE : new Color(203, 213, 225));
+                g2d.setStroke(new BasicStroke(isFocusOwner() ? 2f : 1f));
+                g2d.drawRoundRect(0, 0, getWidth()-1, getHeight()-1, 8, 8);
+                
+                super.paintComponent(g);
+            }
+        };
+        
+        field.setBorder(BorderFactory.createEmptyBorder(8, 12, 8, 12));
+        field.setFont(new Font("Segoe UI", Font.PLAIN, 11));
+        field.setOpaque(false);
+        return field;
+    }
+
+    private JComboBox<String> createModernComboBox() {
+        JComboBox<String> combo = new JComboBox<String>() {
+            @Override
+            protected void paintComponent(Graphics g) {
+                Graphics2D g2d = (Graphics2D) g;
+                g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+                
+                // Fondo
+                g2d.setColor(new Color(248, 250, 252));
+                g2d.fillRoundRect(0, 0, getWidth(), getHeight(), 8, 8);
+                
+                // Borde
+                g2d.setColor(isFocusOwner() ? PRIMARY_BLUE : new Color(203, 213, 225));
+                g2d.setStroke(new BasicStroke(isFocusOwner() ? 2f : 1f));
+                g2d.drawRoundRect(0, 0, getWidth()-1, getHeight()-1, 8, 8);
+                
+                super.paintComponent(g);
+            }
+        };
+        
+        combo.setBorder(BorderFactory.createEmptyBorder(8, 12, 8, 12));
+        combo.setFont(new Font("Segoe UI", Font.PLAIN, 11));
+        combo.setBackground(new Color(248, 250, 252));
+        combo.setRenderer(new DefaultListCellRenderer() {
+            @Override
+            public Component getListCellRendererComponent(JList<?> list, Object value,
+                    int index, boolean isSelected, boolean cellHasFocus) {
+                Component c = super.getListCellRendererComponent(list, value, index, isSelected, cellHasFocus);
+                setBorder(BorderFactory.createEmptyBorder(8, 12, 8, 12));
+                setFont(new Font("Segoe UI", Font.PLAIN, 11));
+                return c;
+            }
+        });
+        
+        return combo;
+    }
+
+    private JSpinner createModernSpinner(int value, int min, int max, int step) {
+        SpinnerNumberModel model = new SpinnerNumberModel(value, min, max, step);
+        JSpinner spinner = new JSpinner(model);
+        
+        // Personalizar el editor del spinner
+        JSpinner.DefaultEditor editor = (JSpinner.DefaultEditor) spinner.getEditor();
+        editor.getTextField().setBorder(BorderFactory.createEmptyBorder(8, 12, 8, 12));
+        editor.getTextField().setFont(new Font("Segoe UI", Font.PLAIN, 11));
+        editor.getTextField().setBackground(new Color(248, 250, 252));
+        editor.getTextField().setForeground(DARK_SLATE);
+        
+        spinner.setPreferredSize(new Dimension(70, 35));
+        
+        return spinner;
+    }
+
+    private JButton createModernButton(String text, Color backgroundColor) {
+        JButton button = new JButton(text) {
+            @Override
+            protected void paintComponent(Graphics g) {
+                Graphics2D g2d = (Graphics2D) g.create();
+                g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+                
+                Color paintColor;
+                if (!isEnabled()) {
+                    paintColor = new Color(156, 163, 175);
+                } else if (getModel().isPressed()) {
+                    paintColor = backgroundColor.darker();
+                } else if (getModel().isRollover()) {
+                    paintColor = backgroundColor.brighter();
+                } else {
+                    paintColor = backgroundColor;
+                }
+                
+                // Fondo con gradiente
+                GradientPaint gradient = new GradientPaint(
+                    0, 0, paintColor,
+                    0, getHeight(), paintColor.darker()
+                );
+                g2d.setPaint(gradient);
+                g2d.fillRoundRect(0, 0, getWidth(), getHeight(), 10, 10);
+                
+                // Borde
+                g2d.setColor(paintColor.darker().darker());
+                g2d.setStroke(new BasicStroke(1.2f));
+                g2d.drawRoundRect(0, 0, getWidth()-1, getHeight()-1, 10, 10);
+                
+                g2d.dispose();
+                
+                super.paintComponent(g);
+            }
+        };
+        
         button.setForeground(Color.WHITE);
         button.setFont(new Font("Segoe UI", Font.BOLD, 12));
-        button.setBorder(BorderFactory.createEmptyBorder(8, 16, 8, 16));
+        button.setBorder(BorderFactory.createEmptyBorder(12, 20, 12, 20));
+        button.setContentAreaFilled(false);
         button.setFocusPainted(false);
+        button.setCursor(new Cursor(Cursor.HAND_CURSOR));
+        
         return button;
-    }
-
-    private JButton createSecondaryButton(String text) {
-        JButton button = new JButton(text);
-        button.setBackground(Color.WHITE);
-        button.setForeground(SECONDARY_BLUE);
-        button.setFont(new Font("Segoe UI", Font.PLAIN, 11));
-        button.setBorder(BorderFactory.createLineBorder(SECONDARY_BLUE, 1));
-        button.setFocusPainted(false);
-        return button;
-    }
-
-    private TitledBorder createTitledBorder(String title) {
-        TitledBorder border = BorderFactory.createTitledBorder(
-                BorderFactory.createLineBorder(MEDIUM_GRAY),
-                title);
-        border.setTitleFont(new Font("Segoe UI", Font.BOLD, 12));
-        border.setTitleColor(PRIMARY_BLUE);
-        return border;
     }
 
     // ========== MÉTODOS DE PLANIFICACIÓN ==========
@@ -4030,7 +4346,7 @@ public class RLCSimulator extends JPanel implements SimulationObserver {
         }
 
         updateTasksTable();
-        logSchedulingMessage("Lote generado: " + scheduler.getTasks().size() + " tareas");
+        logSchedulingMessage("✅ Lote generado: " + scheduler.getTasks().size() + " tareas");
     }
 
     private void startScheduling() {
@@ -4050,20 +4366,20 @@ public class RLCSimulator extends JPanel implements SimulationObserver {
                 }
             }
 
-            logSchedulingMessage("Iniciando planificación con " + algorithm);
+            logSchedulingMessage("🚀 Iniciando planificación con " + algorithm);
             scheduler.startSimulation();
             startUpdateTimer();
 
         } catch (Exception ex) {
-            logSchedulingMessage("ERROR: " + ex.getMessage());
-            JOptionPane.showMessageDialog(this, ex.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
+            logSchedulingMessage("❌ ERROR: " + ex.getMessage());
+            showError("Error al iniciar planificación: " + ex.getMessage());
         }
     }
 
     private void stopScheduling() {
         scheduler.stopSimulation();
         stopUpdateTimer();
-        logSchedulingMessage("Planificación detenida");
+        logSchedulingMessage("⏹️ Planificación detenida");
     }
 
     private void startUpdateTimer() {
@@ -4116,9 +4432,9 @@ public class RLCSimulator extends JPanel implements SimulationObserver {
 
     private void logSchedulingMessage(String message) {
         SwingUtilities.invokeLater(() -> {
-            schedulingLogArea.append("[" + java.time.LocalTime.now().format(
-                    java.time.format.DateTimeFormatter.ofPattern("HH:mm:ss")) + "] " +
-                    message + "\n");
+            String timestamp = java.time.LocalTime.now().format(
+                    java.time.format.DateTimeFormatter.ofPattern("HH:mm:ss"));
+            schedulingLogArea.append("[" + timestamp + "] " + message + "\n");
             schedulingLogArea.setCaretPosition(schedulingLogArea.getDocument().getLength());
         });
     }
@@ -4174,7 +4490,8 @@ public class RLCSimulator extends JPanel implements SimulationObserver {
         JScrollPane graphScroll = new JScrollPane(currentGraph);
         graphScroll.setVerticalScrollBarPolicy(JScrollPane.VERTICAL_SCROLLBAR_AS_NEEDED);
         graphScroll.setHorizontalScrollBarPolicy(JScrollPane.HORIZONTAL_SCROLLBAR_AS_NEEDED);
-        graphScroll.setBorder(BorderFactory.createLineBorder(MEDIUM_GRAY));
+        graphScroll.setBorder(BorderFactory.createLineBorder(new Color(226, 232, 240)));
+        graphScroll.getViewport().setBackground(Color.WHITE);
         graphContainer.add(graphScroll, BorderLayout.CENTER);
         graphContainer.revalidate();
         graphContainer.repaint();
@@ -4214,7 +4531,7 @@ public class RLCSimulator extends JPanel implements SimulationObserver {
         updateComponentList();
         updateCircuitDiagram();
 
-        showInfo("Circuito predefinido '" + selected + "' cargado");
+        showInfo("✅ Circuito predefinido '" + selected + "' cargado");
     }
 
     private void addComponent() {
@@ -4317,12 +4634,12 @@ public class RLCSimulator extends JPanel implements SimulationObserver {
         updateComponentList();
         updateCircuitDiagram();
 
-        resultsArea.setText("Circuito limpiado. Listo para nueva simulación.");
+        resultsArea.setText("✅ Circuito limpiado. Listo para nueva simulación.");
         lastResult = null;
 
         updateGraphType();
 
-        showInfo("Circuito y resultados limpiados");
+        showInfo("✅ Circuito y resultados limpiados");
     }
 
     private void updateComponentList() {
@@ -4341,18 +4658,20 @@ public class RLCSimulator extends JPanel implements SimulationObserver {
 
     private void updateInitialResultsText() {
         StringBuilder sb = new StringBuilder();
-        sb.append("=== Simulador de Circuitos RLC ===\n\n");
-        sb.append("Instrucciones:\n");
-        sb.append("1. Agregue componentes (R, L, C) al circuito\n");
-        sb.append("2. Configure voltaje y frecuencia\n");
-        sb.append("3. Seleccione método de simulación\n");
-        sb.append("4. Haga clic en 'Simular Circuito'\n\n");
-        sb.append("Características:\n");
-        sb.append("• Análisis en dominio de tiempo y frecuencia\n");
-        sb.append("• Diagramas fasoriales interactivos\n");
-        sb.append("• Múltiples métodos de cálculo\n");
-        sb.append("• Circuitos predefinidos\n");
-        sb.append("• Algoritmos de planificación integrados\n");
+        sb.append("=== Simulador Avanzado de Circuitos RLC ===\n\n");
+        sb.append("📋 Instrucciones:\n");
+        sb.append("   1. Agregue componentes (R, L, C) al circuito\n");
+        sb.append("   2. Configure voltaje y frecuencia\n");
+        sb.append("   3. Seleccione método de simulación\n");
+        sb.append("   4. Haga clic en 'Simular Circuito'\n\n");
+        sb.append("✨ Características:\n");
+        sb.append("   • 📈 Análisis en dominio de tiempo y frecuencia\n");
+        sb.append("   • 🎯 Diagramas fasoriales interactivos\n");
+        sb.append("   • ⚡ Múltiples métodos de cálculo\n");
+        sb.append("   • 🔌 Circuitos predefinidos\n");
+        sb.append("   • 🔄 Algoritmos de planificación integrados\n");
+        sb.append("   • 🎨 Interfaz moderna e intuitiva\n\n");
+        sb.append("🚀 ¡Comience agregando componentes y ejecutando una simulación!");
 
         resultsArea.setText(sb.toString());
     }
@@ -4369,24 +4688,24 @@ public class RLCSimulator extends JPanel implements SimulationObserver {
                 updateGraphType();
 
                 StringBuilder sb = new StringBuilder();
-                sb.append("=== RESULTADOS DE SIMULACIÓN ===\n\n");
-                sb.append("• Impedancia: ").append(df.format(simResult.getImpedance())).append(" Ω\n");
-                sb.append("• Corriente: ").append(df.format(simResult.getCurrent())).append(" A\n");
-                sb.append("• Ángulo de Fase: ").append(df.format(Math.toDegrees(simResult.getPhaseAngle())))
+                sb.append("=== ✅ RESULTADOS DE SIMULACIÓN ===\n\n");
+                sb.append("• 🔌 Impedancia: ").append(df.format(simResult.getImpedance())).append(" Ω\n");
+                sb.append("• ⚡ Corriente: ").append(df.format(simResult.getCurrent())).append(" A\n");
+                sb.append("• 📐 Ángulo de Fase: ").append(df.format(Math.toDegrees(simResult.getPhaseAngle())))
                         .append("°\n");
-                sb.append("• Potencia Activa: ").append(df.format(simResult.getActivePower())).append(" W\n");
-                sb.append("• Potencia Reactiva: ").append(df.format(simResult.getReactivePower())).append(" VAR\n");
-                sb.append("• Potencia Aparente: ").append(df.format(simResult.getApparentPower())).append(" VA\n");
-                sb.append("• Factor de Potencia: ").append(df.format(simResult.getPowerFactor())).append("\n\n");
+                sb.append("• 💡 Potencia Activa: ").append(df.format(simResult.getActivePower())).append(" W\n");
+                sb.append("• 🔄 Potencia Reactiva: ").append(df.format(simResult.getReactivePower())).append(" VAR\n");
+                sb.append("• 📊 Potencia Aparente: ").append(df.format(simResult.getApparentPower())).append(" VA\n");
+                sb.append("• 🎯 Factor de Potencia: ").append(df.format(simResult.getPowerFactor())).append("\n\n");
 
                 double phaseDeg = Math.toDegrees(simResult.getPhaseAngle());
                 String circuitType;
                 if (phaseDeg > 0) {
-                    circuitType = "→ Circuito INDUCTIVO (corriente atrasada)";
+                    circuitType = "→ 🔄 Circuito INDUCTIVO (corriente atrasada)";
                 } else if (phaseDeg < 0) {
-                    circuitType = "→ Circuito CAPACITIVO (corriente adelantada)";
+                    circuitType = "→ ⚡ Circuito CAPACITIVO (corriente adelantada)";
                 } else {
-                    circuitType = "→ Circuito RESISTIVO (corriente en fase)";
+                    circuitType = "→ 🔌 Circuito RESISTIVO (corriente en fase)";
                 }
 
                 sb.append(circuitType).append("\n");
@@ -4396,7 +4715,7 @@ public class RLCSimulator extends JPanel implements SimulationObserver {
                 progressBar.setVisible(false);
                 simulateButton.setEnabled(true);
 
-                showInfo("Simulación completada exitosamente");
+                showInfo("✅ Simulación completada exitosamente");
 
             } else {
                 onSimulationError("Resultado de simulación inválido");
@@ -4407,14 +4726,14 @@ public class RLCSimulator extends JPanel implements SimulationObserver {
     @Override
     public void onSimulationError(String error) {
         SwingUtilities.invokeLater(() -> {
-            String detailedError = "Error en la simulación:\n\n" + error;
+            String detailedError = "❌ Error en la simulación:\n\n" + error;
 
             showError(detailedError);
 
             progressBar.setVisible(false);
             simulateButton.setEnabled(true);
 
-            resultsArea.setText("Error en la simulación. Por favor, verifique los parámetros e intente nuevamente.\n\n"
+            resultsArea.setText("❌ Error en la simulación. Por favor, verifique los parámetros e intente nuevamente.\n\n"
                     + "Detalles del error: " + error);
 
             updateGraphType();
@@ -4424,19 +4743,19 @@ public class RLCSimulator extends JPanel implements SimulationObserver {
     @Override
     public void onSimulationStart() {
         SwingUtilities.invokeLater(() -> {
-            resultsArea.setText("Simulación en progreso...\n\nPor favor espere...");
+            resultsArea.setText("🔄 Simulación en progreso...\n\n⏳ Por favor espere...");
             progressBar.setVisible(true);
             progressBar.setIndeterminate(true);
-            progressBar.setString("Simulación en progreso...");
+            progressBar.setString("🔄 Simulación en progreso...");
         });
     }
 
     private void showError(String message) {
-        JOptionPane.showMessageDialog(this, message, "Error", JOptionPane.ERROR_MESSAGE);
+        JOptionPane.showMessageDialog(this, message, "❌ Error", JOptionPane.ERROR_MESSAGE);
     }
 
     private void showInfo(String message) {
-        JOptionPane.showMessageDialog(this, message, "Información", JOptionPane.INFORMATION_MESSAGE);
+        JOptionPane.showMessageDialog(this, message, "ℹ️ Información", JOptionPane.INFORMATION_MESSAGE);
     }
 
     public void disposeResources() {
@@ -4467,61 +4786,62 @@ import java.awt.geom.Path2D;
 public class TimeGraph extends BaseGraph {
     private SimulationResult result;
     private Path2D.Double currentCurve;
-    
+
     public TimeGraph(SimulationResult result) {
         this.result = result;
         this.currentCurve = new Path2D.Double();
         setPreferredSize(new Dimension(800, 550));
     }
-    
+
     @Override
     protected void drawGraph(Graphics2D g2d) {
         drawAxes(g2d, "Tiempo (s)", "Corriente (A)");
         drawGrid(g2d, 10, 8);
-        
+
         if (result == null) {
             drawNoDataMessage(g2d, "No hay datos de simulación disponibles");
-            drawInfoPanel(g2d, "Instrucciones", new String[]{
-                "Ejecute una simulación primero",
-                "Agregue componentes al circuito", 
-                "Configure voltaje y frecuencia"
+            drawInfoPanel(g2d, "Instrucciones", new String[] {
+                    "Ejecute una simulación primero",
+                    "Agregue componentes al circuito",
+                    "Configure voltaje y frecuencia"
             });
             return;
         }
-        
+
         double maxCurrent = Math.abs(result.getCurrent()) * 1.5;
-        if (maxCurrent < 0.001) maxCurrent = 0.001;
-        
+        if (maxCurrent < 0.001)
+            maxCurrent = 0.001;
+
         drawYScale(g2d, -maxCurrent, maxCurrent, 8, "%.3f");
-        
+
         double totalTime = 0.05;
         drawXScale(g2d, 0, totalTime, 10, "%.3f");
-        
+
         drawCurrentCurve(g2d, maxCurrent, totalTime);
         drawInfoPanel(g2d);
         drawLegend(g2d);
     }
-    
+
     private void drawCurrentCurve(Graphics2D g2d, double maxCurrent, double totalTime) {
         int width = getWidth();
         int height = getHeight();
         int graphWidth = width - 2 * padding;
         int graphHeight = height - 2 * padding;
-        
+
         g2d.setColor(new Color(0, 100, 255, 220));
         g2d.setStroke(new BasicStroke(2.5f, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND));
-        
+
         currentCurve.reset();
         int points = 500;
         boolean firstPoint = true;
-        
+
         for (int i = 0; i < points; i++) {
             double t = (i * totalTime) / points;
             double current = calculateInstantaneousCurrent(t);
-            
-            int x = padding + (int)(t * graphWidth / totalTime);
-            int y = height - padding - (int)((current + maxCurrent) * graphHeight / (2 * maxCurrent));
-            
+
+            int x = padding + (int) (t * graphWidth / totalTime);
+            int y = height - padding - (int) ((current + maxCurrent) * graphHeight / (2 * maxCurrent));
+
             if (firstPoint) {
                 currentCurve.moveTo(x, y);
                 firstPoint = false;
@@ -4529,56 +4849,55 @@ public class TimeGraph extends BaseGraph {
                 currentCurve.lineTo(x, y);
             }
         }
-        
+
         g2d.draw(currentCurve);
-        
+
         // Línea cero
-        g2d.setColor(new Color(150, 150, 150, 180));
-        g2d.setStroke(new BasicStroke(1, BasicStroke.CAP_BUTT, BasicStroke.JOIN_BEVEL, 
-                                     0, new float[]{5, 5}, 0));
-        int zeroY = height - padding - (int)(maxCurrent * graphHeight / (2 * maxCurrent));
+        g2d.setColor(new Color(0, 100, 255, 220));
+        g2d.setStroke(new BasicStroke(1, BasicStroke.CAP_BUTT, BasicStroke.JOIN_BEVEL,
+                0, new float[] { 5, 5 }, 0));
+        int zeroY = height - padding - (int) (maxCurrent * graphHeight / (2 * maxCurrent));
         g2d.drawLine(padding, zeroY, width - padding, zeroY);
-        
+
         // Relleno bajo la curva
         GradientPaint gradient = new GradientPaint(
-            padding, height - padding, new Color(0, 100, 255, 40),
-            padding, padding, new Color(0, 100, 255, 10)
-        );
+                padding, height - padding, new Color(0, 100, 255, 40),
+                padding, padding, new Color(0, 100, 255, 10));
         g2d.setPaint(gradient);
-        
+
         Path2D fillArea = (Path2D) currentCurve.clone();
         fillArea.lineTo(width - padding, height - padding);
         fillArea.lineTo(padding, height - padding);
         fillArea.closePath();
         g2d.fill(fillArea);
     }
-    
+
     private void drawInfoPanel(Graphics2D g2d) {
         String[] infoLines = {
-            String.format("Corriente Pico: %.3f A", result.getCurrent()),
-            String.format("Fase: %.1f°", Math.toDegrees(result.getPhaseAngle())),
-            String.format("Impedancia: %.2f Ω", result.getImpedance()),
-            "Frecuencia: 60 Hz",
-            String.format("Potencia Activa: %.2f W", result.getActivePower())
+                String.format("Corriente Pico: %.3f A", result.getCurrent()),
+                String.format("Fase: %.1f°", Math.toDegrees(result.getPhaseAngle())),
+                String.format("Impedancia: %.2f Ω", result.getImpedance()),
+                "Frecuencia: 60 Hz",
+                String.format("Potencia Activa: %.2f W", result.getActivePower())
         };
-        
+
         drawInfoPanel(g2d, "Información de Corriente", infoLines);
     }
-    
+
     private void drawLegend(Graphics2D g2d) {
-        String[] legendLabels = {"Corriente del Circuito"};
-        Color[] legendColors = {new Color(0, 100, 255)};
+        String[] legendLabels = { "Corriente del Circuito" };
+        Color[] legendColors = { new Color(0, 100, 255) };
         drawLegend(g2d, legendLabels, legendColors, 30, 60);
     }
-    
+
     private double calculateInstantaneousCurrent(double time) {
         double amplitude = result.getCurrent();
         double frequency = 60.0;
         double phase = result.getPhaseAngle();
-        
+
         return amplitude * Math.sin(2 * Math.PI * frequency * time + phase);
     }
-    
+
     public void setResult(SimulationResult result) {
         this.result = result;
         repaint();

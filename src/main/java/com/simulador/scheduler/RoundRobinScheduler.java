@@ -27,7 +27,7 @@ public class RoundRobinScheduler implements SchedulerStrategy {
         }
         
         running = true;
-        executor = Executors.newFixedThreadPool(1);
+        executor = Executors.newFixedThreadPool(Math.min(4, tasks.size())); // Mejorar concurrencia
         
         new Thread(() -> {
             System.out.println("=== Iniciando planificación Round Robin ===");
@@ -41,6 +41,8 @@ public class RoundRobinScheduler implements SchedulerStrategy {
             while (!readyQueue.isEmpty() && running) {
                 cycles++;
                 CircuitSimulationTask task = readyQueue.poll();
+                
+                if (task == null) continue;
                 
                 // Si la tarea ya está completada, continuar con la siguiente
                 if (task.getState() == CircuitSimulationTask.TaskState.COMPLETED) {
@@ -80,6 +82,7 @@ public class RoundRobinScheduler implements SchedulerStrategy {
                                 }
                             } else {
                                 // Tarea completada
+                                currentTask.run(); // Marcar como completada
                                 completedTasks.incrementAndGet();
                                 System.out.printf("Tarea %d COMPLETADA%n", currentTask.getId());
                             }

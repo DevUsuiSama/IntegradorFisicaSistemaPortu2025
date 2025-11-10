@@ -96,9 +96,19 @@ public class ProcessScheduler {
             try {
                 currentStrategy.schedule(tasks);
                 
-                // Monitorear finalización
-                while (currentStrategy.isRunning()) {
+                // Monitorear finalización - tiempo máximo de espera
+                long startTime = System.currentTimeMillis();
+                long maxWaitTime = 120000; // 2 minutos máximo
+                
+                while (currentStrategy.isRunning() && 
+                       (System.currentTimeMillis() - startTime) < maxWaitTime) {
                     Thread.sleep(100);
+                }
+                
+                // Si aún está corriendo después del tiempo máximo, forzar parada
+                if (currentStrategy.isRunning()) {
+                    currentStrategy.interrupt();
+                    firePropertyChange(PROPERTY_MESSAGE, null, "Simulación terminada por tiempo máximo");
                 }
                 
                 metrics.setEndTime();
@@ -114,6 +124,10 @@ public class ProcessScheduler {
                 firePropertyChange(PROPERTY_MESSAGE, null, "Simulación interrumpida");
                 firePropertyChange(PROPERTY_SIMULATION_STATE, true, false);
                 Thread.currentThread().interrupt();
+            } catch (Exception e) {
+                simulationRunning = false;
+                firePropertyChange(PROPERTY_MESSAGE, null, "Error en simulación: " + e.getMessage());
+                firePropertyChange(PROPERTY_SIMULATION_STATE, true, false);
             }
         }).start();
     }

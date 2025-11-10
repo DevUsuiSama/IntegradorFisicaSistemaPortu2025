@@ -23,7 +23,7 @@ public class ShortestJobFirstScheduler implements SchedulerStrategy {
         }
         
         running = true;
-        executor = Executors.newSingleThreadExecutor();
+        executor = Executors.newFixedThreadPool(Math.min(4, tasks.size())); // Mejorar concurrencia
         
         new Thread(() -> {
             System.out.println("=== Iniciando planificación Shortest Job First ===");
@@ -42,20 +42,14 @@ public class ShortestJobFirstScheduler implements SchedulerStrategy {
                     System.out.printf("Ejecutando tarea (duración: %d ms): %s%n", 
                         task.getEstimatedDuration(), task);
                     
-                    executor.submit(task);
+                    // Ejecutar la tarea
+                    executor.submit(task).get(); // Esperar a que termine
                     
-                    // Esperar a que termine la tarea actual antes de continuar
-                    while (!executor.awaitTermination(100, TimeUnit.MILLISECONDS)) {
-                        if (!running) {
-                            executor.shutdownNow();
-                            break;
-                        }
-                    }
+                    System.out.printf("Tarea %d completada%n", task.getId());
                     
-                } catch (InterruptedException e) {
-                    System.out.println("Planificación SJF interrumpida");
-                    Thread.currentThread().interrupt();
-                    break;
+                } catch (Exception e) {
+                    System.out.println("Error ejecutando tarea " + task.getId() + ": " + e.getMessage());
+                    if (!running) break;
                 }
             }
             
