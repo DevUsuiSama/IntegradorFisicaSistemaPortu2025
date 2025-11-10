@@ -1,28 +1,64 @@
 package com.simulador.ui;
 
-import com.simulador.engine.*;
-import com.simulador.model.*;
-import com.simulador.utils.*;
+import com.simulador.engine.AnalyticalStrategy;
+import com.simulador.engine.CircuitEngine;
+import com.simulador.engine.SimulationStrategy;
+import com.simulador.model.CircuitComponent;
+import com.simulador.model.CircuitFactory;
+import com.simulador.model.SimulationResult;
+import com.simulador.model.CircuitSimulationTask;
+import com.simulador.scheduler.FirstComeFirstServedScheduler;
+import com.simulador.scheduler.ProcessScheduler;
+import com.simulador.scheduler.RoundRobinScheduler;
+import com.simulador.scheduler.ShortestJobFirstScheduler;
+import com.simulador.utils.LanguageManager;
+import com.simulador.utils.SimulationObserver;
+
 import javax.swing.*;
-import javax.swing.border.Border;
-import javax.swing.border.TitledBorder;
+import javax.swing.plaf.basic.BasicProgressBarUI;
+import javax.swing.table.DefaultTableCellRenderer;
+import javax.swing.table.DefaultTableModel;
 
 import java.awt.*;
 import java.text.DecimalFormat;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.List;
 
 /**
- * Panel principal del simulador de circuitos RLC con diseño de dos columnas
- * Main panel for RLC circuit simulator with two-column layout
+ * Panel principal del simulador de circuitos RLC con algoritmos de
+ * planificación integrados - Versión Mejorada Visualmente
  */
 public class RLCSimulator extends JPanel implements SimulationObserver {
     private CircuitEngine engine;
+    private ProcessScheduler scheduler;
     private java.util.List<CircuitComponent> components;
     private SimulationResult lastResult;
     private DecimalFormat df = new DecimalFormat("0.000");
     private LanguageManager languageManager;
 
-    // Componentes de UI
+    // PALETA DE COLORES MEJORADA
+    private final Color PRIMARY_BLUE = Color.decode("#2563eb");
+    private final Color SECONDARY_BLUE = Color.decode("#3b82f6");
+    private final Color ACCENT_PURPLE = Color.decode("#8b5cf6");
+    private final Color SUCCESS_EMERALD = Color.decode("#10b981");
+    private final Color WARNING_AMBER = Color.decode("#f59e0b");
+    private final Color ERROR_ROSE = Color.decode("#f43f5e");
+    private final Color DARK_SLATE = Color.decode("#1e293b");
+    private final Color LIGHT_SLATE = Color.decode("#f1f5f9");
+    private final Color CARD_BACKGROUND = Color.WHITE;
+
+    // Componentes de UI para planificación
+    private JComboBox<String> algorithmCombo;
+    private JComboBox<String> batchTypeCombo;
+    private JSpinner simpleSpinner, mediumSpinner, complexSpinner;
+    private JButton generateBatchButton, startSchedulerButton, stopSchedulerButton;
+    private JTextArea schedulingLogArea;
+    private JProgressBar schedulingProgressBar;
+    private JTable tasksTable;
+    private DefaultTableModel tasksTableModel;
+    private Timer updateTimer;
+
+    // Componentes de simulación de circuitos
     private JTextField voltageField, frequencyField, valueField;
     private JComboBox<String> componentTypeCombo, methodCombo, presetCombo;
     private JList<String> componentsList;
@@ -32,136 +68,574 @@ public class RLCSimulator extends JPanel implements SimulationObserver {
     private JButton addButton, removeButton, simulateButton, clearButton;
     private JProgressBar progressBar;
 
-    // Nuevos componentes para el diseño de dos columnas
-    private JPanel leftPanel, rightPanel;
-    private JSplitPane splitPane;
+    // Componentes para gráficos
     private BaseGraph currentGraph;
     private JPanel graphContainer;
     private JComboBox<String> graphTypeCombo;
 
     public RLCSimulator() {
         this.engine = new CircuitEngine();
+        this.scheduler = new ProcessScheduler();
         this.components = new ArrayList<>();
         this.languageManager = LanguageManager.getInstance();
+        this.updateTimer = null;
 
-        initializeEngine();
+        initializeEngines();
         initializeUI();
         setupEventHandlers();
     }
 
-    private void initializeEngine() {
+    private void initializeEngines() {
         engine.addObserver(this);
         engine.setStrategy(new AnalyticalStrategy());
+
+        // Configurar listener para el scheduler
+        scheduler.addPropertyChangeListener(evt -> {
+            if (ProcessScheduler.PROPERTY_MESSAGE.equals(evt.getPropertyName())) {
+                logSchedulingMessage((String) evt.getNewValue());
+            } else if (ProcessScheduler.PROPERTY_SIMULATION_STATE.equals(evt.getPropertyName())) {
+                boolean isRunning = Boolean.TRUE.equals(evt.getNewValue());
+                SwingUtilities.invokeLater(() -> {
+                    startSchedulerButton.setEnabled(!isRunning);
+                    stopSchedulerButton.setEnabled(isRunning);
+                    schedulingProgressBar.setVisible(isRunning);
+
+                    if (!isRunning && scheduler.getMetrics() != null) {
+                        scheduler.getMetrics().printMetrics(algorithmCombo.getSelectedItem().toString());
+                    }
+                });
+            } else if (ProcessScheduler.PROPERTY_TASKS_UPDATED.equals(evt.getPropertyName())) {
+                SwingUtilities.invokeLater(this::updateTasksTable);
+            }
+        });
     }
 
     private void initializeUI() {
-        setLayout(new BorderLayout(5, 5));
-        setBorder(BorderFactory.createEmptyBorder(5, 5, 5, 5));
+        setLayout(new BorderLayout(10, 10));
+        setBorder(BorderFactory.createEmptyBorder(15, 15, 15, 15));
+        setBackground(LIGHT_SLATE);
 
-        // Crear el diseño de dos columnas
-        createTwoColumnLayout();
+        // Header mejorado
+        add(createHeaderPanel(), BorderLayout.NORTH);
+
+        // Panel principal dividido en izquierda y derecha
+        JSplitPane mainSplitPane = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT);
+        mainSplitPane.setDividerLocation(400);
+        mainSplitPane.setResizeWeight(0.4);
+        mainSplitPane.setBorder(BorderFactory.createEmptyBorder());
+
+        // Panel izquierdo - Controles
+        JPanel leftPanel = createControlsPanel();
+        mainSplitPane.setLeftComponent(leftPanel);
+
+        // Panel derecho - Visualización
+        JPanel rightPanel = createVisualizationPanel();
+        mainSplitPane.setRightComponent(rightPanel);
+
+        add(mainSplitPane, BorderLayout.CENTER);
     }
 
-    private void createTwoColumnLayout() {
-        // Crear paneles izquierdo y derecho
-        leftPanel = createLeftPanel();
-        rightPanel = createRightPanel();
-
-        // Crear split pane con proporción 35%-65%
-        splitPane = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT, leftPanel, rightPanel);
-        splitPane.setDividerLocation(0.35); // 35% izquierda, 65% derecha
-        splitPane.setResizeWeight(0.35); // Mantener la proporción al redimensionar
-        splitPane.setOneTouchExpandable(true);
-        splitPane.setContinuousLayout(true);
-        splitPane.setBorder(BorderFactory.createEmptyBorder());
-
-        add(splitPane, BorderLayout.CENTER);
-    }
-
-    private JPanel createLeftPanel() {
-        JPanel panel = new JPanel();
-        panel.setLayout(new BorderLayout(5, 5));
-        panel.setBorder(BorderFactory.createEmptyBorder(5, 5, 5, 5));
-        panel.setPreferredSize(new Dimension(350, 700));
-
-        // Panel de controles (scrollable para muchos controles)
-        JPanel controlsPanel = createControlsPanel();
-        JScrollPane controlsScroll = new JScrollPane(controlsPanel);
-        controlsScroll.setBorder(BorderFactory.createTitledBorder(languageManager.getTranslation("configuration")));
-        controlsScroll.setVerticalScrollBarPolicy(JScrollPane.VERTICAL_SCROLLBAR_AS_NEEDED);
-        controlsScroll.setHorizontalScrollBarPolicy(JScrollPane.HORIZONTAL_SCROLLBAR_NEVER);
-
-        panel.add(controlsScroll, BorderLayout.CENTER);
-        return panel;
-    }
-
-    private JPanel createRightPanel() {
-        JPanel panel = new JPanel(new BorderLayout(5, 5));
-        panel.setBorder(BorderFactory.createEmptyBorder(5, 5, 5, 5));
-
-        // Panel superior: Diagrama del circuito con scroll
-        JPanel diagramPanel = createCircuitPanel();
-
-        // Panel central: Gráfico con scroll
-        JPanel graphPanel = createGraphPanel();
-
-        // Panel inferior: Resultados con scroll
-        JPanel resultsPanel = createResultsPanel();
-
-        // Usar un split pane vertical para los tres paneles
-        JSplitPane topSplit = new JSplitPane(JSplitPane.VERTICAL_SPLIT, diagramPanel, graphPanel);
-        topSplit.setDividerLocation(0.3); // 30% diagrama, 70% gráfico
-        topSplit.setResizeWeight(0.3);
-
-        JSplitPane mainSplit = new JSplitPane(JSplitPane.VERTICAL_SPLIT, topSplit, resultsPanel);
-        mainSplit.setDividerLocation(0.7); // 70% superior, 30% resultados
-        mainSplit.setResizeWeight(0.7);
-
-        panel.add(mainSplit, BorderLayout.CENTER);
-        return panel;
+    private JPanel createHeaderPanel() {
+        JPanel headerPanel = new JPanel() {
+            @Override
+            protected void paintComponent(Graphics g) {
+                super.paintComponent(g);
+                Graphics2D g2d = (Graphics2D) g;
+                g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+                
+                // Gradiente de fondo
+                GradientPaint gradient = new GradientPaint(
+                    0, 0, PRIMARY_BLUE, 
+                    getWidth(), 0, ACCENT_PURPLE
+                );
+                g2d.setPaint(gradient);
+                g2d.fillRect(0, 0, getWidth(), getHeight());
+                
+                // Patrón sutil
+                g2d.setColor(new Color(255, 255, 255, 10));
+                for (int i = 0; i < getWidth(); i += 20) {
+                    for (int j = 0; j < getHeight(); j += 20) {
+                        g2d.fillOval(i, j, 2, 2);
+                    }
+                }
+            }
+        };
+        
+        headerPanel.setLayout(new BorderLayout());
+        headerPanel.setPreferredSize(new Dimension(800, 100));
+        
+        JLabel titleLabel = new JLabel("⚡ Simulador Avanzado de Circuitos RLC", JLabel.CENTER);
+        titleLabel.setFont(new Font("Segoe UI", Font.BOLD, 26));
+        titleLabel.setForeground(Color.WHITE);
+        titleLabel.setBorder(BorderFactory.createEmptyBorder(25, 0, 5, 0));
+        
+        JLabel subtitleLabel = new JLabel("Con Algoritmos de Planificación Integrados • Análisis en Tiempo Real", JLabel.CENTER);
+        subtitleLabel.setFont(new Font("Segoe UI", Font.PLAIN, 14));
+        subtitleLabel.setForeground(new Color(255, 255, 255, 220));
+        subtitleLabel.setBorder(BorderFactory.createEmptyBorder(0, 0, 25, 0));
+        
+        headerPanel.add(titleLabel, BorderLayout.CENTER);
+        headerPanel.add(subtitleLabel, BorderLayout.SOUTH);
+        
+        return headerPanel;
     }
 
     private JPanel createControlsPanel() {
+        JPanel panel = new JPanel(new BorderLayout(10, 10));
+        panel.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
+        panel.setBackground(LIGHT_SLATE);
+        panel.setPreferredSize(new Dimension(400, 700));
+
+        // Crear pestañas para navegación
+        JTabbedPane tabbedPane = new JTabbedPane(JTabbedPane.TOP);
+        tabbedPane.setFont(new Font("Segoe UI", Font.BOLD, 12));
+        tabbedPane.setBackground(LIGHT_SLATE);
+        setupModernTabbedPane(tabbedPane);
+
+        // Pestaña 1: Simulación de Circuitos
+        JPanel circuitPanel = createCircuitControlsPanel();
+        JScrollPane circuitScroll = new JScrollPane(circuitPanel);
+        circuitScroll.setBorder(null);
+        circuitScroll.getVerticalScrollBar().setUnitIncrement(16);
+        circuitScroll.setBackground(LIGHT_SLATE);
+        tabbedPane.addTab("⚡ Circuito RLC", circuitScroll);
+
+        // Pestaña 2: Planificación de Procesos
+        JPanel schedulingPanel = createSchedulingControlsPanel();
+        JScrollPane schedulingScroll = new JScrollPane(schedulingPanel);
+        schedulingScroll.setBorder(null);
+        schedulingScroll.getVerticalScrollBar().setUnitIncrement(16);
+        schedulingScroll.setBackground(LIGHT_SLATE);
+        tabbedPane.addTab("🔄 Planificación", schedulingScroll);
+
+        panel.add(tabbedPane, BorderLayout.CENTER);
+        return panel;
+    }
+
+    private void setupModernTabbedPane(JTabbedPane tabbedPane) {
+        tabbedPane.setUI(new javax.swing.plaf.basic.BasicTabbedPaneUI() {
+            @Override
+            protected void installDefaults() {
+                super.installDefaults();
+                tabbedPane.setOpaque(false);
+                tabbedPane.setBackground(LIGHT_SLATE);
+            }
+            
+            @Override
+            protected void paintTabBackground(Graphics g, int tabPlacement, 
+                                            int tabIndex, int x, int y, int w, int h, 
+                                            boolean isSelected) {
+                Graphics2D g2d = (Graphics2D) g;
+                g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+                
+                if (isSelected) {
+                    GradientPaint gradient = new GradientPaint(
+                        x, y, PRIMARY_BLUE,
+                        x, y + h, SECONDARY_BLUE
+                    );
+                    g2d.setPaint(gradient);
+                    g2d.fillRoundRect(x + 2, y + 2, w - 4, h - 2, 12, 12);
+                } else {
+                    g2d.setColor(new Color(255, 255, 255, 180));
+                    g2d.fillRoundRect(x + 2, y + 2, w - 4, h - 2, 12, 12);
+                }
+            }
+            
+            @Override
+            protected void paintText(Graphics g, int tabPlacement, Font font, 
+                                   FontMetrics metrics, int tabIndex, 
+                                   String title, Rectangle textRect, boolean isSelected) {
+                g.setFont(font.deriveFont(isSelected ? Font.BOLD : Font.PLAIN, 12));
+                g.setColor(isSelected ? Color.WHITE : DARK_SLATE);
+                super.paintText(g, tabPlacement, font, metrics, tabIndex, title, textRect, isSelected);
+            }
+            
+            @Override
+            protected void paintTabBorder(Graphics g, int tabPlacement, int tabIndex, 
+                                        int x, int y, int w, int h, boolean isSelected) {
+                // Sin bordes para un look más limpio
+            }
+            
+            @Override
+            protected void paintContentBorder(Graphics g, int tabPlacement, int selectedIndex) {
+                // Borde sutil para el área de contenido
+                Graphics2D g2d = (Graphics2D) g;
+                g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+                g2d.setColor(new Color(255, 255, 255, 150));
+                g2d.setStroke(new BasicStroke(1.5f));
+                g2d.drawRoundRect(1, 1, tabbedPane.getWidth()-3, tabbedPane.getHeight()-3, 8, 8);
+            }
+        });
+    }
+
+    private JPanel createCircuitControlsPanel() {
         JPanel panel = new JPanel();
         panel.setLayout(new BoxLayout(panel, BoxLayout.Y_AXIS));
-        panel.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
+        panel.setBorder(BorderFactory.createEmptyBorder(10, 5, 10, 5));
+        panel.setBackground(LIGHT_SLATE);
+        panel.setAlignmentX(Component.LEFT_ALIGNMENT);
 
-        // Panel de entrada principal
-        JPanel inputPanel = createInputPanel();
-        inputPanel.setAlignmentX(Component.LEFT_ALIGNMENT);
-
-        // Selector de método
-        JPanel methodPanel = createMethodPanel();
-        methodPanel.setAlignmentX(Component.LEFT_ALIGNMENT);
-
-        // Presets de circuito
-        JPanel presetPanel = createPresetPanel();
-        presetPanel.setAlignmentX(Component.LEFT_ALIGNMENT);
-
-        // Panel de componentes
-        JPanel componentPanel = createComponentPanel();
-        componentPanel.setAlignmentX(Component.LEFT_ALIGNMENT);
-
-        // Lista de componentes
-        JPanel listPanel = createComponentListPanel();
-        listPanel.setAlignmentX(Component.LEFT_ALIGNMENT);
-
-        // Panel de botones de acción
-        JPanel actionPanel = createActionPanel();
-        actionPanel.setAlignmentX(Component.LEFT_ALIGNMENT);
-
+        // Fuente de alimentación
+        JPanel inputPanel = createModernCardPanel("🔌 Fuente de Alimentación", createInputPanel());
         panel.add(inputPanel);
         panel.add(Box.createVerticalStrut(15));
+
+        // Método de simulación
+        JPanel methodPanel = createModernCardPanel("📊 Método de Simulación", createMethodPanel());
         panel.add(methodPanel);
         panel.add(Box.createVerticalStrut(15));
+
+        // Circuitos predefinidos
+        JPanel presetPanel = createModernCardPanel("🎯 Circuitos Predefinidos", createPresetPanel());
         panel.add(presetPanel);
         panel.add(Box.createVerticalStrut(15));
+
+        // Componentes
+        JPanel componentPanel = createModernCardPanel("⚡ Agregar Componentes", createComponentPanel());
         panel.add(componentPanel);
         panel.add(Box.createVerticalStrut(15));
+
+        // Lista de componentes
+        JPanel listPanel = createModernCardPanel("📋 Componentes en el Circuito", createComponentListPanel());
         panel.add(listPanel);
         panel.add(Box.createVerticalStrut(15));
+
+        // Botones de acción
+        JPanel actionPanel = createModernCardPanel("🚀 Acciones", createCircuitActionPanel());
         panel.add(actionPanel);
-        panel.add(Box.createVerticalGlue());
+
+        return panel;
+    }
+
+    private JPanel createModernCardPanel(String title, JPanel contentPanel) {
+        JPanel cardPanel = new JPanel() {
+            @Override
+            protected void paintComponent(Graphics g) {
+                Graphics2D g2d = (Graphics2D) g;
+                g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+                
+                // Sombra suave
+                g2d.setColor(new Color(0, 0, 0, 15));
+                g2d.fillRoundRect(2, 2, getWidth()-2, getHeight()-2, 16, 16);
+                
+                // Fondo de la tarjeta
+                g2d.setColor(CARD_BACKGROUND);
+                g2d.fillRoundRect(0, 0, getWidth()-2, getHeight()-2, 14, 14);
+                
+                // Borde sutil
+                g2d.setColor(new Color(226, 232, 240));
+                g2d.setStroke(new BasicStroke(1.2f));
+                g2d.drawRoundRect(0, 0, getWidth()-2, getHeight()-2, 14, 14);
+            }
+        };
+        
+        cardPanel.setLayout(new BorderLayout());
+        cardPanel.setBorder(BorderFactory.createEmptyBorder(15, 15, 15, 15));
+        cardPanel.setMaximumSize(new Dimension(380, Integer.MAX_VALUE));
+        
+        // Título de la tarjeta
+        JLabel titleLabel = new JLabel(title);
+        titleLabel.setFont(new Font("Segoe UI", Font.BOLD, 14));
+        titleLabel.setForeground(DARK_SLATE);
+        titleLabel.setBorder(BorderFactory.createEmptyBorder(0, 0, 12, 0));
+        titleLabel.setIconTextGap(8);
+        
+        cardPanel.add(titleLabel, BorderLayout.NORTH);
+        cardPanel.add(contentPanel, BorderLayout.CENTER);
+        
+        return cardPanel;
+    }
+
+    private JPanel createSchedulingControlsPanel() {
+        JPanel panel = new JPanel(new BorderLayout(10, 10));
+        panel.setBorder(BorderFactory.createEmptyBorder(10, 5, 10, 5));
+        panel.setBackground(LIGHT_SLATE);
+        panel.setAlignmentX(Component.LEFT_ALIGNMENT);
+
+        // Panel superior - Controles de configuración
+        JPanel controlsPanel = new JPanel();
+        controlsPanel.setLayout(new BoxLayout(controlsPanel, BoxLayout.Y_AXIS));
+        controlsPanel.setBackground(LIGHT_SLATE);
+        controlsPanel.setAlignmentX(Component.LEFT_ALIGNMENT);
+
+        // Algoritmo de planificación
+        JPanel algorithmPanel = createModernCardPanel("🎯 Algoritmo de Planificación", 
+            createSimpleComboBoxPanel("Seleccione algoritmo:", 
+                new String[] { "First-Come, First-Served (FCFS)", "Round Robin (RR)", "Shortest Job First (SJF)" }));
+        algorithmCombo = findComboBoxInPanel(algorithmPanel);
+        controlsPanel.add(algorithmPanel);
+        controlsPanel.add(Box.createVerticalStrut(15));
+
+        // Tipo de lote
+        JPanel batchPanel = createModernCardPanel("📦 Tipo de Lote", 
+            createSimpleComboBoxPanel("Configuración del lote:",
+                new String[] { "Homogéneo - Simple", "Homogéneo - Medio", "Homogéneo - Complejo",
+                        "Heterogéneo - Mixto" }));
+        batchTypeCombo = findComboBoxInPanel(batchPanel);
+        if (batchTypeCombo == null) {
+            batchTypeCombo = new JComboBox<>(new String[] {
+                    "Homogéneo - Simple", "Homogéneo - Medio", "Homogéneo - Complejo", "Heterogéneo - Mixto"
+            });
+            batchPanel.add(batchTypeCombo);
+        }
+        batchTypeCombo.addActionListener(e -> updateBatchControls());
+        controlsPanel.add(batchPanel);
+        controlsPanel.add(Box.createVerticalStrut(15));
+
+        // Controles de batch
+        JPanel batchControlsPanel = createModernCardPanel("⚙️ Configuración del Lote", createBatchControlsPanel());
+        controlsPanel.add(batchControlsPanel);
+        controlsPanel.add(Box.createVerticalStrut(15));
+
+        // Botones de control
+        JPanel buttonPanel = createModernCardPanel("🎮 Control de Ejecución", createSchedulingButtonPanel());
+        controlsPanel.add(buttonPanel);
+        controlsPanel.add(Box.createVerticalStrut(15));
+
+        // Barra de progreso
+        schedulingProgressBar = new JProgressBar();
+        setupModernProgressBar(schedulingProgressBar);
+        schedulingProgressBar.setVisible(false);
+        schedulingProgressBar.setMaximumSize(new Dimension(350, 25));
+        schedulingProgressBar.setAlignmentX(Component.LEFT_ALIGNMENT);
+        controlsPanel.add(schedulingProgressBar);
+
+        updateBatchControls();
+
+        // Panel inferior - Log de Planificación y Tareas
+        JPanel logPanel = createSchedulingLogPanelForLeft();
+
+        // Usar JSplitPane para dividir controles y log
+        JSplitPane splitPane = new JSplitPane(JSplitPane.VERTICAL_SPLIT);
+        splitPane.setTopComponent(createScrollPanel(controlsPanel));
+        splitPane.setBottomComponent(logPanel);
+        splitPane.setDividerLocation(320);
+        splitPane.setResizeWeight(0.6);
+        splitPane.setBorder(BorderFactory.createEmptyBorder());
+
+        panel.add(splitPane, BorderLayout.CENTER);
+        return panel;
+    }
+
+    private void setupModernProgressBar(JProgressBar progressBar) {
+        progressBar.setUI(new BasicProgressBarUI() {
+            @Override
+            protected Color getSelectionBackground() { return Color.WHITE; }
+            @Override
+            protected Color getSelectionForeground() { return Color.WHITE; }
+            
+            @Override
+            protected void paintDeterminate(Graphics g, JComponent c) {
+                Graphics2D g2d = (Graphics2D) g;
+                g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+                
+                int width = progressBar.getWidth();
+                int height = progressBar.getHeight();
+                int progress = (int) (width * progressBar.getPercentComplete());
+                
+                // Fondo
+                g2d.setColor(LIGHT_SLATE);
+                g2d.fillRoundRect(0, 0, width, height, height, height);
+                
+                // Progreso con gradiente
+                if (progress > 0) {
+                    GradientPaint gradient = new GradientPaint(
+                        0, 0, SUCCESS_EMERALD, 
+                        width, 0, SUCCESS_EMERALD.brighter()
+                    );
+                    g2d.setPaint(gradient);
+                    g2d.fillRoundRect(0, 0, progress, height, height, height);
+                }
+                
+                // Borde
+                g2d.setColor(new Color(203, 213, 225));
+                g2d.setStroke(new BasicStroke(1.2f));
+                g2d.drawRoundRect(0, 0, width-1, height-1, height, height);
+            }
+        });
+        
+        progressBar.setStringPainted(true);
+        progressBar.setFont(new Font("Segoe UI", Font.BOLD, 11));
+    }
+
+    private JPanel createSchedulingLogPanelForLeft() {
+        JPanel panel = new JPanel(new BorderLayout());
+        panel.setBorder(BorderFactory.createEmptyBorder(5, 0, 0, 0));
+        panel.setBackground(LIGHT_SLATE);
+        panel.setPreferredSize(new Dimension(350, 250));
+
+        // Crear pestañas para Log y Tareas
+        JTabbedPane logTabs = new JTabbedPane(JTabbedPane.TOP);
+        logTabs.setFont(new Font("Segoe UI", Font.PLAIN, 11));
+        setupModernTabbedPane(logTabs);
+
+        // Pestaña de Tareas
+        JPanel tasksPanel = new JPanel(new BorderLayout());
+        tasksPanel.setBackground(CARD_BACKGROUND);
+        tasksPanel.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
+
+        String[] columns = { "ID", "Nombre", "Complejidad", "Duración (ms)", "Estado", "Progreso" };
+        tasksTableModel = new DefaultTableModel(columns, 0) {
+            @Override
+            public boolean isCellEditable(int row, int column) {
+                return false;
+            }
+        };
+
+        tasksTable = new JTable(tasksTableModel);
+        tasksTable.setAutoCreateRowSorter(true);
+        tasksTable.setFont(new Font("Segoe UI", Font.PLAIN, 10));
+        tasksTable.setBackground(Color.WHITE);
+        tasksTable.setRowHeight(25);
+        tasksTable.setShowGrid(false);
+        tasksTable.setIntercellSpacing(new Dimension(0, 0));
+
+        // Renderizado mejorado para la tabla
+        tasksTable.setDefaultRenderer(Object.class, new DefaultTableCellRenderer() {
+            @Override
+            public Component getTableCellRendererComponent(JTable table, Object value,
+                    boolean isSelected, boolean hasFocus, int row, int column) {
+                Component c = super.getTableCellRendererComponent(table, value, isSelected, hasFocus, row, column);
+                
+                if (isSelected) {
+                    c.setBackground(PRIMARY_BLUE);
+                    c.setForeground(Color.WHITE);
+                } else {
+                    c.setBackground(row % 2 == 0 ? new Color(248, 250, 252) : Color.WHITE);
+                    c.setForeground(DARK_SLATE);
+                }
+                
+                setBorder(BorderFactory.createEmptyBorder(5, 8, 5, 8));
+                setFont(new Font("Segoe UI", Font.PLAIN, 10));
+                
+                return c;
+            }
+        });
+
+        JScrollPane tableScroll = new JScrollPane(tasksTable);
+        tableScroll.setPreferredSize(new Dimension(300, 120));
+        tableScroll.setBorder(BorderFactory.createLineBorder(new Color(226, 232, 240)));
+        tableScroll.getViewport().setBackground(Color.WHITE);
+        tasksPanel.add(tableScroll, BorderLayout.CENTER);
+
+        // Pestaña de Log
+        JPanel logPanel = new JPanel(new BorderLayout());
+        logPanel.setBackground(CARD_BACKGROUND);
+        logPanel.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
+
+        schedulingLogArea = new JTextArea(8, 30);
+        schedulingLogArea.setEditable(false);
+        schedulingLogArea.setFont(new Font("Consolas", Font.PLAIN, 10));
+        schedulingLogArea.setBackground(new Color(248, 250, 252));
+        schedulingLogArea.setForeground(DARK_SLATE);
+        schedulingLogArea.setLineWrap(true);
+        schedulingLogArea.setWrapStyleWord(true);
+        schedulingLogArea.setBorder(BorderFactory.createEmptyBorder(8, 8, 8, 8));
+
+        JScrollPane logScroll = new JScrollPane(schedulingLogArea);
+        logScroll.setBorder(BorderFactory.createLineBorder(new Color(226, 232, 240)));
+        logPanel.add(logScroll, BorderLayout.CENTER);
+
+        // Agregar pestañas
+        logTabs.addTab("📊 Tareas", tasksPanel);
+        logTabs.addTab("📝 Log", logPanel);
+
+        panel.add(logTabs, BorderLayout.CENTER);
+        return panel;
+    }
+
+    private JScrollPane createScrollPanel(JPanel panel) {
+        JScrollPane scrollPane = new JScrollPane(panel);
+        scrollPane.setBorder(null);
+        scrollPane.setVerticalScrollBarPolicy(JScrollPane.VERTICAL_SCROLLBAR_AS_NEEDED);
+        scrollPane.setHorizontalScrollBarPolicy(JScrollPane.HORIZONTAL_SCROLLBAR_NEVER);
+        scrollPane.getVerticalScrollBar().setUnitIncrement(16);
+        scrollPane.getViewport().setBackground(LIGHT_SLATE);
+        return scrollPane;
+    }
+
+    // Método auxiliar para encontrar JComboBox<String> de forma segura
+    @SuppressWarnings("unchecked")
+    private JComboBox<String> findComboBoxInPanel(JPanel panel) {
+        for (Component comp : panel.getComponents()) {
+            if (comp instanceof JComboBox) {
+                try {
+                    return (JComboBox<String>) comp;
+                } catch (ClassCastException e) {
+                    continue;
+                }
+            }
+        }
+
+        for (Component comp : panel.getComponents()) {
+            if (comp instanceof JPanel) {
+                JComboBox<String> found = findComboBoxInPanel((JPanel) comp);
+                if (found != null) {
+                    return found;
+                }
+            }
+        }
+
+        return null;
+    }
+
+    private JPanel createVisualizationPanel() {
+        JPanel panel = new JPanel(new BorderLayout(10, 10));
+        panel.setBackground(LIGHT_SLATE);
+
+        // Panel superior: Diagrama del circuito
+        JPanel diagramPanel = createCircuitPanel();
+        panel.add(diagramPanel, BorderLayout.NORTH);
+
+        // Panel central: Pestañas para gráficos y resultados
+        JTabbedPane centerTabs = new JTabbedPane(JTabbedPane.TOP);
+        centerTabs.setFont(new Font("Segoe UI", Font.BOLD, 12));
+        setupModernTabbedPane(centerTabs);
+
+        // Pestaña 1: Visualización (Gráficos)
+        JPanel graphPanel = createGraphPanel();
+        centerTabs.addTab("📈 Visualización", graphPanel);
+
+        // Pestaña 2: Resultados
+        JPanel resultsPanel = createResultsPanel();
+        JScrollPane resultsScroll = new JScrollPane(resultsPanel);
+        resultsScroll.setBorder(BorderFactory.createEmptyBorder(5, 5, 5, 5));
+        centerTabs.addTab("📊 Resultados", resultsScroll);
+
+        // Pestaña 3: Análisis Detallado
+        JPanel analysisPanel = createAnalysisPanel();
+        centerTabs.addTab("🔍 Análisis", analysisPanel);
+
+        panel.add(centerTabs, BorderLayout.CENTER);
+
+        return panel;
+    }
+
+    private JPanel createAnalysisPanel() {
+        JPanel panel = new JPanel(new BorderLayout());
+        panel.setBackground(CARD_BACKGROUND);
+        panel.setBorder(BorderFactory.createEmptyBorder(20, 20, 20, 20));
+
+        JTextArea analysisArea = new JTextArea();
+        analysisArea.setEditable(false);
+        analysisArea.setFont(new Font("Segoe UI", Font.PLAIN, 12));
+        analysisArea.setBackground(CARD_BACKGROUND);
+        analysisArea.setForeground(DARK_SLATE);
+        analysisArea.setLineWrap(true);
+        analysisArea.setWrapStyleWord(true);
+        analysisArea.setText(
+                "=== ANÁLISIS DETALLADO DEL CIRCUITO ===\n\n" +
+                "Esta sección muestra análisis avanzados:\n\n" +
+                "• 📈 Parámetros del circuito en diferentes frecuencias\n" +
+                "• ⚡ Comportamiento transitorio vs permanente\n" +
+                "• 🎯 Análisis de estabilidad del sistema\n" +
+                "• 📊 Respuesta a diferentes tipos de entrada\n" +
+                "• 🔄 Análisis de sensibilidad de componentes\n\n" +
+                "Ejecute una simulación para ver los análisis detallados.");
+
+        JScrollPane scroll = new JScrollPane(analysisArea);
+        scroll.setBorder(BorderFactory.createLineBorder(new Color(226, 232, 240)));
+        panel.add(scroll, BorderLayout.CENTER);
 
         return panel;
     }
@@ -169,24 +643,29 @@ public class RLCSimulator extends JPanel implements SimulationObserver {
     private JPanel createInputPanel() {
         JPanel panel = new JPanel();
         panel.setLayout(new BoxLayout(panel, BoxLayout.Y_AXIS));
-        panel.setBorder(BorderFactory.createTitledBorder(languageManager.getTranslation("power_supply")));
+        panel.setBackground(CARD_BACKGROUND);
+        panel.setAlignmentX(Component.LEFT_ALIGNMENT);
 
         JPanel voltagePanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
-        voltagePanel.add(new JLabel(languageManager.getTranslation("voltage")));
-        voltageField = new JTextField("10", 10);
-        voltageField.setToolTipText(languageManager.getTranslation("voltage_range"));
+        voltagePanel.setBackground(CARD_BACKGROUND);
+        voltagePanel.add(createModernLabel("Voltaje (V):"));
+        voltageField = createModernTextField("10", 10);
+        voltageField.setToolTipText("Voltaje entre 0.1 y 1000 V");
         voltagePanel.add(voltageField);
-        voltagePanel.add(new JLabel("V"));
+        voltagePanel.add(createModernLabel("V"));
+        voltagePanel.setAlignmentX(Component.LEFT_ALIGNMENT);
+        panel.add(voltagePanel);
+
+        panel.add(Box.createVerticalStrut(8));
 
         JPanel frequencyPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
-        frequencyPanel.add(new JLabel(languageManager.getTranslation("frequency")));
-        frequencyField = new JTextField("60", 10);
-        frequencyField.setToolTipText(languageManager.getTranslation("frequency_range"));
+        frequencyPanel.setBackground(CARD_BACKGROUND);
+        frequencyPanel.add(createModernLabel("Frecuencia (Hz):"));
+        frequencyField = createModernTextField("60", 10);
+        frequencyField.setToolTipText("Frecuencia entre 0.1 y 10000 Hz");
         frequencyPanel.add(frequencyField);
-        frequencyPanel.add(new JLabel("Hz"));
-
-        panel.add(voltagePanel);
-        panel.add(Box.createVerticalStrut(5));
+        frequencyPanel.add(createModernLabel("Hz"));
+        frequencyPanel.setAlignmentX(Component.LEFT_ALIGNMENT);
         panel.add(frequencyPanel);
 
         return panel;
@@ -195,72 +674,78 @@ public class RLCSimulator extends JPanel implements SimulationObserver {
     private JPanel createMethodPanel() {
         JPanel panel = new JPanel();
         panel.setLayout(new BoxLayout(panel, BoxLayout.Y_AXIS));
-        panel.setBorder(BorderFactory.createTitledBorder(languageManager.getTranslation("simulation_method")));
+        panel.setBackground(CARD_BACKGROUND);
+        panel.setAlignmentX(Component.LEFT_ALIGNMENT);
 
-        methodCombo = new JComboBox<>();
+        methodCombo = createModernComboBox();
         for (SimulationStrategy strategy : CircuitEngine.getAvailableStrategies()) {
             String methodKey = strategy.getName().toLowerCase().replace("-", "");
             methodCombo.addItem(languageManager.getTranslation(methodKey));
         }
-        methodCombo.setToolTipText(languageManager.getTranslation("method"));
+        methodCombo.setToolTipText("Método de cálculo para la simulación");
         methodCombo.setAlignmentX(Component.LEFT_ALIGNMENT);
-        methodCombo.setMaximumSize(new Dimension(300, 25));
-
+        methodCombo.setMaximumSize(new Dimension(300, 35));
         panel.add(methodCombo);
+
         return panel;
     }
 
     private JPanel createPresetPanel() {
         JPanel panel = new JPanel();
         panel.setLayout(new BoxLayout(panel, BoxLayout.Y_AXIS));
-        panel.setBorder(BorderFactory.createTitledBorder(languageManager.getTranslation("circuit_presets")));
+        panel.setBackground(CARD_BACKGROUND);
+        panel.setAlignmentX(Component.LEFT_ALIGNMENT);
 
-        String[] presetKeys = {
-                "custom", "underdamped", "critical", "overdamped",
-                "series_rlc", "high_pass", "low_pass"
-        };
-
-        presetCombo = new JComboBox<>();
+        String[] presetKeys = { "custom", "underdamped", "critical", "overdamped", "series_rlc", "high_pass",
+                "low_pass" };
+        presetCombo = createModernComboBox();
         for (String key : presetKeys) {
             presetCombo.addItem(languageManager.getTranslation(key));
         }
-        presetCombo.setToolTipText(languageManager.getTranslation("preset"));
+        presetCombo.setToolTipText("Seleccione un circuito predefinido");
         presetCombo.setAlignmentX(Component.LEFT_ALIGNMENT);
-        presetCombo.setMaximumSize(new Dimension(300, 25));
-
+        presetCombo.setMaximumSize(new Dimension(300, 35));
         panel.add(presetCombo);
+
         return panel;
     }
 
     private JPanel createComponentPanel() {
         JPanel panel = new JPanel();
         panel.setLayout(new BoxLayout(panel, BoxLayout.Y_AXIS));
-        panel.setBorder(BorderFactory.createTitledBorder(languageManager.getTranslation("components")));
+        panel.setBackground(CARD_BACKGROUND);
+        panel.setAlignmentX(Component.LEFT_ALIGNMENT);
 
         JPanel typePanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
-        typePanel.add(new JLabel(languageManager.getTranslation("component_type")));
-
+        typePanel.setBackground(CARD_BACKGROUND);
+        typePanel.add(createModernLabel("Tipo:"));
         String[] componentTypes = { "resistance", "inductor", "capacitor" };
-        componentTypeCombo = new JComboBox<>();
+        componentTypeCombo = createModernComboBox();
         for (String type : componentTypes) {
             componentTypeCombo.addItem(languageManager.getTranslation(type));
         }
-        componentTypeCombo.setMaximumSize(new Dimension(150, 25));
+        componentTypeCombo.setMaximumSize(new Dimension(140, 35));
         typePanel.add(componentTypeCombo);
+        typePanel.setAlignmentX(Component.LEFT_ALIGNMENT);
+        panel.add(typePanel);
+
+        panel.add(Box.createVerticalStrut(8));
 
         JPanel valuePanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
-        valuePanel.add(new JLabel(languageManager.getTranslation("value")));
-        valueField = new JTextField("100", 10);
-        valueField.setToolTipText(languageManager.getTranslation("component_value_positive"));
+        valuePanel.setBackground(CARD_BACKGROUND);
+        valuePanel.add(createModernLabel("Valor:"));
+        valueField = createModernTextField("100", 12);
+        valueField.setToolTipText("Ingrese un valor positivo para el componente");
         valuePanel.add(valueField);
-
-        addButton = new JButton(languageManager.getTranslation("add_component"));
-        addButton.setToolTipText(languageManager.getTranslation("add_component"));
-
-        panel.add(typePanel);
-        panel.add(Box.createVerticalStrut(5));
+        valuePanel.setAlignmentX(Component.LEFT_ALIGNMENT);
         panel.add(valuePanel);
-        panel.add(Box.createVerticalStrut(5));
+
+        panel.add(Box.createVerticalStrut(12));
+
+        addButton = createModernButton("➕ Agregar Componente", SECONDARY_BLUE);
+        addButton.setToolTipText("Agregar componente al circuito");
+        addButton.setAlignmentX(Component.LEFT_ALIGNMENT);
+        addButton.setMaximumSize(new Dimension(220, 40));
         panel.add(addButton);
 
         return panel;
@@ -268,92 +753,212 @@ public class RLCSimulator extends JPanel implements SimulationObserver {
 
     private JPanel createComponentListPanel() {
         JPanel panel = new JPanel(new BorderLayout());
-        panel.setBorder(BorderFactory.createTitledBorder(languageManager.getTranslation("component_list")));
-        panel.setMaximumSize(new Dimension(350, 200));
+        panel.setBackground(CARD_BACKGROUND);
+        panel.setAlignmentX(Component.LEFT_ALIGNMENT);
+        panel.setMaximumSize(new Dimension(350, 150));
 
         componentsModel = new DefaultListModel<>();
         componentsList = new JList<>(componentsModel);
         componentsList.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
-        componentsList.setToolTipText(languageManager.getTranslation("component_list"));
+        componentsList.setToolTipText("Componentes en el circuito actual");
+        componentsList.setBackground(new Color(248, 250, 252));
+        componentsList.setForeground(DARK_SLATE);
+        componentsList.setFont(new Font("Segoe UI", Font.PLAIN, 11));
+        componentsList.setBorder(BorderFactory.createEmptyBorder(8, 8, 8, 8));
 
         JScrollPane listScroll = new JScrollPane(componentsList);
-        listScroll.setPreferredSize(new Dimension(300, 120));
-
-        removeButton = new JButton(languageManager.getTranslation("remove_selected"));
-        removeButton.setToolTipText(languageManager.getTranslation("remove_selected"));
-
+        listScroll.setPreferredSize(new Dimension(300, 100));
+        listScroll.setBorder(BorderFactory.createLineBorder(new Color(226, 232, 240)));
         panel.add(listScroll, BorderLayout.CENTER);
+
+        removeButton = createModernButton("🗑️ Eliminar Seleccionado", ERROR_ROSE);
+        removeButton.setToolTipText("Eliminar componente seleccionado");
+        removeButton.setMaximumSize(new Dimension(220, 35));
         panel.add(removeButton, BorderLayout.SOUTH);
 
         return panel;
     }
 
-    private JPanel createActionPanel() {
+    private JPanel createCircuitActionPanel() {
         JPanel panel = new JPanel();
         panel.setLayout(new BoxLayout(panel, BoxLayout.Y_AXIS));
-        panel.setBorder(BorderFactory.createTitledBorder(languageManager.getTranslation("actions")));
+        panel.setBackground(CARD_BACKGROUND);
+        panel.setAlignmentX(Component.LEFT_ALIGNMENT);
 
-        simulateButton = new JButton(languageManager.getTranslation("simulate"));
-        simulateButton.setToolTipText(languageManager.getTranslation("simulate"));
+        simulateButton = createModernButton("🚀 Simular Circuito", SUCCESS_EMERALD);
+        simulateButton.setToolTipText("Ejecutar simulación del circuito actual");
         simulateButton.setAlignmentX(Component.LEFT_ALIGNMENT);
+        simulateButton.setMaximumSize(new Dimension(220, 45));
 
-        clearButton = new JButton(languageManager.getTranslation("clear_all"));
-        clearButton.setToolTipText(languageManager.getTranslation("clear_all"));
+        panel.add(Box.createVerticalStrut(8));
+
+        clearButton = createModernButton("🗑️ Limpiar Todo", ERROR_ROSE);
+        clearButton.setToolTipText("Limpiar circuito y resultados");
         clearButton.setAlignmentX(Component.LEFT_ALIGNMENT);
+        clearButton.setMaximumSize(new Dimension(220, 40));
 
         // Barra de progreso
         progressBar = new JProgressBar();
+        setupModernProgressBar(progressBar);
         progressBar.setVisible(false);
-        progressBar.setStringPainted(true);
         progressBar.setAlignmentX(Component.LEFT_ALIGNMENT);
-        progressBar.setMaximumSize(new Dimension(300, 20));
+        progressBar.setMaximumSize(new Dimension(220, 25));
 
         panel.add(simulateButton);
-        panel.add(Box.createVerticalStrut(8));
+        panel.add(Box.createVerticalStrut(12));
         panel.add(clearButton);
-        panel.add(Box.createVerticalStrut(8));
+        panel.add(Box.createVerticalStrut(12));
         panel.add(progressBar);
+
+        return panel;
+    }
+
+    private JPanel createSimpleComboBoxPanel(String labelText, String[] items) {
+        JPanel panel = new JPanel();
+        panel.setLayout(new BoxLayout(panel, BoxLayout.Y_AXIS));
+        panel.setBackground(CARD_BACKGROUND);
+        panel.setAlignmentX(Component.LEFT_ALIGNMENT);
+
+        JLabel label = createModernLabel(labelText);
+        label.setFont(new Font("Segoe UI", Font.BOLD, 12));
+        label.setAlignmentX(Component.LEFT_ALIGNMENT);
+        panel.add(label);
+        panel.add(Box.createVerticalStrut(8));
+
+        JComboBox<String> comboBox = createModernComboBox();
+        for (String item : items) {
+            comboBox.addItem(item);
+        }
+        comboBox.setMaximumSize(new Dimension(350, 35));
+        comboBox.setAlignmentX(Component.LEFT_ALIGNMENT);
+
+        panel.add(comboBox);
+
+        return panel;
+    }
+
+    private JPanel createBatchControlsPanel() {
+        JPanel panel = new JPanel();
+        panel.setLayout(new BoxLayout(panel, BoxLayout.Y_AXIS));
+        panel.setBackground(CARD_BACKGROUND);
+        panel.setAlignmentX(Component.LEFT_ALIGNMENT);
+
+        JPanel spinnersPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
+        spinnersPanel.setBackground(CARD_BACKGROUND);
+
+        spinnersPanel.add(createModernLabel("Simples:"));
+        simpleSpinner = createModernSpinner(3, 0, 20, 1);
+        spinnersPanel.add(simpleSpinner);
+
+        spinnersPanel.add(createModernLabel("Medios:"));
+        mediumSpinner = createModernSpinner(2, 0, 15, 1);
+        spinnersPanel.add(mediumSpinner);
+
+        spinnersPanel.add(createModernLabel("Complejos:"));
+        complexSpinner = createModernSpinner(1, 0, 10, 1);
+        spinnersPanel.add(complexSpinner);
+
+        spinnersPanel.setAlignmentX(Component.LEFT_ALIGNMENT);
+        panel.add(spinnersPanel);
+
+        panel.add(Box.createVerticalStrut(12));
+
+        generateBatchButton = createModernButton("📦 Generar Lote de Simulaciones", WARNING_AMBER);
+        generateBatchButton.addActionListener(e -> generateBatch());
+        generateBatchButton.setAlignmentX(Component.LEFT_ALIGNMENT);
+        generateBatchButton.setMaximumSize(new Dimension(350, 40));
+        panel.add(generateBatchButton);
+
+        return panel;
+    }
+
+    private JPanel createSchedulingButtonPanel() {
+        JPanel panel = new JPanel();
+        panel.setLayout(new FlowLayout(FlowLayout.LEFT));
+        panel.setBackground(CARD_BACKGROUND);
+        panel.setAlignmentX(Component.LEFT_ALIGNMENT);
+
+        startSchedulerButton = createModernButton("▶️ Iniciar Planificación", SUCCESS_EMERALD);
+        startSchedulerButton.addActionListener(e -> startScheduling());
+
+        stopSchedulerButton = createModernButton("⏹️ Detener", ERROR_ROSE);
+        stopSchedulerButton.addActionListener(e -> stopScheduling());
+        stopSchedulerButton.setEnabled(false);
+
+        panel.add(startSchedulerButton);
+        panel.add(stopSchedulerButton);
 
         return panel;
     }
 
     private JPanel createCircuitPanel() {
         JPanel panel = new JPanel(new BorderLayout());
-        panel.setBorder(BorderFactory.createTitledBorder(languageManager.getTranslation("circuit_diagram")));
-        panel.setPreferredSize(new Dimension(600, 200));
+        panel.setBorder(BorderFactory.createEmptyBorder(5, 0, 10, 0));
+        panel.setPreferredSize(new Dimension(600, 220));
+        panel.setBackground(LIGHT_SLATE);
 
-        // Usar el nuevo CircuitDiagramPanel
+        JPanel cardPanel = new JPanel(new BorderLayout()) {
+            @Override
+            protected void paintComponent(Graphics g) {
+                Graphics2D g2d = (Graphics2D) g;
+                g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+                
+                g2d.setColor(CARD_BACKGROUND);
+                g2d.fillRoundRect(0, 0, getWidth(), getHeight(), 12, 12);
+                
+                g2d.setColor(new Color(226, 232, 240));
+                g2d.setStroke(new BasicStroke(1.2f));
+                g2d.drawRoundRect(0, 0, getWidth()-1, getHeight()-1, 12, 12);
+            }
+        };
+        
+        cardPanel.setBorder(BorderFactory.createEmptyBorder(15, 15, 15, 15));
+
+        // Título del diagrama
+        JLabel titleLabel = new JLabel("🔌 Diagrama del Circuito");
+        titleLabel.setFont(new Font("Segoe UI", Font.BOLD, 14));
+        titleLabel.setForeground(DARK_SLATE);
+        titleLabel.setBorder(BorderFactory.createEmptyBorder(0, 0, 10, 0));
+        cardPanel.add(titleLabel, BorderLayout.NORTH);
+
         circuitDiagram = new CircuitDiagramPanel();
 
         JScrollPane diagramScroll = new JScrollPane(circuitDiagram);
         diagramScroll.setVerticalScrollBarPolicy(JScrollPane.VERTICAL_SCROLLBAR_AS_NEEDED);
         diagramScroll.setHorizontalScrollBarPolicy(JScrollPane.HORIZONTAL_SCROLLBAR_AS_NEEDED);
+        diagramScroll.setBorder(BorderFactory.createLineBorder(new Color(226, 232, 240)));
+        diagramScroll.getViewport().setBackground(Color.WHITE);
 
-        panel.add(diagramScroll, BorderLayout.CENTER);
+        cardPanel.add(diagramScroll, BorderLayout.CENTER);
+        panel.add(cardPanel, BorderLayout.CENTER);
         return panel;
     }
 
     private JPanel createGraphPanel() {
         JPanel panel = new JPanel(new BorderLayout());
-        panel.setBorder(BorderFactory.createTitledBorder(languageManager.getTranslation("simulation_graph")));
+        panel.setBorder(BorderFactory.createEmptyBorder(15, 15, 15, 15));
+        panel.setBackground(CARD_BACKGROUND);
 
-        // Gráfico por defecto (se actualizará después de la simulación)
         currentGraph = new TimeGraph(null);
         graphContainer = new JPanel(new BorderLayout());
+        graphContainer.setBackground(CARD_BACKGROUND);
 
         JScrollPane graphScroll = new JScrollPane(currentGraph);
         graphScroll.setVerticalScrollBarPolicy(JScrollPane.VERTICAL_SCROLLBAR_AS_NEEDED);
         graphScroll.setHorizontalScrollBarPolicy(JScrollPane.HORIZONTAL_SCROLLBAR_AS_NEEDED);
+        graphScroll.setBorder(BorderFactory.createLineBorder(new Color(226, 232, 240)));
+        graphScroll.getViewport().setBackground(Color.WHITE);
         graphContainer.add(graphScroll, BorderLayout.CENTER);
 
-        // Panel de selección de tipo de gráfico
         JPanel graphTypePanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
-        graphTypePanel.add(new JLabel("Tipo de Gráfico:"));
+        graphTypePanel.setBackground(CARD_BACKGROUND);
+        graphTypePanel.add(createModernLabel("Tipo de Gráfico:"));
 
-        graphTypeCombo = new JComboBox<>(new String[] {
-                "Dominio de Tiempo", "Respuesta en Frecuencia", "Diagrama Fasorial", "Formas de Onda"
-        });
-        graphTypeCombo.addActionListener(e -> updateGraphType(graphTypeCombo.getSelectedIndex()));
+        graphTypeCombo = createModernComboBox();
+        graphTypeCombo.setModel(new DefaultComboBoxModel<>(new String[] {
+                "📈 Dominio de Tiempo", "📊 Respuesta en Frecuencia", "🎯 Diagrama Fasorial", "🌊 Formas de Onda"
+        }));
+        graphTypeCombo.addActionListener(e -> updateGraphType());
         graphTypePanel.add(graphTypeCombo);
 
         panel.add(graphTypePanel, BorderLayout.NORTH);
@@ -364,46 +969,330 @@ public class RLCSimulator extends JPanel implements SimulationObserver {
 
     private JPanel createResultsPanel() {
         JPanel panel = new JPanel(new BorderLayout());
-        panel.setBorder(BorderFactory.createTitledBorder(languageManager.getTranslation("results")));
-        panel.setPreferredSize(new Dimension(600, 200));
+        panel.setBackground(CARD_BACKGROUND);
+        panel.setBorder(BorderFactory.createEmptyBorder(20, 20, 20, 20));
 
-        resultsArea = new JTextArea(8, 50);
+        resultsArea = new JTextArea(12, 50);
         resultsArea.setEditable(false);
-        resultsArea.setFont(new Font("Monospaced", Font.PLAIN, 11));
+        resultsArea.setFont(new Font("Segoe UI", Font.PLAIN, 12));
         resultsArea.setLineWrap(true);
         resultsArea.setWrapStyleWord(true);
+        resultsArea.setBackground(CARD_BACKGROUND);
+        resultsArea.setForeground(DARK_SLATE);
+        resultsArea.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
 
-        // Texto inicial en el idioma actual
         updateInitialResultsText();
 
         JScrollPane scroll = new JScrollPane(resultsArea);
         scroll.setVerticalScrollBarPolicy(JScrollPane.VERTICAL_SCROLLBAR_AS_NEEDED);
         scroll.setHorizontalScrollBarPolicy(JScrollPane.HORIZONTAL_SCROLLBAR_AS_NEEDED);
-        scroll.setBorder(BorderFactory.createLineBorder(Color.LIGHT_GRAY));
+        scroll.setBorder(BorderFactory.createLineBorder(new Color(226, 232, 240)));
+        scroll.getViewport().setBackground(CARD_BACKGROUND);
 
         panel.add(scroll, BorderLayout.CENTER);
         return panel;
     }
 
-    private void updateGraphType(int graphType) {
-        if (lastResult == null || components == null) {
-            // Crear gráfico vacío con mensaje informativo
+    // ========== COMPONENTES MODERNOS ==========
+
+    private JLabel createModernLabel(String text) {
+        JLabel label = new JLabel(text);
+        label.setForeground(DARK_SLATE);
+        label.setFont(new Font("Segoe UI", Font.PLAIN, 11));
+        return label;
+    }
+
+    private JTextField createModernTextField(String text, int columns) {
+        JTextField field = new JTextField(text, columns) {
+            @Override
+            protected void paintComponent(Graphics g) {
+                Graphics2D g2d = (Graphics2D) g;
+                g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+                
+                // Fondo
+                g2d.setColor(new Color(248, 250, 252));
+                g2d.fillRoundRect(0, 0, getWidth(), getHeight(), 8, 8);
+                
+                // Borde
+                g2d.setColor(isFocusOwner() ? PRIMARY_BLUE : new Color(203, 213, 225));
+                g2d.setStroke(new BasicStroke(isFocusOwner() ? 2f : 1f));
+                g2d.drawRoundRect(0, 0, getWidth()-1, getHeight()-1, 8, 8);
+                
+                super.paintComponent(g);
+            }
+        };
+        
+        field.setBorder(BorderFactory.createEmptyBorder(8, 12, 8, 12));
+        field.setFont(new Font("Segoe UI", Font.PLAIN, 11));
+        field.setOpaque(false);
+        return field;
+    }
+
+    private JComboBox<String> createModernComboBox() {
+        JComboBox<String> combo = new JComboBox<String>() {
+            @Override
+            protected void paintComponent(Graphics g) {
+                Graphics2D g2d = (Graphics2D) g;
+                g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+                
+                // Fondo
+                g2d.setColor(new Color(248, 250, 252));
+                g2d.fillRoundRect(0, 0, getWidth(), getHeight(), 8, 8);
+                
+                // Borde
+                g2d.setColor(isFocusOwner() ? PRIMARY_BLUE : new Color(203, 213, 225));
+                g2d.setStroke(new BasicStroke(isFocusOwner() ? 2f : 1f));
+                g2d.drawRoundRect(0, 0, getWidth()-1, getHeight()-1, 8, 8);
+                
+                super.paintComponent(g);
+            }
+        };
+        
+        combo.setBorder(BorderFactory.createEmptyBorder(8, 12, 8, 12));
+        combo.setFont(new Font("Segoe UI", Font.PLAIN, 11));
+        combo.setBackground(new Color(248, 250, 252));
+        combo.setRenderer(new DefaultListCellRenderer() {
+            @Override
+            public Component getListCellRendererComponent(JList<?> list, Object value,
+                    int index, boolean isSelected, boolean cellHasFocus) {
+                Component c = super.getListCellRendererComponent(list, value, index, isSelected, cellHasFocus);
+                setBorder(BorderFactory.createEmptyBorder(8, 12, 8, 12));
+                setFont(new Font("Segoe UI", Font.PLAIN, 11));
+                return c;
+            }
+        });
+        
+        return combo;
+    }
+
+    private JSpinner createModernSpinner(int value, int min, int max, int step) {
+        SpinnerNumberModel model = new SpinnerNumberModel(value, min, max, step);
+        JSpinner spinner = new JSpinner(model);
+        
+        // Personalizar el editor del spinner
+        JSpinner.DefaultEditor editor = (JSpinner.DefaultEditor) spinner.getEditor();
+        editor.getTextField().setBorder(BorderFactory.createEmptyBorder(8, 12, 8, 12));
+        editor.getTextField().setFont(new Font("Segoe UI", Font.PLAIN, 11));
+        editor.getTextField().setBackground(new Color(248, 250, 252));
+        editor.getTextField().setForeground(DARK_SLATE);
+        
+        spinner.setPreferredSize(new Dimension(70, 35));
+        
+        return spinner;
+    }
+
+    private JButton createModernButton(String text, Color backgroundColor) {
+        JButton button = new JButton(text) {
+            @Override
+            protected void paintComponent(Graphics g) {
+                Graphics2D g2d = (Graphics2D) g.create();
+                g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+                
+                Color paintColor;
+                if (!isEnabled()) {
+                    paintColor = new Color(156, 163, 175);
+                } else if (getModel().isPressed()) {
+                    paintColor = backgroundColor.darker();
+                } else if (getModel().isRollover()) {
+                    paintColor = backgroundColor.brighter();
+                } else {
+                    paintColor = backgroundColor;
+                }
+                
+                // Fondo con gradiente
+                GradientPaint gradient = new GradientPaint(
+                    0, 0, paintColor,
+                    0, getHeight(), paintColor.darker()
+                );
+                g2d.setPaint(gradient);
+                g2d.fillRoundRect(0, 0, getWidth(), getHeight(), 10, 10);
+                
+                // Borde
+                g2d.setColor(paintColor.darker().darker());
+                g2d.setStroke(new BasicStroke(1.2f));
+                g2d.drawRoundRect(0, 0, getWidth()-1, getHeight()-1, 10, 10);
+                
+                g2d.dispose();
+                
+                super.paintComponent(g);
+            }
+        };
+        
+        button.setForeground(Color.WHITE);
+        button.setFont(new Font("Segoe UI", Font.BOLD, 12));
+        button.setBorder(BorderFactory.createEmptyBorder(12, 20, 12, 20));
+        button.setContentAreaFilled(false);
+        button.setFocusPainted(false);
+        button.setCursor(new Cursor(Cursor.HAND_CURSOR));
+        
+        return button;
+    }
+
+    // ========== MÉTODOS DE PLANIFICACIÓN ==========
+
+    private void updateBatchControls() {
+        String selected = (String) batchTypeCombo.getSelectedItem();
+        boolean isHeterogeneous = selected != null && selected.contains("Heterogéneo");
+
+        simpleSpinner.setEnabled(isHeterogeneous);
+        mediumSpinner.setEnabled(isHeterogeneous);
+        complexSpinner.setEnabled(isHeterogeneous);
+    }
+
+    private void generateBatch() {
+        String batchType = (String) batchTypeCombo.getSelectedItem();
+        if (batchType == null)
+            return;
+
+        scheduler.clearTasks();
+
+        if (batchType.contains("Homogéneo")) {
+            CircuitSimulationTask.Complexity complexity;
+            if (batchType.contains("Simple")) {
+                complexity = CircuitSimulationTask.Complexity.SIMPLE;
+            } else if (batchType.contains("Medio")) {
+                complexity = CircuitSimulationTask.Complexity.MEDIUM;
+            } else {
+                complexity = CircuitSimulationTask.Complexity.COMPLEX;
+            }
+
+            List<CircuitSimulationTask> batch = scheduler.generateHomogeneousBatch(complexity, 5);
+            scheduler.addTasks(batch);
+        } else if (batchType.contains("Heterogéneo")) {
+            int simpleCount = (Integer) simpleSpinner.getValue();
+            int mediumCount = (Integer) mediumSpinner.getValue();
+            int complexCount = (Integer) complexSpinner.getValue();
+
+            List<CircuitSimulationTask> batch = scheduler.generateHeterogeneousBatch(
+                    simpleCount, mediumCount, complexCount);
+            scheduler.addTasks(batch);
+        }
+
+        updateTasksTable();
+        logSchedulingMessage("✅ Lote generado: " + scheduler.getTasks().size() + " tareas");
+    }
+
+    private void startScheduling() {
+        try {
+            String algorithm = (String) algorithmCombo.getSelectedItem();
+            if (algorithm != null) {
+                switch (algorithm) {
+                    case "First-Come, First-Served (FCFS)":
+                        scheduler.setStrategy(new FirstComeFirstServedScheduler());
+                        break;
+                    case "Round Robin (RR)":
+                        scheduler.setStrategy(new RoundRobinScheduler());
+                        break;
+                    case "Shortest Job First (SJF)":
+                        scheduler.setStrategy(new ShortestJobFirstScheduler());
+                        break;
+                }
+            }
+
+            logSchedulingMessage("🚀 Iniciando planificación con " + algorithm);
+            scheduler.startSimulation();
+            startUpdateTimer();
+
+        } catch (Exception ex) {
+            logSchedulingMessage("❌ ERROR: " + ex.getMessage());
+            showError("Error al iniciar planificación: " + ex.getMessage());
+        }
+    }
+
+    private void stopScheduling() {
+        scheduler.stopSimulation();
+        stopUpdateTimer();
+        logSchedulingMessage("⏹️ Planificación detenida");
+    }
+
+    private void startUpdateTimer() {
+        if (updateTimer != null) {
+            updateTimer.stop();
+        }
+        updateTimer = new Timer(500, e -> updateTasksTable());
+        updateTimer.start();
+    }
+
+    private void stopUpdateTimer() {
+        if (updateTimer != null) {
+            updateTimer.stop();
+            updateTimer = null;
+        }
+    }
+
+    private void updateTasksTable() {
+        if (tasksTableModel == null)
+            return;
+
+        SwingUtilities.invokeLater(() -> {
+            tasksTableModel.setRowCount(0);
+
+            for (CircuitSimulationTask task : scheduler.getTasks()) {
+                Object[] row = {
+                        task.getId(),
+                        task.getName(),
+                        task.getComplexity().getDisplayName(),
+                        task.getEstimatedDuration(),
+                        task.getState().getDisplayName(),
+                        String.format("%.1f%%", task.getProgress())
+                };
+                tasksTableModel.addRow(row);
+            }
+
+            // Actualizar barra de progreso
+            if (scheduler.isSimulationRunning()) {
+                long completed = scheduler.getTasks().stream()
+                        .filter(t -> t.getState() == CircuitSimulationTask.TaskState.COMPLETED)
+                        .count();
+                long total = scheduler.getTasks().size();
+
+                int progress = total > 0 ? (int) ((completed * 100) / total) : 0;
+                schedulingProgressBar.setValue(progress);
+                schedulingProgressBar.setString(String.format("%d/%d tareas (%d%%)", completed, total, progress));
+            }
+        });
+    }
+
+    private void logSchedulingMessage(String message) {
+        SwingUtilities.invokeLater(() -> {
+            String timestamp = java.time.LocalTime.now().format(
+                    java.time.format.DateTimeFormatter.ofPattern("HH:mm:ss"));
+            schedulingLogArea.append("[" + timestamp + "] " + message + "\n");
+            schedulingLogArea.setCaretPosition(schedulingLogArea.getDocument().getLength());
+        });
+    }
+
+    // ========== MÉTODOS DE SIMULACIÓN DE CIRCUITOS ==========
+
+    private void setupEventHandlers() {
+        // Handlers para simulación de circuitos
+        methodCombo.addActionListener(e -> updateStrategy());
+        presetCombo.addActionListener(e -> loadPreset());
+        addButton.addActionListener(e -> addComponent());
+        removeButton.addActionListener(e -> removeComponent());
+        simulateButton.addActionListener(e -> simulateCircuit());
+        clearButton.addActionListener(e -> clearAll());
+        valueField.addActionListener(e -> addComponent());
+    }
+
+    private void updateGraphType() {
+        int graphType = graphTypeCombo.getSelectedIndex();
+        if (lastResult == null || components == null || components.isEmpty()) {
             switch (graphType) {
                 case 0:
                     currentGraph = new TimeGraph(null);
                     break;
                 case 1:
-                    currentGraph = new FrequencyGraph(components != null ? components : new ArrayList<>());
+                    currentGraph = new FrequencyGraph(new ArrayList<>());
                     break;
                 case 2:
-                    currentGraph = new PhasorDiagram(null, components != null ? components : new ArrayList<>());
+                    currentGraph = new PhasorDiagram(null, new ArrayList<>());
                     break;
                 case 3:
                     currentGraph = new WaveformGraph(null);
                     break;
             }
         } else {
-            // Crear gráfico con datos de simulación
             switch (graphType) {
                 case 0:
                     currentGraph = new TimeGraph(lastResult);
@@ -420,188 +1309,15 @@ public class RLCSimulator extends JPanel implements SimulationObserver {
             }
         }
 
-        // Actualizar el contenedor del gráfico
         graphContainer.removeAll();
         JScrollPane graphScroll = new JScrollPane(currentGraph);
         graphScroll.setVerticalScrollBarPolicy(JScrollPane.VERTICAL_SCROLLBAR_AS_NEEDED);
         graphScroll.setHorizontalScrollBarPolicy(JScrollPane.HORIZONTAL_SCROLLBAR_AS_NEEDED);
+        graphScroll.setBorder(BorderFactory.createLineBorder(new Color(226, 232, 240)));
+        graphScroll.getViewport().setBackground(Color.WHITE);
         graphContainer.add(graphScroll, BorderLayout.CENTER);
         graphContainer.revalidate();
         graphContainer.repaint();
-
-        // Actualizar tooltip del combo box
-        String[] tooltips = {
-                "Muestra la corriente en función del tiempo",
-                "Muestra la impedancia en función de la frecuencia",
-                "Muestra el diagrama fasorial de voltajes y corriente",
-                "Muestra las formas de onda de voltaje y corriente"
-        };
-
-        if (graphType >= 0 && graphType < tooltips.length) {
-            graphTypeCombo.setToolTipText(tooltips[graphType]);
-        }
-    }
-
-    private void setupEventHandlers() {
-        // Selector de método
-        methodCombo.addActionListener(e -> updateStrategy());
-
-        // Selector de preset
-        presetCombo.addActionListener(e -> loadPreset());
-
-        // Botones de componentes
-        addButton.addActionListener(e -> addComponent());
-        removeButton.addActionListener(e -> removeComponent());
-
-        // Botones principales
-        simulateButton.addActionListener(e -> simulateCircuit());
-        clearButton.addActionListener(e -> clearAll());
-
-        // Enter en campos de texto
-        valueField.addActionListener(e -> addComponent());
-        voltageField.addActionListener(e -> simulateCircuit());
-        frequencyField.addActionListener(e -> simulateCircuit());
-    }
-
-    // NUEVO: Método público para cambiar idioma desde el menú superior
-    public void changeLanguage(String languageCode) {
-        languageManager.setLanguage(languageCode);
-        updateUITexts();
-    }
-
-    private void updateUITexts() {
-        // Actualizar textos de bordes con título
-        updateTitledBorders();
-
-        // Actualizar todos los componentes de UI
-        updateAllUITexts();
-
-        // Actualizar área de resultados inicial
-        updateInitialResultsText();
-
-        // Actualizar lista de componentes
-        updateComponentList();
-
-        // Actualizar diagrama del circuito
-        updateCircuitDiagram();
-    }
-
-    private void updateTitledBorders(JPanel panel) {
-        Border border = panel.getBorder();
-        if (border instanceof TitledBorder) {
-            TitledBorder titledBorder = (TitledBorder) border;
-            String title = titledBorder.getTitle();
-
-            // Mapear títulos a claves de traducción
-            if (title != null) {
-                if (title.contains("Configuración") || title.contains("Configuration")) {
-                    titledBorder.setTitle(languageManager.getTranslation("configuration"));
-                } else if (title.contains("Fuente") || title.contains("Power")) {
-                    titledBorder.setTitle(languageManager.getTranslation("power_supply"));
-                } else if (title.contains("Método") || title.contains("Method")) {
-                    titledBorder.setTitle(languageManager.getTranslation("simulation_method"));
-                } else if (title.contains("Circuitos Predefinidos") || title.contains("Circuit Presets")) {
-                    titledBorder.setTitle(languageManager.getTranslation("circuit_presets"));
-                } else if (title.contains("Componentes") || title.contains("Components")) {
-                    titledBorder.setTitle(languageManager.getTranslation("components"));
-                } else if (title.contains("Lista de Componentes") || title.contains("Component List")) {
-                    titledBorder.setTitle(languageManager.getTranslation("component_list"));
-                } else if (title.contains("Acciones") || title.contains("Actions")) {
-                    titledBorder.setTitle(languageManager.getTranslation("actions"));
-                } else if (title.contains("Diagrama") || title.contains("Diagram")) {
-                    titledBorder.setTitle(languageManager.getTranslation("circuit_diagram"));
-                } else if (title.contains("Gráfico") || title.contains("Graph")) {
-                    titledBorder.setTitle(languageManager.getTranslation("simulation_graph"));
-                } else if (title.contains("Resultados") || title.contains("Results")) {
-                    titledBorder.setTitle(languageManager.getTranslation("results"));
-                }
-            }
-        }
-
-        // Actualizar recursivamente
-        for (Component comp : panel.getComponents()) {
-            if (comp instanceof JPanel) {
-                updateTitledBorders((JPanel) comp);
-            }
-        }
-    }
-
-    private void updateTitledBorders() {
-        updateTitledBorders((JPanel) this);
-    }
-
-    private void updateAllUITexts() {
-        // Actualizar labels
-        updateAllComponents(this);
-    }
-
-    private void updateAllComponents(Container container) {
-        for (Component comp : container.getComponents()) {
-            if (comp instanceof JLabel) {
-                JLabel label = (JLabel) comp;
-                String text = label.getText();
-                if (text != null) {
-                    if (text.contains("Voltaje") || text.contains("Voltage") || text.contains("Tensão")) {
-                        label.setText(languageManager.getTranslation("voltage"));
-                    } else if (text.contains("Frecuencia") || text.contains("Frequency")
-                            || text.contains("Frequência")) {
-                        label.setText(languageManager.getTranslation("frequency"));
-                    } else if (text.contains("Método:") || text.contains("Method:") || text.contains("Método:")) {
-                        label.setText(languageManager.getTranslation("method"));
-                    } else if (text.contains("Circuito Predefinido") || text.contains("Preset Circuit")
-                            || text.contains("Circuito Predefinido")) {
-                        label.setText(languageManager.getTranslation("preset"));
-                    } else if (text.contains("Tipo:") || text.contains("Type:") || text.contains("Tipo:")) {
-                        label.setText(languageManager.getTranslation("component_type"));
-                    } else if (text.contains("Valor:") || text.contains("Value:") || text.contains("Valor:")) {
-                        label.setText(languageManager.getTranslation("value"));
-                    } else if (text.contains("Lista de Componentes") || text.contains("Component List")
-                            || text.contains("Lista de Componentes")) {
-                        label.setText(languageManager.getTranslation("component_list"));
-                    } else if (text.contains("Tipo de Gráfico") || text.contains("Graph Type")) {
-                        label.setText("Tipo de Gráfico:");
-                    }
-                }
-            } else if (comp instanceof JButton) {
-                JButton button = (JButton) comp;
-                String text = button.getText();
-                if (text != null) {
-                    if (text.contains("Agregar Componente") || text.contains("Add Component")
-                            || text.contains("Adicionar Componente")) {
-                        button.setText(languageManager.getTranslation("add_component"));
-                    } else if (text.contains("Eliminar Seleccionado") || text.contains("Remove Selected")
-                            || text.contains("Remover Selecionado")) {
-                        button.setText(languageManager.getTranslation("remove_selected"));
-                    } else if (text.contains("Simular Circuito") || text.contains("Simulate Circuit")
-                            || text.contains("Simular Circuito")) {
-                        button.setText(languageManager.getTranslation("simulate"));
-                    } else if (text.contains("Limpiar Todo") || text.contains("Clear All")
-                            || text.contains("Limpar Tudo")) {
-                        button.setText(languageManager.getTranslation("clear_all"));
-                    }
-                }
-            } else if (comp instanceof Container) {
-                updateAllComponents((Container) comp);
-            }
-        }
-    }
-
-    private void updateInitialResultsText() {
-        StringBuilder sb = new StringBuilder();
-        sb.append("=== ").append(languageManager.getTranslation("title")).append(" ===\n\n");
-        sb.append(languageManager.getTranslation("instructions")).append("\n");
-        sb.append(languageManager.getTranslation("instruction1")).append("\n");
-        sb.append(languageManager.getTranslation("instruction2")).append("\n");
-        sb.append(languageManager.getTranslation("instruction3")).append("\n");
-        sb.append(languageManager.getTranslation("instruction4")).append("\n\n");
-        sb.append(languageManager.getTranslation("features")).append("\n");
-        sb.append(languageManager.getTranslation("feature1")).append("\n");
-        sb.append(languageManager.getTranslation("feature2")).append("\n");
-        sb.append(languageManager.getTranslation("feature3")).append("\n");
-        sb.append(languageManager.getTranslation("feature4")).append("\n");
-        sb.append(languageManager.getTranslation("feature5")).append("\n");
-
-        resultsArea.setText(sb.toString());
     }
 
     private void updateStrategy() {
@@ -638,7 +1354,7 @@ public class RLCSimulator extends JPanel implements SimulationObserver {
         updateComponentList();
         updateCircuitDiagram();
 
-        showInfo(languageManager.getFormattedTranslation("preset_loaded", selected));
+        showInfo("✅ Circuito predefinido '" + selected + "' cargado");
     }
 
     private void addComponent() {
@@ -659,7 +1375,7 @@ public class RLCSimulator extends JPanel implements SimulationObserver {
 
             double value = Double.parseDouble(valueField.getText());
             if (value <= 0) {
-                showError(languageManager.getTranslation("component_value_positive"));
+                showError("El valor del componente debe ser positivo");
                 return;
             }
 
@@ -672,7 +1388,7 @@ public class RLCSimulator extends JPanel implements SimulationObserver {
             valueField.requestFocus();
 
         } catch (NumberFormatException ex) {
-            showError(languageManager.getTranslation("enter_numeric_values"));
+            showError("Ingrese valores numéricos válidos");
         }
     }
 
@@ -683,13 +1399,13 @@ public class RLCSimulator extends JPanel implements SimulationObserver {
             updateComponentList();
             updateCircuitDiagram();
         } else {
-            showError(languageManager.getTranslation("select_component_remove"));
+            showError("Seleccione un componente para eliminar");
         }
     }
 
     private void simulateCircuit() {
         if (components.isEmpty()) {
-            showError(languageManager.getTranslation("add_least_one_component"));
+            showError("Agregue al menos un componente al circuito");
             return;
         }
 
@@ -702,14 +1418,14 @@ public class RLCSimulator extends JPanel implements SimulationObserver {
 
             progressBar.setVisible(true);
             progressBar.setIndeterminate(true);
-            progressBar.setString(languageManager.getTranslation("simulation_in_progress"));
+            progressBar.setString("Simulación en progreso...");
 
             simulateButton.setEnabled(false);
 
             engine.simulate(components, voltage, frequency);
 
         } catch (NumberFormatException ex) {
-            showError(languageManager.getTranslation("enter_numeric_values"));
+            showError("Ingrese valores numéricos válidos");
         }
     }
 
@@ -719,19 +1435,19 @@ public class RLCSimulator extends JPanel implements SimulationObserver {
             double frequency = Double.parseDouble(frequencyField.getText());
 
             if (voltage <= 0 || voltage > 1000) {
-                showError(languageManager.getTranslation("voltage_range"));
+                showError("El voltaje debe estar entre 0.1 y 1000 V");
                 return false;
             }
 
             if (frequency <= 0 || frequency > 10000) {
-                showError(languageManager.getTranslation("frequency_range"));
+                showError("La frecuencia debe estar entre 0.1 y 10000 Hz");
                 return false;
             }
 
             return true;
 
         } catch (NumberFormatException e) {
-            showError(languageManager.getTranslation("enter_numeric_values"));
+            showError("Ingrese valores numéricos válidos para voltaje y frecuencia");
             return false;
         }
     }
@@ -741,13 +1457,12 @@ public class RLCSimulator extends JPanel implements SimulationObserver {
         updateComponentList();
         updateCircuitDiagram();
 
-        resultsArea.setText(languageManager.getTranslation("circuit_cleared"));
+        resultsArea.setText("✅ Circuito limpiado. Listo para nueva simulación.");
         lastResult = null;
 
-        // Resetear gráfico
-        updateGraphType(0);
+        updateGraphType();
 
-        showInfo(languageManager.getTranslation("circuit_results_cleared"));
+        showInfo("✅ Circuito y resultados limpiados");
     }
 
     private void updateComponentList() {
@@ -764,6 +1479,28 @@ public class RLCSimulator extends JPanel implements SimulationObserver {
         }
     }
 
+    private void updateInitialResultsText() {
+        StringBuilder sb = new StringBuilder();
+        sb.append("=== Simulador Avanzado de Circuitos RLC ===\n\n");
+        sb.append("📋 Instrucciones:\n");
+        sb.append("   1. Agregue componentes (R, L, C) al circuito\n");
+        sb.append("   2. Configure voltaje y frecuencia\n");
+        sb.append("   3. Seleccione método de simulación\n");
+        sb.append("   4. Haga clic en 'Simular Circuito'\n\n");
+        sb.append("✨ Características:\n");
+        sb.append("   • 📈 Análisis en dominio de tiempo y frecuencia\n");
+        sb.append("   • 🎯 Diagramas fasoriales interactivos\n");
+        sb.append("   • ⚡ Múltiples métodos de cálculo\n");
+        sb.append("   • 🔌 Circuitos predefinidos\n");
+        sb.append("   • 🔄 Algoritmos de planificación integrados\n");
+        sb.append("   • 🎨 Interfaz moderna e intuitiva\n\n");
+        sb.append("🚀 ¡Comience agregando componentes y ejecutando una simulación!");
+
+        resultsArea.setText(sb.toString());
+    }
+
+    // ========== MÉTODOS DE SimulationObserver ==========
+
     @Override
     public void onSimulationComplete(Object result) {
         SwingUtilities.invokeLater(() -> {
@@ -771,128 +1508,40 @@ public class RLCSimulator extends JPanel implements SimulationObserver {
                 SimulationResult simResult = (SimulationResult) result;
                 lastResult = simResult;
 
-                // Actualizar el gráfico actual con los nuevos resultados
-                updateGraphType(graphTypeCombo.getSelectedIndex());
+                updateGraphType();
 
                 StringBuilder sb = new StringBuilder();
-                sb.append(languageManager.getTranslation("simulation_results")).append("\n\n");
-                sb.append(languageManager.getTranslation("impedance")).append(" ")
-                        .append(df.format(simResult.getImpedance())).append(" Ω\n");
-                sb.append(languageManager.getTranslation("current")).append(" ")
-                        .append(df.format(simResult.getCurrent())).append(" A\n");
-                sb.append(languageManager.getTranslation("phase_angle")).append(" ")
-                        .append(df.format(Math.toDegrees(simResult.getPhaseAngle()))).append("°\n");
-                sb.append(languageManager.getTranslation("active_power")).append(" ")
-                        .append(df.format(simResult.getActivePower())).append(" W\n");
-                sb.append(languageManager.getTranslation("reactive_power")).append(" ")
-                        .append(df.format(simResult.getReactivePower())).append(" VAR\n");
-                sb.append(languageManager.getTranslation("apparent_power")).append(" ")
-                        .append(df.format(simResult.getApparentPower())).append(" VA\n");
-                sb.append(languageManager.getTranslation("power_factor")).append(" ")
-                        .append(df.format(simResult.getPowerFactor())).append("\n\n");
+                sb.append("=== ✅ RESULTADOS DE SIMULACIÓN ===\n\n");
+                sb.append("• 🔌 Impedancia: ").append(df.format(simResult.getImpedance())).append(" Ω\n");
+                sb.append("• ⚡ Corriente: ").append(df.format(simResult.getCurrent())).append(" A\n");
+                sb.append("• 📐 Ángulo de Fase: ").append(df.format(Math.toDegrees(simResult.getPhaseAngle())))
+                        .append("°\n");
+                sb.append("• 💡 Potencia Activa: ").append(df.format(simResult.getActivePower())).append(" W\n");
+                sb.append("• 🔄 Potencia Reactiva: ").append(df.format(simResult.getReactivePower())).append(" VAR\n");
+                sb.append("• 📊 Potencia Aparente: ").append(df.format(simResult.getApparentPower())).append(" VA\n");
+                sb.append("• 🎯 Factor de Potencia: ").append(df.format(simResult.getPowerFactor())).append("\n\n");
 
-                // Información adicional sobre el tipo de circuito
                 double phaseDeg = Math.toDegrees(simResult.getPhaseAngle());
                 String circuitType;
-                String behaviorDescription;
-
                 if (phaseDeg > 0) {
-                    circuitType = languageManager.getTranslation("inductive_circuit");
-                    behaviorDescription = "• La corriente está ATRASADA respecto al voltaje\n";
-                    behaviorDescription += "• La potencia reactiva es POSITIVA (Q > 0)\n";
-                    behaviorDescription += "• El inductor domina el comportamiento del circuito";
+                    circuitType = "→ 🔄 Circuito INDUCTIVO (corriente atrasada)";
                 } else if (phaseDeg < 0) {
-                    circuitType = languageManager.getTranslation("capacitive_circuit");
-                    behaviorDescription = "• La corriente está ADELANTADA respecto al voltaje\n";
-                    behaviorDescription += "• La potencia reactiva es NEGATIVA (Q < 0)\n";
-                    behaviorDescription += "• El capacitor domina el comportamiento del circuito";
+                    circuitType = "→ ⚡ Circuito CAPACITIVO (corriente adelantada)";
                 } else {
-                    circuitType = languageManager.getTranslation("resistive_circuit");
-                    behaviorDescription = "• La corriente está EN FASE con el voltaje\n";
-                    behaviorDescription += "• La potencia reactiva es CERO (Q = 0)\n";
-                    behaviorDescription += "• Resonancia o circuito puramente resistivo";
+                    circuitType = "→ 🔌 Circuito RESISTIVO (corriente en fase)";
                 }
 
-                sb.append(circuitType).append("\n\n");
-                sb.append("Comportamiento del Circuito:\n");
-                sb.append(behaviorDescription).append("\n\n");
-
-                // Análisis de resonancia si aplica
-                if (components != null && !components.isEmpty()) {
-                    double totalL = 0, totalC = 0;
-                    for (CircuitComponent comp : components) {
-                        totalL += comp.getInductance();
-                        totalC += comp.getCapacitance();
-                    }
-
-                    if (totalL > 0 && totalC > 0 && totalC < 1e10) {
-                        double resonantFreq = 1.0 / (2 * Math.PI * Math.sqrt(totalL * totalC));
-                        double currentFreq = Double.parseDouble(frequencyField.getText());
-
-                        sb.append("Análisis de Resonancia:\n");
-                        sb.append(String.format("• Frecuencia de resonancia: %.2f Hz\n", resonantFreq));
-                        sb.append(String.format("• Frecuencia actual: %.2f Hz\n", currentFreq));
-
-                        double ratio = currentFreq / resonantFreq;
-                        if (Math.abs(ratio - 1.0) < 0.1) {
-                            sb.append("• ⚡ El circuito está CERCA de la resonancia\n");
-                            sb.append("• La impedancia es MÍNIMA y la corriente MÁXIMA\n");
-                        } else if (currentFreq < resonantFreq) {
-                            sb.append("• Frecuencia por DEBAJO de la resonancia\n");
-                            sb.append("• Comportamiento CAPACITIVO dominante\n");
-                        } else {
-                            sb.append("• Frecuencia por ENCIMA de la resonancia\n");
-                            sb.append("• Comportamiento INDUCTIVO dominante\n");
-                        }
-                        sb.append("\n");
-                    }
-                }
-
-                // Información de calidad del circuito
-                if (simResult.getImpedance() > 0) {
-                    double qualityFactor = Math.abs(simResult.getReactivePower()) / simResult.getActivePower();
-                    sb.append("Factor de Calidad (Q):\n");
-                    sb.append(String.format("• Q = |Q| / P = %.3f\n", qualityFactor));
-
-                    if (qualityFactor > 10) {
-                        sb.append("• Circuito de ALTA calidad (subamortiguado)\n");
-                    } else if (qualityFactor > 1) {
-                        sb.append("• Circuito de calidad MODERADA\n");
-                    } else {
-                        sb.append("• Circuito de BAJA calidad (sobreamortiguado)\n");
-                    }
-                    sb.append("\n");
-                }
-
-                // Resumen de potencia
-                sb.append("Resumen de Potencia:\n");
-                sb.append(String.format("• Potencia Activa (P): %.3f W → Energía útil\n", simResult.getActivePower()));
-                sb.append(String.format("• Potencia Reactiva (Q): %.3f VAR → Energía oscilante\n",
-                        simResult.getReactivePower()));
-                sb.append(String.format("• Potencia Aparente (S): %.3f VA → Potencia total\n",
-                        simResult.getApparentPower()));
-                sb.append(String.format("• Factor de Potencia: %.3f → Eficiencia energética\n",
-                        simResult.getPowerFactor()));
-
-                // Evaluación del factor de potencia
-                if (simResult.getPowerFactor() >= 0.9) {
-                    sb.append("• ✅ Excelente factor de potencia (eficiente)\n");
-                } else if (simResult.getPowerFactor() >= 0.8) {
-                    sb.append("• ⚠️  Factor de potencia aceptable\n");
-                } else {
-                    sb.append("• ❌ Factor de potencia pobre (ineficiente)\n");
-                }
+                sb.append(circuitType).append("\n");
 
                 resultsArea.setText(sb.toString());
 
                 progressBar.setVisible(false);
                 simulateButton.setEnabled(true);
 
-                // Mostrar mensaje de éxito
-                showInfo("Simulación completada exitosamente. Los resultados están listos.");
+                showInfo("✅ Simulación completada exitosamente");
 
             } else {
-                onSimulationError("Resultado de simulación inválido: tipo de objeto incorrecto");
+                onSimulationError("Resultado de simulación inválido");
             }
         });
     }
@@ -900,182 +1549,45 @@ public class RLCSimulator extends JPanel implements SimulationObserver {
     @Override
     public void onSimulationError(String error) {
         SwingUtilities.invokeLater(() -> {
-            // Mensaje de error más descriptivo
-            String detailedError = "Error en la simulación:\n\n" + error;
-
-            // Intentar dar más información según el tipo de error
-            if (error.contains("impedance") || error.contains("impedancia")) {
-                detailedError += "\n\nPosible causa: Valores de componentes que resultan en impedancia cero o negativa.";
-            } else if (error.contains("frequency") || error.contains("frecuencia")) {
-                detailedError += "\n\nPosible causa: Frecuencia fuera del rango permitido (0.1 - 10000 Hz).";
-            } else if (error.contains("voltage") || error.contains("voltaje")) {
-                detailedError += "\n\nPosible causa: Voltaje fuera del rango permitido (0.1 - 1000 V).";
-            } else if (error.contains("component") || error.contains("componente")) {
-                detailedError += "\n\nPosible causa: Configuración inválida de componentes del circuito.";
-            }
+            String detailedError = "❌ Error en la simulación:\n\n" + error;
 
             showError(detailedError);
 
             progressBar.setVisible(false);
             simulateButton.setEnabled(true);
 
-            // Limpiar resultados en caso de error
-            resultsArea.setText("Error en la simulación. Por favor, verifique los parámetros e intente nuevamente.\n\n"
+            resultsArea.setText("❌ Error en la simulación. Por favor, verifique los parámetros e intente nuevamente.\n\n"
                     + "Detalles del error: " + error);
 
-            // Limpiar gráficos
-            updateGraphType(0); // Resetear al gráfico de tiempo vacío
+            updateGraphType();
         });
     }
 
     @Override
     public void onSimulationStart() {
         SwingUtilities.invokeLater(() -> {
-            resultsArea.setText(languageManager.getTranslation("simulation_in_progress") +
-                    "\n\n" + languageManager.getTranslation("please_wait"));
+            resultsArea.setText("🔄 Simulación en progreso...\n\n⏳ Por favor espere...");
             progressBar.setVisible(true);
             progressBar.setIndeterminate(true);
-            progressBar.setString(languageManager.getTranslation("simulation_in_progress"));
+            progressBar.setString("🔄 Simulación en progreso...");
         });
     }
 
-    // Métodos de utilidad
     private void showError(String message) {
-        JOptionPane.showMessageDialog(this, message,
-                languageManager.getTranslation("error"), JOptionPane.ERROR_MESSAGE);
+        JOptionPane.showMessageDialog(this, message, "❌ Error", JOptionPane.ERROR_MESSAGE);
     }
 
     private void showInfo(String message) {
-        JOptionPane.showMessageDialog(this, message,
-                languageManager.getTranslation("information"), JOptionPane.INFORMATION_MESSAGE);
+        JOptionPane.showMessageDialog(this, message, "ℹ️ Información", JOptionPane.INFORMATION_MESSAGE);
     }
 
-    // ========== MÉTODOS PARA LA INTEGRACIÓN ==========
-
-    /**
-     * Actualiza el tamaño de fuente en el simulador
-     */
-    public void updateFontSize(float newSize) {
-        // Actualizar fuentes de los componentes principales
-        updateComponentFonts(this, newSize);
-        revalidate();
-        repaint();
-    }
-
-    private void updateComponentFonts(Container container, float newSize) {
-        for (Component comp : container.getComponents()) {
-            if (comp instanceof JComponent) {
-                JComponent jcomp = (JComponent) comp;
-
-                if (jcomp instanceof JLabel) {
-                    JLabel label = (JLabel) jcomp;
-                    Font currentFont = label.getFont();
-                    label.setFont(currentFont.deriveFont(newSize));
-                } else if (jcomp instanceof JButton) {
-                    JButton button = (JButton) jcomp;
-                    Font currentFont = button.getFont();
-                    button.setFont(currentFont.deriveFont(newSize));
-                } else if (jcomp instanceof JTextField) {
-                    JTextField textField = (JTextField) jcomp;
-                    Font currentFont = textField.getFont();
-                    textField.setFont(currentFont.deriveFont(newSize));
-                } else if (jcomp instanceof JComboBox) {
-                    JComboBox<?> combo = (JComboBox<?>) jcomp;
-                    Font currentFont = combo.getFont();
-                    combo.setFont(currentFont.deriveFont(newSize));
-                } else if (jcomp instanceof JTextArea) {
-                    JTextArea textArea = (JTextArea) jcomp;
-                    Font currentFont = textArea.getFont();
-                    textArea.setFont(currentFont.deriveFont(newSize));
-                } else if (jcomp instanceof JTabbedPane) {
-                    JTabbedPane tabs = (JTabbedPane) jcomp;
-                    Font currentFont = tabs.getFont();
-                    tabs.setFont(currentFont.deriveFont(newSize));
-                } else if (jcomp instanceof JList) {
-                    JList<?> list = (JList<?>) jcomp;
-                    Font currentFont = list.getFont();
-                    list.setFont(currentFont.deriveFont(newSize));
-                }
-            }
-
-            if (comp instanceof Container) {
-                updateComponentFonts((Container) comp, newSize);
-            }
-        }
-    }
-
-    /**
-     * Libera recursos del simulador
-     */
     public void disposeResources() {
         if (engine != null) {
             engine.dispose();
-            engine = null;
         }
-        if (components != null) {
-            components.clear();
+        if (scheduler != null && scheduler.isSimulationRunning()) {
+            scheduler.stopSimulation();
         }
-        lastResult = null;
-    }
-
-    /**
-     * Método para ejecución independiente (crea su propio JFrame)
-     */
-    public void showInFrame() {
-        JFrame frame = new JFrame("Simulador de Circuitos RLC");
-        frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-        frame.setContentPane(this);
-        frame.pack();
-        frame.setLocationRelativeTo(null);
-        frame.setVisible(true);
-    }
-
-    /**
-     * Método main para ejecución independiente
-     */
-    public static void main(String[] args) {
-        setupLookAndFeel();
-
-        SwingUtilities.invokeLater(() -> {
-            try {
-                System.out.println("Iniciando Simulador RLC en modo independiente...");
-                RLCSimulator simulator = new RLCSimulator();
-                simulator.showInFrame();
-                System.out.println("Simulador RLC iniciado correctamente");
-            } catch (Exception e) {
-                handleStartupError(e);
-            }
-        });
-    }
-
-    private static void setupLookAndFeel() {
-        try {
-            UIManager.setLookAndFeel(UIManager.getSystemLookAndFeelClassName());
-            System.out.println("Look and feel del sistema configurado correctamente");
-        } catch (Exception e1) {
-            System.err.println("Error configurando look and feel del sistema: " + e1.getMessage());
-            try {
-                UIManager.setLookAndFeel("javax.swing.plaf.nimbus.NimbusLookAndFeel");
-                System.out.println("Look and feel Nimbus configurado como fallback");
-            } catch (Exception e2) {
-                try {
-                    UIManager.setLookAndFeel(UIManager.getCrossPlatformLookAndFeelClassName());
-                    System.out.println("Look and feel cross-platform configurado como fallback");
-                } catch (Exception e3) {
-                    System.err.println("No se pudo configurar ningún look and feel: " + e3.getMessage());
-                }
-            }
-        }
-    }
-
-    private static void handleStartupError(Exception e) {
-        System.err.println("Error crítico iniciando la aplicación: " + e.getMessage());
-        e.printStackTrace();
-
-        JOptionPane.showMessageDialog(null,
-                "Error iniciando la aplicación:\n" + e.getMessage() +
-                        "\n\nVer consola para más detalles.",
-                "Error de Inicio",
-                JOptionPane.ERROR_MESSAGE);
+        stopUpdateTimer();
     }
 }
