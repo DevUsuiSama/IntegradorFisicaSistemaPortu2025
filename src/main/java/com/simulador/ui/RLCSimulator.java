@@ -40,8 +40,7 @@ import java.util.List;
  * Panel principal del simulador de circuitos RLC con algoritmos de
  * planificación integrados - Versión Mejorada Visualmente
  * AHORA INCLUYE SIMULACIÓN DE CIRCUITOS DC
- * * MODIFICADO: Se eliminó el panel "Fuente de Alimentación DC"
- * para dar control total al usuario sobre la adición de componentes.
+ * * MODIFICADO: Se añadió un selector de POLARIDAD para componentes DC.
  */
 public class RLCSimulator extends JPanel implements SimulationObserver {
     private CircuitEngine engine;
@@ -61,20 +60,22 @@ public class RLCSimulator extends JPanel implements SimulationObserver {
     private JTextArea dcDetailedAnalysisArea; // NUEVO: Área de texto para análisis detallado DC
 
     // Componentes de UI DC
-    // --- ELIMINADOS ---
-    // private JTextField dcVoltageField;
-    // private JSpinner batterySpinner;
-    // --- FIN ELIMINADOS ---
     private JComboBox<String> dcComponentTypeCombo;
     private JTextField dcValueField;
     private JSpinner branchSpinner;
-    private JSpinner targetBranchSpinner; // <-- AÑADIDO
+    private JSpinner targetBranchSpinner;
     private JComboBox<String> configCombo;
     private JComboBox<String> dcMethodCombo;
     private JButton addDCButton;
     private JButton simulateDCButton;
     private JButton clearDCButton;
     private JProgressBar dcProgressBar;
+
+    // --- INICIO DE MODIFICACIÓN ---
+    private JComboBox<String> dcPolarityCombo; // <-- AÑADIDO
+    private JPanel dcPolarityPanel; // <-- AÑADIDO
+    // --- FIN DE MODIFICACIÓN ---
+
 
     // PALETA DE COLORES MEJORADA
     private final Color PRIMARY_BLUE = Color.decode("#2563eb");
@@ -316,10 +317,6 @@ public class RLCSimulator extends JPanel implements SimulationObserver {
         panel.setBackground(LIGHT_SLATE);
         panel.setAlignmentX(Component.LEFT_ALIGNMENT);
 
-        // --- INICIO DE MODIFICACIÓN ---
-        // Se elimina el panel dcInputPanel
-        // --- FIN DE MODIFICACIÓN ---
-
         // Configuración de ramas
         JPanel branchPanel = createModernCardPanel("Configuración del Circuito", createBranchPanel());
         panel.add(branchPanel);
@@ -343,11 +340,6 @@ public class RLCSimulator extends JPanel implements SimulationObserver {
     }
 
     // ---
-    // --- MÉTODO ELIMINADO ---
-    // ---
-    // private JPanel createDCInputPanel() { ... }
-
-    // ---
     // --- MÉTODO MODIFICADO ---
     // ---
     private JPanel createDCComponentPanel() {
@@ -364,6 +356,12 @@ public class RLCSimulator extends JPanel implements SimulationObserver {
         for (String type : dcComponentTypes) {
             dcComponentTypeCombo.addItem(type);
         }
+        
+        // --- INICIO DE MODIFICACIÓN ---
+        // Listener para mostrar/ocultar el panel de polaridad
+        dcComponentTypeCombo.addActionListener(e -> updateDCPolarityPanel());
+        // --- FIN DE MODIFICACIÓN ---
+        
         dcComponentTypeCombo.setMaximumSize(new Dimension(140, 35));
         typePanel.add(dcComponentTypeCombo);
         typePanel.setAlignmentX(Component.LEFT_ALIGNMENT);
@@ -381,6 +379,24 @@ public class RLCSimulator extends JPanel implements SimulationObserver {
         panel.add(valuePanel);
 
         panel.add(Box.createVerticalStrut(8));
+
+        // --- INICIO DE MODIFICACIÓN ---
+        // Panel para seleccionar la polaridad (se muestra/oculta)
+        dcPolarityPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
+        dcPolarityPanel.setBackground(CARD_BACKGROUND);
+        dcPolarityPanel.add(createModernLabel("Polaridad:"));
+        String[] polarities = { "Positivo Hacia Arriba", "Negativo Hacia Arriba" };
+        dcPolarityCombo = createModernComboBox();
+        for (String p : polarities) {
+            dcPolarityCombo.addItem(p);
+        }
+        dcPolarityCombo.setToolTipText("Define la orientación de la fuente de voltaje");
+        dcPolarityPanel.add(dcPolarityCombo);
+        dcPolarityPanel.setAlignmentX(Component.LEFT_ALIGNMENT);
+        panel.add(dcPolarityPanel);
+        
+        panel.add(Box.createVerticalStrut(8));
+        // --- FIN DE MODIFICACIÓN ---
 
         // Panel para seleccionar la rama de destino
         JPanel targetPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
@@ -400,6 +416,9 @@ public class RLCSimulator extends JPanel implements SimulationObserver {
         addDCButton.setAlignmentX(Component.LEFT_ALIGNMENT);
         addDCButton.setMaximumSize(new Dimension(220, 40));
         panel.add(addDCButton);
+        
+        // Actualizar la visibilidad inicial del panel de polaridad
+        updateDCPolarityPanel();
 
         return panel;
     }
@@ -663,6 +682,27 @@ public class RLCSimulator extends JPanel implements SimulationObserver {
         targetBranchSpinner.setModel(model);
     }
     
+    // ---
+    // --- MÉTODO AÑADIDO ---
+    // ---
+    /**
+     * Muestra u oculta el panel de polaridad basado en el tipo de componente.
+     */
+    private void updateDCPolarityPanel() {
+        if (dcPolarityPanel == null || dcComponentTypeCombo == null) {
+            return; // Ocurre durante la inicialización
+        }
+        
+        String selectedType = (String) dcComponentTypeCombo.getSelectedItem();
+        
+        if ("Resistencia".equals(selectedType)) {
+            dcPolarityPanel.setVisible(false);
+        } else {
+            // "Batería" o "Fuente DC"
+            dcPolarityPanel.setVisible(true);
+        }
+    }
+    
     private void setupDCEventHandlers() {
         // Configurar handlers para los botones DC
         addDCButton.addActionListener(e -> addDCComponent());
@@ -693,6 +733,17 @@ public class RLCSimulator extends JPanel implements SimulationObserver {
         try {
             DCComponentType type = getSelectedDCComponentType();
             double value = Double.parseDouble(dcValueField.getText().trim());
+            
+            // --- INICIO DE MODIFICACIÓN ---
+            // Aplicar polaridad si es una fuente
+            if (type == DCComponentType.BATTERY || type == DCComponentType.DC_SOURCE) {
+                // 0 = "Positivo Hacia Arriba", 1 = "Negativo Hacia Arriba"
+                if (dcPolarityCombo.getSelectedIndex() == 1) { 
+                    value = -value; // Aplicar valor negativo
+                }
+            }
+            // --- FIN DE MODIFICACIÓN ---
+
             String name = dcComponentTypeCombo.getSelectedItem().toString() + " " + value;
             
             if (value <= 0 && type == DCComponentType.RESISTOR) {
@@ -722,8 +773,6 @@ public class RLCSimulator extends JPanel implements SimulationObserver {
             // Actualizar configuración
             String config = (String) configCombo.getSelectedItem();
             currentDCCircuit.setConfiguration(config != null ? config : "Serie");
-            // 5. Eliminar la dependencia del 'batterySpinner'
-            // currentDCCircuit.setBatteryCount((Integer) batterySpinner.getValue()); // <-- LÍNEA ELIMINADA
             
             // Actualizar UI
             dcDiagramPanel.setCircuit(currentDCCircuit);
@@ -768,12 +817,7 @@ public class RLCSimulator extends JPanel implements SimulationObserver {
     // ---
     private void simulateDCCircuit() {
         try {
-            // Actualizar parámetros del circuito
-            // 1. Eliminar dependencias de UI viejas
-            // currentDCCircuit.setSourceVoltage(getDCVoltage()); // <-- LÍNEA ELIMINADA
-            // currentDCCircuit.setBatteryCount((Integer) batterySpinner.getValue()); // <-- LÍNEA ELIMINADA
-            
-            // 2. Asegurarse de que las ramas y config estén sincronizadas
+            // 1. Asegurarse de que las ramas y config estén sincronizadas
             int totalBranchesInUI = (Integer) branchSpinner.getValue();
             ensureBranchesExist(totalBranchesInUI);
             currentDCCircuit.setConfiguration((String) configCombo.getSelectedItem());
@@ -826,7 +870,7 @@ public class RLCSimulator extends JPanel implements SimulationObserver {
     // --- MÉTODO MODIFICADO ---
     // ---
     private void clearDCCircuit() {
-        // 1. Crear circuito vacío sin depender de getDCVoltage()
+        // 1. Crear circuito vacío
         currentDCCircuit = new DCCircuit(); // Llama al constructor por defecto
         lastDCResult = null;
         
@@ -894,13 +938,14 @@ public class RLCSimulator extends JPanel implements SimulationObserver {
         sb.append("Configuración: ").append(result.getCircuitConfiguration()).append("\n\n");
         
         sb.append("--- VERIFICACIÓN DE LEYES ---\n");
-        sb.append("Voltaje Nodal (Va): ").append(df.format(result.getCalculatedVoltage())).append(" V\n");
+        // USA EL VOLTAJE CALCULADO (EJ. NODAL)
+        sb.append("Voltaje Calculado (Va): ").append(df.format(result.getCalculatedVoltage())).append(" V\n"); 
         sb.append("Corriente Eq. (I_eq): ").append(df.format(result.getTotalCurrent())).append(" A\n");
         sb.append("Resistencia Eq. (R_eq): ").append(df.format(result.getTotalResistance())).append(" Ω\n");
         
         // Verificación V = I * R
-        double calculatedVoltage = result.getTotalCurrent() * result.getTotalResistance();
-        sb.append("Ley de Ohm (Va = I_eq * R_eq): ").append(df.format(calculatedVoltage)).append(" V (Verificado)\n\n");
+        double calculatedVoltageCheck = result.getTotalCurrent() * result.getTotalResistance();
+        sb.append("Ley de Ohm (Va = I_eq * R_eq): ").append(df.format(calculatedVoltageCheck)).append(" V (Verificado)\n\n");
         
         sb.append("--- ANÁLISIS DE POTENCIA ---\n");
         sb.append("Potencia (Fuente): ").append(df.format(result.getTotalPower())).append(" W\n");
