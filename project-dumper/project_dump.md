@@ -614,6 +614,8 @@ import java.util.*;
 
 /**
  * Estrategia para análisis usando Leyes de Kirchhoff
+ * MODIFICADO: Obtiene el voltaje de las ramas.
+ * ADVERTENCIA: La lógica interna sigue siendo un prototipo simplificado.
  */
 public class DCKirchhoffStrategy implements DCAnalysisStrategy {
     
@@ -623,12 +625,20 @@ public class DCKirchhoffStrategy implements DCAnalysisStrategy {
             throw new IllegalArgumentException("Circuito no válido para análisis con Leyes de Kirchhoff");
         }
         
+        // --- MODIFICACIÓN ---
+        // Obtener el voltaje de la(s) fuente(s) DENTRO de las ramas
+        double sourceVoltage = circuit.getTotalSourceVoltage();
+        // --- FIN MODIFICACIÓN ---
+
         // Implementación simplificada de análisis por mallas
-        double[][] system = buildEquationSystem(circuit);
+        double[][] system = buildEquationSystem(circuit, sourceVoltage);
         double[] solutions = solveLinearSystem(system);
         
-        double totalResistance = calculateEquivalentResistance(circuit, solutions);
-        double sourceVoltage = circuit.getSourceVoltage();
+        double totalResistance = 0.0;
+        if (solutions[0] != 0) {
+             totalResistance = sourceVoltage / solutions[0];
+        }
+        
         double totalCurrent = solutions[0]; // Corriente de la malla principal
         double totalPower = sourceVoltage * totalCurrent;
         
@@ -655,30 +665,29 @@ public class DCKirchhoffStrategy implements DCAnalysisStrategy {
     @Override
     public boolean validateCircuit(DCCircuit circuit) {
         return circuit != null && 
-               circuit.getSourceVoltage() > 0 &&
+               circuit.getTotalSourceVoltage() > 0 &&
                circuit.getBranches().size() >= 1;
     }
     
-    private double[][] buildEquationSystem(DCCircuit circuit) {
+    private double[][] buildEquationSystem(DCCircuit circuit, double sourceVoltage) {
         // Implementación simplificada para circuito con 2 mallas
         int meshCount = Math.min(circuit.getBranches().size(), 2);
         double[][] system = new double[meshCount][meshCount + 1];
         
         // Para demostración, creamos un sistema simple
         if (meshCount == 1) {
-            double totalR = circuit.getBranches().get(0).getComponents().stream()
-                .filter(comp -> comp.getType() == DCComponentType.RESISTOR)
-                .mapToDouble(DCComponent::getValue)
-                .sum();
-            system[0][0] = totalR;
-            system[0][1] = circuit.getSourceVoltage();
+            double totalR = circuit.getBranches().get(0).getTotalResistance();
+            system[0][0] = (totalR > 0) ? totalR : 1.0;
+            system[0][1] = sourceVoltage;
         } else {
             // Sistema para 2 mallas
             double r1 = getBranchResistance(circuit.getBranches().get(0));
-            double r2 = getBranchResistance(circuit.getBranches().get(1));
+            double r2 = (circuit.getBranches().size() > 1) ? getBranchResistance(circuit.getBranches().get(1)) : 1.0;
+            if (r2 == 0) r2 = 1.0;
+            
             system[0][0] = r1 + r2;  // R1 + R2 para I1
             system[0][1] = -r2;      // -R2 para I2
-            system[0][2] = circuit.getSourceVoltage();
+            system[0][2] = sourceVoltage;
             
             system[1][0] = -r2;      // -R2 para I1
             system[1][1] = r2;       // R2 para I2
@@ -689,13 +698,14 @@ public class DCKirchhoffStrategy implements DCAnalysisStrategy {
     }
     
     private double[] solveLinearSystem(double[][] system) {
-        // Implementación simplificada usando eliminación gaussiana
+        // Implementación simplificada
         int n = system.length;
         double[] solutions = new double[n];
         
-        // Para demostración, retornamos soluciones aproximadas
         for (int i = 0; i < n; i++) {
-            solutions[i] = system[i][n] / system[i][i];
+            if(system[i][i] != 0) {
+                 solutions[i] = system[i][n] / system[i][i];
+            }
         }
         
         return solutions;
@@ -706,10 +716,6 @@ public class DCKirchhoffStrategy implements DCAnalysisStrategy {
             .filter(comp -> comp.getType() == DCComponentType.RESISTOR)
             .mapToDouble(DCComponent::getValue)
             .sum();
-    }
-    
-    private double calculateEquivalentResistance(DCCircuit circuit, double[] solutions) {
-        return circuit.getSourceVoltage() / solutions[0];
     }
     
     private double[] extractBranchCurrents(double[] solutions, DCCircuit circuit) {
@@ -752,6 +758,8 @@ import java.util.*;
 
 /**
  * Estrategia para análisis de mallas en circuitos DC
+ * MODIFICADO: Obtiene el voltaje de las ramas.
+ * ADVERTENCIA: La lógica interna sigue siendo un prototipo simplificado.
  */
 public class DCMeshAnalysisStrategy implements DCAnalysisStrategy {
     
@@ -768,10 +776,14 @@ public class DCMeshAnalysisStrategy implements DCAnalysisStrategy {
         
         double totalResistance = calculateTotalResistance(circuit, branchCurrents);
         double totalCurrent = calculateTotalCurrent(branchCurrents);
-        double totalPower = circuit.getSourceVoltage() * totalCurrent;
+        
+        // --- MODIFICACIÓN ---
+        double sourceVoltage = circuit.getTotalSourceVoltage();
+        // --- FIN MODIFICACIÓN ---
+        double totalPower = sourceVoltage * totalCurrent;
         
         return new DCSimulationResult(
-            circuit.getSourceVoltage(),
+            sourceVoltage,
             totalResistance,
             totalCurrent,
             totalPower,
@@ -790,7 +802,6 @@ public class DCMeshAnalysisStrategy implements DCAnalysisStrategy {
     @Override
     public boolean validateCircuit(DCCircuit circuit) {
         return circuit != null && 
-               circuit.getSourceVoltage() > 0 &&
                circuit.getBranches().size() >= 2; // Mínimo 2 mallas para análisis interesante
     }
     
@@ -798,12 +809,10 @@ public class DCMeshAnalysisStrategy implements DCAnalysisStrategy {
         int meshCount = Math.min(circuit.getBranches().size(), 3); // Máximo 3 mallas para simplificar
         double[][] system = new double[meshCount][meshCount + 1];
         
-        // Coeficientes de resistencia para cada malla
         for (int i = 0; i < meshCount; i++) {
             double selfResistance = calculateSelfResistance(circuit, i);
             system[i][i] = selfResistance;
             
-            // Resistencias mutuas
             for (int j = 0; j < meshCount; j++) {
                 if (i != j) {
                     double mutualResistance = calculateMutualResistance(circuit, i, j);
@@ -811,12 +820,17 @@ public class DCMeshAnalysisStrategy implements DCAnalysisStrategy {
                 }
             }
             
-            // Fuentes de voltaje
-            system[i][meshCount] = calculateMeshVoltage(circuit, i);
+            // --- MODIFICACIÓN ---
+            // Obtener el voltaje de la rama asociada con esta malla
+            system[i][meshCount] = circuit.getBranches().get(i).getTotalVoltage();
+            // --- FIN MODIFICACIÓN ---
         }
         
         return system;
     }
+    
+    // ... (El resto de los métodos de esta clase son prototipos y no
+    // ... dependen de sourceVoltage, por lo que se dejan como están)
     
     private double calculateSelfResistance(DCCircuit circuit, int meshIndex) {
         double resistance = 0;
@@ -824,20 +838,16 @@ public class DCMeshAnalysisStrategy implements DCAnalysisStrategy {
             DCBranch branch = circuit.getBranches().get(meshIndex);
             resistance += branch.getTotalResistance();
         }
-        
-        // Agregar resistencias compartidas con mallas adyacentes
         if (meshIndex > 0) {
             resistance += getSharedResistance(circuit, meshIndex, meshIndex - 1);
         }
         if (meshIndex < circuit.getBranches().size() - 1) {
             resistance += getSharedResistance(circuit, meshIndex, meshIndex + 1);
         }
-        
-        return resistance;
+        return (resistance > 0) ? resistance : 1.0;
     }
     
     private double calculateMutualResistance(DCCircuit circuit, int mesh1, int mesh2) {
-        // Solo mallas adyacentes tienen resistencia mutua
         if (Math.abs(mesh1 - mesh2) == 1) {
             return getSharedResistance(circuit, mesh1, mesh2);
         }
@@ -845,32 +855,20 @@ public class DCMeshAnalysisStrategy implements DCAnalysisStrategy {
     }
     
     private double getSharedResistance(DCCircuit circuit, int mesh1, int mesh2) {
-        // Simplificación: resistencia compartida entre mallas adyacentes
         return 10.0; // Valor fijo para demostración
-    }
-    
-    private double calculateMeshVoltage(DCCircuit circuit, int meshIndex) {
-        if (meshIndex == 0) {
-            return circuit.getSourceVoltage(); // Primera malla tiene la fuente
-        }
-        return 0; // Otras mallas no tienen fuentes directas
     }
     
     private double[] solveLinearSystem(double[][] system) {
         int n = system.length;
         double[] solutions = new double[n];
         
-        // Implementación simplificada de eliminación gaussiana
         for (int i = 0; i < n; i++) {
-            // Normalizar la fila i
             double pivot = system[i][i];
             if (pivot != 0) {
                 for (int j = i; j <= n; j++) {
                     system[i][j] /= pivot;
                 }
             }
-            
-            // Eliminar en otras filas
             for (int k = i + 1; k < n; k++) {
                 double factor = system[k][i];
                 for (int j = i; j <= n; j++) {
@@ -878,45 +876,36 @@ public class DCMeshAnalysisStrategy implements DCAnalysisStrategy {
                 }
             }
         }
-        
-        // Sustitución hacia atrás
         for (int i = n - 1; i >= 0; i--) {
             solutions[i] = system[i][n];
             for (int j = i + 1; j < n; j++) {
                 solutions[i] -= system[i][j] * solutions[j];
             }
         }
-        
         return solutions;
     }
     
     private double[] calculateBranchCurrents(DCCircuit circuit, double[] meshCurrents) {
         double[] branchCurrents = new double[circuit.getBranches().size()];
-        
         for (int i = 0; i < branchCurrents.length; i++) {
             if (i < meshCurrents.length) {
                 branchCurrents[i] = meshCurrents[i];
             } else {
-                // Para ramas adicionales, usar promedio de mallas adyacentes
                 branchCurrents[i] = meshCurrents.length > 0 ? meshCurrents[0] : 0;
             }
         }
-        
         return branchCurrents;
     }
     
     private double[] calculateComponentVoltages(DCCircuit circuit, double[] branchCurrents) {
         List<Double> voltages = new ArrayList<>();
         int branchIndex = 0;
-        
         for (DCBranch branch : circuit.getBranches()) {
             double branchCurrent = branchIndex < branchCurrents.length ? 
                 branchCurrents[branchIndex] : 0;
-                
             for (DCComponent comp : branch.getComponents()) {
                 if (comp.getType() == DCComponentType.RESISTOR) {
-                    double voltage = comp.getValue() * branchCurrent;
-                    voltages.add(voltage);
+                    voltages.add(comp.getValue() * branchCurrent);
                 } else if (comp.getType() == DCComponentType.BATTERY || 
                           comp.getType() == DCComponentType.DC_SOURCE) {
                     voltages.add(comp.getValue());
@@ -926,12 +915,13 @@ public class DCMeshAnalysisStrategy implements DCAnalysisStrategy {
             }
             branchIndex++;
         }
-        
         return voltages.stream().mapToDouble(Double::doubleValue).toArray();
     }
     
     private double calculateTotalResistance(DCCircuit circuit, double[] branchCurrents) {
-        return circuit.getSourceVoltage() / Arrays.stream(branchCurrents).sum();
+         double totalCurrent = Arrays.stream(branchCurrents).sum();
+         if (totalCurrent == 0) return 0;
+        return circuit.getTotalSourceVoltage() / totalCurrent;
     }
     
     private double calculateTotalCurrent(double[] branchCurrents) {
@@ -1104,18 +1094,28 @@ import java.util.List;
 
 /**
  * Estrategia para análisis usando Ley de Ohm (Principio de Responsabilidad Única)
+ * MODIFICADO: Ahora obtiene el voltaje de las fuentes DENTRO de las ramas,
+ * en lugar de un voltaje global.
  */
 public class DCOhmLawStrategy implements DCAnalysisStrategy {
     
     @Override
     public DCSimulationResult analyze(DCCircuit circuit) {
         if (!validateCircuit(circuit)) {
-            throw new IllegalArgumentException("Circuito no válido para análisis con Ley de Ohm");
+            throw new IllegalArgumentException("Circuito no válido para análisis con Ley de Ohm. Requiere 1 fuente y 1+ resistores.");
         }
         
+        // --- MODIFICACIÓN ---
+        // Obtener el voltaje de la(s) fuente(s) DENTRO de las ramas
+        double sourceVoltage = circuit.getTotalSourceVoltage();
+        // --- FIN MODIFICACIÓN ---
+
         double totalResistance = calculateTotalResistance(circuit);
-        double sourceVoltage = circuit.getSourceVoltage();
-        double totalCurrent = sourceVoltage / totalResistance;
+        double totalCurrent = 0;
+        if (totalResistance > 1e-9) {
+            totalCurrent = sourceVoltage / totalResistance;
+        }
+        
         double totalPower = sourceVoltage * totalCurrent;
         
         // Calcular corrientes por rama (simplificado para circuitos serie)
@@ -1123,7 +1123,7 @@ public class DCOhmLawStrategy implements DCAnalysisStrategy {
         double[] componentVoltages = calculateComponentVoltages(circuit, totalCurrent);
         
         return new DCSimulationResult(
-            sourceVoltage,
+            sourceVoltage, // El voltaje de la fuente es el "voltaje calculado" en este caso
             totalResistance,
             totalCurrent,
             totalPower,
@@ -1142,8 +1142,9 @@ public class DCOhmLawStrategy implements DCAnalysisStrategy {
     @Override
     public boolean validateCircuit(DCCircuit circuit) {
         // La Ley de Ohm es aplicable a circuitos simples serie/paralelo
+        // con una fuente de voltaje clara.
         return circuit != null && 
-               circuit.getSourceVoltage() > 0 &&
+               circuit.getTotalSourceVoltage() > 0 &&
                circuit.getBranches().stream()
                    .flatMap(branch -> branch.getComponents().stream())
                    .anyMatch(comp -> comp.getType() == DCComponentType.RESISTOR);
@@ -1153,23 +1154,20 @@ public class DCOhmLawStrategy implements DCAnalysisStrategy {
         if (circuit.getConfiguration().contains("Serie")) {
             // Resistencia total en serie: R_total = R1 + R2 + ...
             return circuit.getBranches().stream()
-                .flatMap(branch -> branch.getComponents().stream())
-                .filter(comp -> comp.getType() == DCComponentType.RESISTOR)
-                .mapToDouble(DCComponent::getValue)
+                .mapToDouble(DCBranch::getTotalResistance)
                 .sum();
         } else {
             // Resistencia total en paralelo: 1/R_total = 1/R1 + 1/R2 + ...
             return 1.0 / circuit.getBranches().stream()
-                .flatMap(branch -> branch.getComponents().stream())
-                .filter(comp -> comp.getType() == DCComponentType.RESISTOR)
-                .mapToDouble(comp -> 1.0 / comp.getValue())
+                .mapToDouble(branch -> 1.0 / branch.getTotalResistance())
                 .sum();
         }
     }
     
     private double[] calculateBranchCurrents(DCCircuit circuit, double totalCurrent) {
         List<Double> currents = new ArrayList<>();
-        
+        double sourceVoltage = circuit.getTotalSourceVoltage();
+
         if (circuit.getConfiguration().contains("Serie")) {
             // En serie, misma corriente en todas las ramas
             for (int i = 0; i < circuit.getBranches().size(); i++) {
@@ -1178,11 +1176,11 @@ public class DCOhmLawStrategy implements DCAnalysisStrategy {
         } else {
             // En paralelo, corriente se divide según resistencia
             for (DCBranch branch : circuit.getBranches()) {
-                double branchResistance = branch.getComponents().stream()
-                    .filter(comp -> comp.getType() == DCComponentType.RESISTOR)
-                    .mapToDouble(DCComponent::getValue)
-                    .sum();
-                double branchCurrent = circuit.getSourceVoltage() / branchResistance;
+                double branchResistance = branch.getTotalResistance();
+                double branchCurrent = 0;
+                if (branchResistance > 1e-9) {
+                     branchCurrent = sourceVoltage / branchResistance;
+                }
                 currents.add(branchCurrent);
             }
         }
@@ -1222,6 +1220,8 @@ import java.util.*;
 
 /**
  * Estrategia para análisis usando Teorema de Thevenin
+ * MODIFICADO: Obtiene el voltaje de las ramas.
+ * ADVERTENCIA: La lógica interna sigue siendo un prototipo simplificado.
  */
 public class DCTheveninStrategy implements DCAnalysisStrategy {
     
@@ -1236,7 +1236,10 @@ public class DCTheveninStrategy implements DCAnalysisStrategy {
         double rth = calculateTheveninResistance(circuit);
         
         // Usar el equivalente para calcular corrientes
-        double totalCurrent = vth / (rth + getLoadResistance(circuit));
+        double totalCurrent = 0;
+        if (rth + getLoadResistance(circuit) > 1e-9) {
+             totalCurrent = vth / (rth + getLoadResistance(circuit));
+        }
         double totalPower = vth * totalCurrent;
         
         double[] branchCurrents = calculateBranchCurrentsFromThevenin(circuit, totalCurrent);
@@ -1262,44 +1265,40 @@ public class DCTheveninStrategy implements DCAnalysisStrategy {
     @Override
     public boolean validateCircuit(DCCircuit circuit) {
         return circuit != null && 
-               circuit.getSourceVoltage() > 0 &&
+               circuit.getTotalSourceVoltage() > 0 &&
                circuit.getBranches().size() >= 1;
     }
     
     private double calculateTheveninVoltage(DCCircuit circuit) {
         // Vth = Voltaje en circuito abierto
         // Simplificación: voltaje en la primera rama
+        // --- MODIFICACIÓN ---
+        double sourceVoltage = circuit.getTotalSourceVoltage();
+        // --- FIN MODIFICACIÓN ---
+
         if (!circuit.getBranches().isEmpty()) {
             DCBranch firstBranch = circuit.getBranches().get(0);
             double branchResistance = firstBranch.getTotalResistance();
             double totalResistance = circuit.getTotalResistance();
             
             if (totalResistance > 0) {
-                return circuit.getSourceVoltage() * (branchResistance / totalResistance);
+                return sourceVoltage * (branchResistance / totalResistance);
             }
         }
         
-        return circuit.getSourceVoltage();
+        return sourceVoltage;
     }
     
     private double calculateTheveninResistance(DCCircuit circuit) {
         // Rth = Resistencia equivalente con fuentes anuladas
-        // Anular fuentes = cortocircuitar fuentes de voltaje
-        
         if (circuit.getConfiguration().contains("Serie")) {
-            // En serie: Rth = suma de resistencias (excepto rama de carga)
             return circuit.getBranches().stream()
                 .limit(Math.max(1, circuit.getBranches().size() - 1))
-                .flatMap(branch -> branch.getComponents().stream())
-                .filter(comp -> comp.getType() == DCComponentType.RESISTOR)
-                .mapToDouble(DCComponent::getValue)
+                .mapToDouble(DCBranch::getTotalResistance)
                 .sum();
         } else {
-            // En paralelo: Rth = resistencia equivalente de todas las ramas en paralelo
             return 1.0 / circuit.getBranches().stream()
-                .flatMap(branch -> branch.getComponents().stream())
-                .filter(comp -> comp.getType() == DCComponentType.RESISTOR)
-                .mapToDouble(comp -> 1.0 / comp.getValue())
+                .mapToDouble(branch -> 1.0 / branch.getTotalResistance())
                 .sum();
         }
     }
@@ -1317,15 +1316,14 @@ public class DCTheveninStrategy implements DCAnalysisStrategy {
         double[] branchCurrents = new double[circuit.getBranches().size()];
         
         if (circuit.getConfiguration().contains("Serie")) {
-            // En serie, misma corriente en todas las ramas
             Arrays.fill(branchCurrents, totalCurrent);
         } else {
-            // En paralelo, corriente se divide según resistencia
+            double sourceVoltage = circuit.getTotalSourceVoltage();
             for (int i = 0; i < branchCurrents.length; i++) {
                 DCBranch branch = circuit.getBranches().get(i);
                 double branchResistance = branch.getTotalResistance();
                 if (branchResistance > 0) {
-                    branchCurrents[i] = circuit.getSourceVoltage() / branchResistance;
+                    branchCurrents[i] = sourceVoltage / branchResistance;
                 } else {
                     branchCurrents[i] = 0;
                 }
@@ -1360,12 +1358,11 @@ public class DCTheveninStrategy implements DCAnalysisStrategy {
         return voltages.stream().mapToDouble(Double::doubleValue).toArray();
     }
     
-    // Método adicional para obtener el circuito equivalente de Thevenin
     public DCCircuit getTheveninEquivalent(DCCircuit originalCircuit) {
         double vth = calculateTheveninVoltage(originalCircuit);
         double rth = calculateTheveninResistance(originalCircuit);
         
-        DCCircuit equivalent = new DCCircuit(vth, "Serie", 1);
+        DCCircuit equivalent = new DCCircuit("Serie");
         DCBranch branch = new DCBranch(1);
         branch.addComponent(new DCComponent(DCComponentType.DC_SOURCE, vth, "Vth", 1));
         branch.addComponent(new DCComponent(DCComponentType.RESISTOR, rth, "Rth", 1));
@@ -2022,24 +2019,22 @@ import java.util.List;
 
 /**
  * Representa un circuito DC completo (Principio de Responsabilidad Única)
+ * MODIFICADO: Se eliminó sourceVoltage y batteryCount. El circuito
+ * es ahora un contenedor de ramas cuya topología se define por 'configuration'.
  */
 public class DCCircuit {
     private final String id;
     private final List<DCBranch> branches;
-    private double sourceVoltage;
     private String configuration;
-    private int batteryCount;
     
-    public DCCircuit(double sourceVoltage, String configuration, int batteryCount) {
+    public DCCircuit(String configuration) {
         this.id = "DCCircuit_" + System.currentTimeMillis();
         this.branches = new ArrayList<>();
-        this.sourceVoltage = sourceVoltage;
         this.configuration = configuration;
-        this.batteryCount = batteryCount;
     }
     
     public DCCircuit() {
-        this(12.0, "Serie", 1);
+        this("Serie"); // Configuración por defecto
     }
     
     public void addBranch(DCBranch branch) {
@@ -2067,38 +2062,53 @@ public class DCCircuit {
     public String getId() { return id; }
     public List<DCBranch> getBranches() { return new ArrayList<>(branches); }
     public int getBranchCount() { return branches.size(); }
-    public double getSourceVoltage() { return sourceVoltage; }
-    public void setSourceVoltage(double sourceVoltage) { this.sourceVoltage = sourceVoltage; }
     public String getConfiguration() { return configuration; }
     public void setConfiguration(String configuration) { this.configuration = configuration; }
-    public int getBatteryCount() { return batteryCount; }
-    public void setBatteryCount(int batteryCount) { this.batteryCount = batteryCount; }
     
+    /**
+     * Calcula la resistencia total basado en la configuración.
+     * ADVERTENCIA: Esta es una simplificación y solo funciona para
+     * circuitos serie/paralelo puros.
+     */
     public double getTotalResistance() {
+        if (branches.isEmpty()) {
+            return 0;
+        }
+        
         if (configuration.contains("Serie")) {
-            // Serie: R_total = suma de todas las resistencias
+            // Serie: R_total = suma de todas las resistencias en todas las ramas
             return branches.stream()
-                .flatMap(branch -> branch.getComponents().stream())
-                .mapToDouble(DCComponent::getResistance)
+                .mapToDouble(DCBranch::getTotalResistance)
                 .sum();
         } else {
             // Paralelo: 1/R_total = suma de 1/R de cada rama
-            return 1.0 / branches.stream()
+            double totalInverseResistance = branches.stream()
                 .mapToDouble(branch -> 1.0 / branch.getTotalResistance())
                 .sum();
+            return 1.0 / totalInverseResistance;
         }
     }
     
+    /**
+     * Calcula el voltaje total de las fuentes (solo para serie simple).
+     * ADVERTENCIA: Esta es una simplificación.
+     */
+    public double getTotalSourceVoltage() {
+        return branches.stream()
+            .mapToDouble(DCBranch::getTotalVoltage)
+            .sum();
+    }
+    
     public boolean isValid() {
-        return sourceVoltage > 0 && 
-               !branches.isEmpty() &&
+        // Un circuito es válido si tiene al menos una rama con componentes.
+        return !branches.isEmpty() &&
                branches.stream().anyMatch(DCBranch::hasComponents);
     }
     
     @Override
     public String toString() {
-        return String.format("Circuito DC: %dV, %s, %d ramas", 
-            sourceVoltage, configuration, branches.size());
+        return String.format("Circuito DC: %s, %d ramas", 
+            configuration, branches.size());
     }
 }
 ```
@@ -2209,9 +2219,10 @@ import java.util.Arrays;
 
 /**
  * Resultados de una simulación de circuito DC (Principio de Responsabilidad Única)
+ * MODIFICADO: Se reemplazó sourceVoltage (entrada) por calculatedVoltage (salida).
  */
 public class DCSimulationResult {
-    private final double sourceVoltage;
+    private final double calculatedVoltage;
     private final double totalResistance;
     private final double totalCurrent;
     private final double totalPower;
@@ -2221,11 +2232,11 @@ public class DCSimulationResult {
     private final String circuitConfiguration;
     private final long timestamp;
     
-    public DCSimulationResult(double sourceVoltage, double totalResistance, 
+    public DCSimulationResult(double calculatedVoltage, double totalResistance, 
                              double totalCurrent, double totalPower,
                              double[] branchCurrents, double[] componentVoltages,
                              String methodUsed, String circuitConfiguration) {
-        this.sourceVoltage = sourceVoltage;
+        this.calculatedVoltage = calculatedVoltage;
         this.totalResistance = totalResistance;
         this.totalCurrent = totalCurrent;
         this.totalPower = totalPower;
@@ -2237,7 +2248,7 @@ public class DCSimulationResult {
     }
     
     // Getters
-    public double getSourceVoltage() { return sourceVoltage; }
+    public double getCalculatedVoltage() { return calculatedVoltage; }
     public double getTotalResistance() { return totalResistance; }
     public double getTotalCurrent() { return totalCurrent; }
     public double getTotalPower() { return totalPower; }
@@ -2248,22 +2259,34 @@ public class DCSimulationResult {
     public long getTimestamp() { return timestamp; }
     
     public double getPowerDissipated() {
+        // En un circuito resistivo, la potencia total suministrada
+        // por las fuentes es igual a la potencia total disipada.
+        // P_total = P_disipada
+        if (totalPower > 0) {
+            return totalPower;
+        }
+        // Fallback si la potencia total es 0 o negativa
         return totalCurrent * totalCurrent * totalResistance;
     }
     
     public double getEfficiency() {
+        // Asumiendo un circuito puramente resistivo, la eficiencia
+        // de la "transmisión" (fuentes a resistencias) es 100%.
+        if (totalPower <= 0) {
+            return 0;
+        }
         return (getPowerDissipated() / totalPower) * 100;
     }
     
     public boolean isCircuitValid() {
-        return totalResistance > 0 && totalCurrent >= 0 && totalPower >= 0;
+        return totalResistance > 0;
     }
     
     @Override
     public String toString() {
         return String.format(
-            "Resultado DC [V=%.2fV, R=%.2fΩ, I=%.3fA, P=%.3fW, Método=%s]",
-            sourceVoltage, totalResistance, totalCurrent, totalPower, methodUsed
+            "Resultado DC [V_calc=%.2fV, R_eq=%.2fΩ, I_eq=%.3fA, P_total=%.3fW, Método=%s]",
+            calculatedVoltage, totalResistance, totalCurrent, totalPower, methodUsed
         );
     }
 }
@@ -3575,12 +3598,15 @@ package com.simulador.ui.dc;
 import com.simulador.model.dc.DCCircuit;
 import com.simulador.model.dc.DCComponent;
 import com.simulador.model.dc.DCBranch;
+import com.simulador.model.dc.DCComponentType;
 import javax.swing.*;
 import java.awt.*;
 import java.util.List;
 
 /**
  * Panel para visualizar diagramas de circuitos DC
+ * MODIFICADO: Rediseñado para dibujar componentes DENTRO de las ramas
+ * en lugar de una fuente de alimentación global.
  */
 public class DCDiagramPanel extends JPanel {
     private DCCircuit circuit;
@@ -3605,7 +3631,7 @@ public class DCDiagramPanel extends JPanel {
         Graphics2D g2d = (Graphics2D) g;
         g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
         
-        if (circuit == null) {
+        if (circuit == null || circuit.getBranchCount() == 0) {
             drawEmptyState(g2d);
         } else {
             drawCircuit(g2d);
@@ -3620,7 +3646,7 @@ public class DCDiagramPanel extends JPanel {
         g2d.drawString(message, (getWidth() - textWidth) / 2, getHeight() / 2);
         
         g2d.setFont(new Font("Segoe UI", Font.PLAIN, 12));
-        String info = "Configure el circuito para ver el diagrama";
+        String info = "Configure el circuito y agregue componentes";
         int infoWidth = g2d.getFontMetrics().stringWidth(info);
         g2d.drawString(info, (getWidth() - infoWidth) / 2, getHeight() / 2 + 25);
     }
@@ -3628,44 +3654,29 @@ public class DCDiagramPanel extends JPanel {
     private void drawCircuit(Graphics2D g2d) {
         int centerX = getWidth() / 2;
         int centerY = getHeight() / 2;
-        int circuitWidth = Math.min(getWidth() - 100, 400);
-        int circuitHeight = Math.min(getHeight() - 60, 150);
-        
-        // Dibujar fuente DC
-        drawBattery(g2d, centerX - circuitWidth/2 + 30, centerY, 40, 20);
         
         // Dibujar según configuración
-        switch (circuit.getConfiguration()) {
-            case "Serie":
-                drawSeriesCircuit(g2d, centerX, centerY, circuitWidth, circuitHeight);
-                break;
-            case "Paralelo":
-                drawParallelCircuit(g2d, centerX, centerY, circuitWidth, circuitHeight);
-                break;
-            default:
-                drawMixedCircuit(g2d, centerX, centerY, circuitWidth, circuitHeight);
+        if ("Paralelo".equals(circuit.getConfiguration())) {
+            drawParallelCircuit(g2d, centerX, centerY);
+        } else {
+            drawSeriesCircuit(g2d, centerX, centerY);
         }
-        
-        // Etiqueta de voltaje
-        g2d.setColor(Color.BLACK);
-        g2d.setFont(new Font("Segoe UI", Font.BOLD, 12));
-        g2d.drawString(circuit.getSourceVoltage() + " V DC", centerX - circuitWidth/2 + 15, centerY - 30);
     }
     
-    private void drawBattery(Graphics2D g2d, int x, int y, int width, int height) {
+    private void drawBattery(Graphics2D g2d, int x, int y, int width, int height, double voltage) {
         g2d.setColor(batteryColor);
         g2d.fillRect(x, y - height/2, width, height);
         g2d.setColor(Color.BLACK);
         g2d.drawRect(x, y - height/2, width, height);
         
-        // Terminales
-        g2d.fillRect(x - 5, y - height/4, 5, height/2);
-        g2d.fillRect(x + width, y - height/4, 5, height/2);
-        
         // Símbolos + y -
         g2d.setFont(new Font("Segoe UI", Font.BOLD, 10));
-        g2d.drawString("+", x + width/4, y - 2);
-        g2d.drawString("-", x + 3*width/4, y - 2);
+        g2d.drawString("+", x + 5, y + 4);
+        g2d.drawString("-", x + width - 10, y + 4);
+        
+        // Etiqueta de voltaje
+        g2d.setFont(new Font("Segoe UI", Font.PLAIN, 10));
+        g2d.drawString(String.format("%.0f V", voltage), x + width/2 - 15, y - height/2 - 5);
     }
     
     private void drawResistor(Graphics2D g2d, int x, int y, int width, String label) {
@@ -3673,97 +3684,121 @@ public class DCDiagramPanel extends JPanel {
         g2d.setStroke(new BasicStroke(3f));
         
         int segmentWidth = width / 8;
-        g2d.drawLine(x, y, x + segmentWidth, y);
+        int startX = x - width/2;
         
-        for (int i = 0; i < 4; i++) {
-            int startX = x + segmentWidth + i * 2 * segmentWidth;
-            g2d.drawLine(startX, y - 8, startX + segmentWidth, y + 8);
-            g2d.drawLine(startX + segmentWidth, y + 8, startX + 2 * segmentWidth, y - 8);
+        g2d.setColor(wireColor);
+        g2d.setStroke(new BasicStroke(2f));
+        g2d.drawLine(startX, y, startX + segmentWidth, y); // Cable izquierdo
+
+        // Zigzag del resistor
+        int zigzagX = startX + segmentWidth;
+        for (int i = 0; i < 3; i++) {
+            g2d.drawLine(zigzagX, (i%2 == 0) ? y-8 : y+8, zigzagX + segmentWidth*2, (i%2 == 0) ? y+8 : y-8);
+            zigzagX += segmentWidth*2;
         }
         
-        g2d.drawLine(x + 7 * segmentWidth, y, x + 8 * segmentWidth, y);
+        g2d.setColor(wireColor);
+        g2d.setStroke(new BasicStroke(2f));
+        g2d.drawLine(startX + 7 * segmentWidth, y, startX + 8 * segmentWidth, y); // Cable derecho
         
         // Etiqueta
         if (label != null) {
             g2d.setColor(Color.BLACK);
             g2d.setFont(new Font("Segoe UI", Font.PLAIN, 10));
-            g2d.drawString(label, x + width/2 - 10, y - 15);
+            g2d.drawString(label, x - 10, y - 15);
         }
     }
     
-    private void drawSeriesCircuit(Graphics2D g2d, int centerX, int centerY, int circuitWidth, int circuitHeight) {
-        int startX = centerX - circuitWidth/2 + 80;
+    private void drawSeriesCircuit(Graphics2D g2d, int centerX, int centerY) {
+        int startX = 50;
         int y = centerY;
-        
-        g2d.setColor(wireColor);
-        g2d.setStroke(new BasicStroke(2f));
-        g2d.drawLine(startX, y, startX + circuitWidth - 100, y);
-        
-        // Dibujar resistores
-        List<DCBranch> branches = circuit.getBranches();
-        if (!branches.isEmpty()) {
-            List<DCComponent> components = branches.get(0).getComponents();
-            int compWidth = 60;
-            int spacing = 20;
-            int currentX = startX + 20;
-            
-            for (int i = 0; i < components.size(); i++) {
-                DCComponent comp = components.get(i);
-                if (comp.getType() == com.simulador.model.dc.DCComponentType.RESISTOR) {
-                    drawResistor(g2d, currentX, y, compWidth, comp.getValue() + "Ω");
-                    currentX += compWidth + spacing;
-                }
-            }
-        }
-        
-        // Línea de retorno
-        g2d.drawLine(startX + circuitWidth - 100, y, startX + circuitWidth - 100, y + 40);
-        g2d.drawLine(startX + circuitWidth - 100, y + 40, startX, y + 40);
-        g2d.drawLine(startX, y + 40, startX, y);
-    }
-    
-    private void drawParallelCircuit(Graphics2D g2d, int centerX, int centerY, int circuitWidth, int circuitHeight) {
-        int startX = centerX - circuitWidth/2 + 80;
-        int y = centerY;
-        int branchSpacing = 40;
-        
+        int componentWidth = 60;
+        int spacing = 20;
+
         g2d.setColor(wireColor);
         g2d.setStroke(new BasicStroke(2f));
         
-        List<DCBranch> branches = circuit.getBranches();
-        for (int i = 0; i < branches.size(); i++) {
-            int branchY = y + i * branchSpacing - (branches.size() - 1) * branchSpacing / 2;
-            
-            // Rama
-            g2d.drawLine(startX, branchY, startX + 80, branchY);
-            
-            // Resistor en la rama
-            List<DCComponent> components = branches.get(i).getComponents();
-            if (!components.isEmpty()) {
-                DCComponent comp = components.get(0); // Tomar primer componente
-                if (comp.getType() == com.simulador.model.dc.DCComponentType.RESISTOR) {
-                    drawResistor(g2d, startX + 90, branchY, 40, comp.getValue() + "Ω");
+        // Línea de tierra
+        g2d.drawLine(startX, y + 50, getWidth() - startX, y + 50);
+        
+        // Conexión inicial
+        g2d.drawLine(startX, y, startX, y + 50);
+        
+        int currentX = startX;
+        
+        // Dibujar componentes en serie de todas las ramas
+        for (DCBranch branch : circuit.getBranches()) {
+            for (DCComponent comp : branch.getComponents()) {
+                currentX += (componentWidth/2 + spacing);
+                
+                if (comp.getType() == DCComponentType.RESISTOR) {
+                    drawResistor(g2d, currentX, y, componentWidth - 20, comp.getValue() + "Ω");
+                } else if (comp.getType() == DCComponentType.BATTERY || comp.getType() == DCComponentType.DC_SOURCE) {
+                    drawBattery(g2d, currentX - 15, y, 30, 20, comp.getValue());
                 }
+                
+                currentX += (componentWidth/2 + spacing);
+                g2d.setColor(wireColor);
+                g2d.setStroke(new BasicStroke(2f));
+                g2d.drawLine(currentX - (componentWidth/2 + spacing), y, currentX, y);
             }
-            
-            g2d.drawLine(startX + 140, branchY, startX + circuitWidth - 100, branchY);
         }
         
-        // Conexiones verticales
-        g2d.drawLine(startX + 80, y - branchSpacing, startX + 80, y + branchSpacing);
-        g2d.drawLine(startX + circuitWidth - 100, y - branchSpacing, startX + circuitWidth - 100, y + branchSpacing);
-        
-        // Conexiones a la batería
-        g2d.drawLine(startX + circuitWidth - 100, y, startX + circuitWidth - 60, y);
-        g2d.drawLine(startX, y, startX - 40, y);
+        // Conexión final
+        g2d.drawLine(currentX, y, getWidth() - startX, y);
+        g2d.drawLine(getWidth() - startX, y, getWidth() - startX, y + 50);
     }
     
-    private void drawMixedCircuit(Graphics2D g2d, int centerX, int centerY, int circuitWidth, int circuitHeight) {
-        drawSeriesCircuit(g2d, centerX, centerY, circuitWidth, circuitHeight);
+    private void drawParallelCircuit(Graphics2D g2d, int centerX, int centerY) {
+        int numBranches = circuit.getBranches().size();
+        if (numBranches == 0) return;
         
-        g2d.setColor(Color.BLUE);
-        g2d.setFont(new Font("Segoe UI", Font.PLAIN, 12));
-        g2d.drawString("Configuración Mixta", centerX - 40, centerY + 70);
+        int totalHeight = (numBranches - 1) * 60;
+        int startY = centerY - totalHeight / 2;
+        int startX = 80;
+        int endX = getWidth() - 80;
+        int componentWidth = 80;
+
+        g2d.setColor(wireColor);
+        g2d.setStroke(new BasicStroke(2f));
+        
+        // Dibujar nodos verticales (barras colectoras)
+        g2d.drawLine(startX, startY - 20, startX, startY + totalHeight + 20);
+        g2d.drawLine(endX, startY - 20, endX, startY + totalHeight + 20);
+        
+        // Dibujar nodos horizontales superior e inferior
+        g2d.drawLine(startX, startY - 20, endX, startY - 20); // Nodo superior (Va)
+        g2d.drawLine(startX, startY + totalHeight + 20, endX, startY + totalHeight + 20); // Nodo inferior (Tierra)
+        
+        // Dibujar cada rama
+        for (int i = 0; i < numBranches; i++) {
+            DCBranch branch = circuit.getBranches().get(i);
+            int branchY = startY + i * 60;
+            
+            // Conexiones de la rama a los nodos
+            g2d.drawLine(startX, branchY, startX + 50, branchY);
+            g2d.drawLine(endX - 50, branchY, endX, branchY);
+            
+            // Dibujar componentes en la rama (simplificado: 2 componentes max)
+            int currentX = startX + 70;
+            List<DCComponent> components = branch.getComponents();
+            
+            if (components.isEmpty()) {
+                // Solo un cable
+                g2d.drawLine(startX + 50, branchY, endX - 50, branchY);
+            } else {
+                for (DCComponent comp : components) {
+                    if (comp.getType() == DCComponentType.RESISTOR) {
+                        drawResistor(g2d, currentX, branchY, componentWidth, comp.getValue() + "Ω");
+                    } else if (comp.getType() == DCComponentType.BATTERY || comp.getType() == DCComponentType.DC_SOURCE) {
+                        drawBattery(g2d, currentX - 15, branchY, 30, 20, comp.getValue());
+                    }
+                    currentX += componentWidth + 10;
+                }
+                // Conectar último componente
+                g2d.drawLine(currentX - componentWidth/2 - 10, branchY, endX - 50, branchY);
+            }
+        }
     }
 }
 ```
@@ -3779,6 +3814,7 @@ import java.awt.*;
 
 /**
  * Panel para mostrar circuitos equivalentes (Thevenin/Norton)
+ * MODIFICADO: Usa getCalculatedVoltage() como Vth.
  */
 public class DCEquivalentCircuitPanel extends JPanel {
     private JTextArea equivalentArea;
@@ -4046,25 +4082,32 @@ public class DCEquivalentCircuitPanel extends JPanel {
     }
     
     public void updateEquivalents(DCSimulationResult result) {
-        if (result == null || !result.getMethodUsed().contains("Thevenin")) {
+        if (result == null || 
+            !(result.getMethodUsed().contains("Thevenin") || result.getMethodUsed().contains("Nodal")) ) {
             equivalentArea.setText(
                 "=== CIRCUITOS EQUIVALENTES ===\n\n" +
                 "Para ver los circuitos equivalentes de Thevenin y Norton,\n" +
-                "ejecute una simulación usando el Teorema de Thevenin.\n\n" +
+                "ejecute una simulación usando el Teorema de Thevenin o Análisis Nodal.\n\n" +
                 "Características:\n" +
                 "• Thevenin: Fuente de voltaje + resistencia en serie\n" +
                 "• Norton: Fuente de corriente + resistencia en paralelo\n" +
-                "• Ambos son equivalentes entre sí\n" +
-                "• Comportamiento idéntico en los terminales de salida"
+                "• Ambos son equivalentes entre sí\n"
             );
             return;
         }
         
         // Calcular equivalentes
-        double vth = result.getSourceVoltage();
+        // --- MODIFICACIÓN ---
+        // Vth es el Voltaje Nodal (Va) calculado.
+        double vth = result.getCalculatedVoltage(); 
+        // --- FIN MODIFICACIÓN ---
         double rth = result.getTotalResistance();
-        double in = vth / rth;  // Corriente de Norton
-        double rn = rth;        // Resistencia de Norton
+        
+        double in = 0.0; // Corriente de Norton
+        if (rth > 1e-9) {
+            in = vth / rth;
+        }
+        double rn = rth; // Resistencia de Norton
         
         StringBuilder sb = new StringBuilder();
         sb.append("=== CIRCUITOS EQUIVALENTES ===\n\n");
@@ -4088,9 +4131,6 @@ public class DCEquivalentCircuitPanel extends JPanel {
         
         sb.append("VERIFICACIÓN:\n");
         sb.append("• Los circuitos son eléctricamente equivalentes\n");
-        sb.append("• Misma tensión en circuito abierto\n");
-        sb.append("• Misma corriente en cortocircuito\n");
-        sb.append("• Misma resistencia equivalente\n");
         
         equivalentArea.setText(sb.toString());
         
@@ -4106,8 +4146,7 @@ public class DCEquivalentCircuitPanel extends JPanel {
             "Los circuitos equivalentes permiten:\n" +
             "• Simplificar análisis de circuitos complejos\n" +
             "• Facilitar el cálculo de transferencia de potencia\n" +
-            "• Comprender mejor el comportamiento del circuito\n" +
-            "• Diseñar interfaces entre etapas de circuitos"
+            "• Comprender mejor el comportamiento del circuito\n"
         );
         
         theveninDiagram.repaint();
@@ -4128,6 +4167,8 @@ import java.text.DecimalFormat;
 
 /**
  * Panel para mostrar resultados de simulación DC
+ * MODIFICADO: Se cambió "Voltaje Total" por "Voltaje Nodal (Va)"
+ * y se usa getCalculatedVoltage().
  */
 public class DCResultsPanel extends JPanel {
     private JTextArea resultsArea;
@@ -4161,18 +4202,20 @@ public class DCResultsPanel extends JPanel {
         panel.setBackground(BACKGROUND_COLOR);
         panel.setBorder(BorderFactory.createEmptyBorder(0, 0, 15, 0));
         
+        // --- MODIFICACIÓN ---
         // Voltaje
-        JPanel voltagePanel = createMetricCard("Voltaje Total", "0.000 V", SUCCESS_COLOR);
+        JPanel voltagePanel = createMetricCard("Voltaje Nodal (Va)", "0.000 V", SUCCESS_COLOR);
         voltageLabel = (JLabel) ((JPanel) voltagePanel.getComponent(0)).getComponent(1);
         
         // Corriente
-        JPanel currentPanel = createMetricCard("Corriente Total", "0.000 A", SUCCESS_COLOR);
+        JPanel currentPanel = createMetricCard("Corriente Eq. (I_eq)", "0.000 A", SUCCESS_COLOR);
         currentLabel = (JLabel) ((JPanel) currentPanel.getComponent(0)).getComponent(1);
         
         // Resistencia
-        JPanel resistancePanel = createMetricCard("Resistencia Equivalente", "0.000 Ω", WARNING_COLOR);
+        JPanel resistancePanel = createMetricCard("Resistencia Eq. (R_eq)", "0.000 Ω", WARNING_COLOR);
         resistanceLabel = (JLabel) ((JPanel) resistancePanel.getComponent(0)).getComponent(1);
-        
+        // --- FIN MODIFICACIÓN ---
+
         // Potencia
         JPanel powerPanel = createMetricCard("Potencia Total", "0.000 W", ERROR_COLOR);
         powerLabel = (JLabel) ((JPanel) powerPanel.getComponent(0)).getComponent(1);
@@ -4248,12 +4291,14 @@ public class DCResultsPanel extends JPanel {
             return;
         }
         
+        // --- MODIFICACIÓN ---
         // Actualizar métricas principales
-        voltageLabel.setText(df.format(result.getSourceVoltage()) + " V");
+        voltageLabel.setText(df.format(result.getCalculatedVoltage()) + " V");
         currentLabel.setText(df.format(result.getTotalCurrent()) + " A");
         resistanceLabel.setText(df.format(result.getTotalResistance()) + " Ω");
         powerLabel.setText(df.format(result.getTotalPower()) + " W");
-        
+        // --- FIN MODIFICACIÓN ---
+
         // Actualizar área de resultados detallados
         updateDetailedResults(result);
     }
@@ -4268,9 +4313,11 @@ public class DCResultsPanel extends JPanel {
         sb.append("• Timestamp: ").append(new java.util.Date(result.getTimestamp())).append("\n\n");
         
         sb.append("PARÁMETROS PRINCIPALES:\n");
-        sb.append("• Voltaje de fuente: ").append(df.format(result.getSourceVoltage())).append(" V\n");
-        sb.append("• Resistencia total: ").append(df.format(result.getTotalResistance())).append(" Ω\n");
-        sb.append("• Corriente total: ").append(df.format(result.getTotalCurrent())).append(" A\n");
+        // --- MODIFICACIÓN ---
+        sb.append("• Voltaje Nodal (Va): ").append(df.format(result.getCalculatedVoltage())).append(" V\n");
+        sb.append("• Resistencia Eq. (R_eq): ").append(df.format(result.getTotalResistance())).append(" Ω\n");
+        sb.append("• Corriente Eq. (I_eq): ").append(df.format(result.getTotalCurrent())).append(" A\n");
+        // --- FIN MODIFICACIÓN ---
         sb.append("• Potencia total: ").append(df.format(result.getTotalPower())).append(" W\n");
         sb.append("• Potencia disipada: ").append(df.format(result.getPowerDissipated())).append(" W\n");
         sb.append("• Eficiencia: ").append(df.format(result.getEfficiency())).append(" %\n\n");
@@ -4278,7 +4325,7 @@ public class DCResultsPanel extends JPanel {
         sb.append("CORRIENTES POR RAMA:\n");
         double[] branchCurrents = result.getBranchCurrents();
         for (int i = 0; i < branchCurrents.length; i++) {
-            String direction = branchCurrents[i] >= 0 ? "→" : "←";
+            String direction = branchCurrents[i] >= 0 ? "↓" : "↑";
             sb.append(String.format("• Rama %d: %s %s A\n", 
                 i + 1, direction, df.format(Math.abs(branchCurrents[i]))));
         }
@@ -4293,7 +4340,6 @@ public class DCResultsPanel extends JPanel {
         if (result.isCircuitValid()) {
             sb.append("• ✓ Circuito válido\n");
             sb.append("• ✓ Conservación de energía verificada\n");
-            sb.append("• ✓ Leyes de Kirchhoff satisfechas\n");
         } else {
             sb.append("• ✗ Circuito puede tener problemas\n");
             sb.append("• Verifique conexiones y valores\n");
@@ -4328,10 +4374,7 @@ public class DCResultsPanel extends JPanel {
         );
         
         // Resetear métricas
-        voltageLabel.setText("0.000 V");
-        currentLabel.setText("0.000 A");
-        resistanceLabel.setText("0.000 Ω");
-        powerLabel.setText("0.000 W");
+        clearResults();
     }
 }
 ```
@@ -5536,9 +5579,6 @@ public class RLCSimulator extends JPanel implements SimulationObserver {
 
         // --- INICIO DE MODIFICACIÓN ---
         // Se elimina el panel dcInputPanel
-        // JPanel dcInputPanel = createModernCardPanel("Fuente de Alimentación DC", createDCInputPanel());
-        // panel.add(dcInputPanel);
-        // panel.add(Box.createVerticalStrut(15));
         // --- FIN DE MODIFICACIÓN ---
 
         // Configuración de ramas
@@ -6048,7 +6088,7 @@ public class RLCSimulator extends JPanel implements SimulationObserver {
     // ---
     private void clearDCCircuit() {
         // 1. Crear circuito vacío sin depender de getDCVoltage()
-        currentDCCircuit = new DCCircuit(0.0, "Serie", 0);
+        currentDCCircuit = new DCCircuit(); // Llama al constructor por defecto
         lastDCResult = null;
         
         // 2. Resetear los spinners de la UI
@@ -6073,7 +6113,7 @@ public class RLCSimulator extends JPanel implements SimulationObserver {
     }
 
     // ---
-    // --- MÉTODO MODIFICADO ---
+    // --- MÉTODO ELIMINADO (LÓGICA) ---
     // ---
     private double getDCVoltage() {
         // Este método ya no es llamado por la lógica de simulación,
@@ -6103,6 +6143,9 @@ public class RLCSimulator extends JPanel implements SimulationObserver {
         }
     }
     
+    // ---
+    // --- MÉTODO MODIFICADO ---
+    // ---
     private void updateDCResults(DCSimulationResult result) {
         if (dcDetailedAnalysisArea == null) return;
         
@@ -6112,7 +6155,7 @@ public class RLCSimulator extends JPanel implements SimulationObserver {
         sb.append("Configuración: ").append(result.getCircuitConfiguration()).append("\n\n");
         
         sb.append("--- VERIFICACIÓN DE LEYES ---\n");
-        sb.append("Voltaje Nodal (Va): ").append(df.format(result.getSourceVoltage())).append(" V\n");
+        sb.append("Voltaje Nodal (Va): ").append(df.format(result.getCalculatedVoltage())).append(" V\n");
         sb.append("Corriente Eq. (I_eq): ").append(df.format(result.getTotalCurrent())).append(" A\n");
         sb.append("Resistencia Eq. (R_eq): ").append(df.format(result.getTotalResistance())).append(" Ω\n");
         
