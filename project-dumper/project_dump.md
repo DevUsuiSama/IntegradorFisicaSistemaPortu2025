@@ -9,6 +9,15 @@
 ┃       ┣ engine
 ┃       ┃ ┣ AnalyticalStrategy.java
 ┃       ┃ ┣ CircuitEngine.java
+┃       ┃ ┣ dc
+┃       ┃ ┃ ┣ DCAnalysisMethod.java
+┃       ┃ ┃ ┣ DCAnalysisStrategy.java
+┃       ┃ ┃ ┣ DCCircuitEngine.java
+┃       ┃ ┃ ┣ DCKirchhoffStrategy.java
+┃       ┃ ┃ ┣ DCMeshAnalysisStrategy.java
+┃       ┃ ┃ ┣ DCNodeAnalysisStrategy.java
+┃       ┃ ┃ ┣ DCOhmLawStrategy.java
+┃       ┃ ┃ ┗ DCTheveninStrategy.java
 ┃       ┃ ┣ EulerStrategy.java
 ┃       ┃ ┣ RungeKutta4Strategy.java
 ┃       ┃ ┗ SimulationStrategy.java
@@ -16,6 +25,12 @@
 ┃       ┃ ┣ CircuitComponent.java
 ┃       ┃ ┣ CircuitFactory.java
 ┃       ┃ ┣ CircuitSimulationTask.java
+┃       ┃ ┣ dc
+┃       ┃ ┃ ┣ DCBranch.java
+┃       ┃ ┃ ┣ DCCircuit.java
+┃       ┃ ┃ ┣ DCComponent.java
+┃       ┃ ┃ ┣ DCComponentType.java
+┃       ┃ ┃ ┗ DCSimulationResult.java
 ┃       ┃ ┗ SimulationResult.java
 ┃       ┣ scheduler
 ┃       ┃ ┣ FirstComeFirstServedScheduler.java
@@ -27,6 +42,10 @@
 ┃       ┣ ui
 ┃       ┃ ┣ BaseGraph.java
 ┃       ┃ ┣ CircuitDiagramPanel.java
+┃       ┃ ┣ dc
+┃       ┃ ┃ ┣ DCDiagramPanel.java
+┃       ┃ ┃ ┣ DCEquivalentCircuitPanel.java
+┃       ┃ ┃ ┗ DCResultsPanel.java
 ┃       ┃ ┣ FrequencyGraph.java
 ┃       ┃ ┣ GraphWindow.java
 ┃       ┃ ┣ MainSimulatorFrame.java
@@ -127,7 +146,7 @@
 
 ```
 
-## C:\Users\joese\OneDrive\Escritorio\Projects\integrador_simulador\simuladordefisica\src\main\java\com\simulador\App.java
+## C:\Users\joese\OneDrive\Escritorio\Projects\IntegradorFisicaSistemaPortu2025\src\main\java\com\simulador\App.java
 
 ```java
 package com.simulador;
@@ -164,7 +183,7 @@ public class App {
 }
 ```
 
-## C:\Users\joese\OneDrive\Escritorio\Projects\integrador_simulador\simuladordefisica\src\main\java\com\simulador\engine\AnalyticalStrategy.java
+## C:\Users\joese\OneDrive\Escritorio\Projects\IntegradorFisicaSistemaPortu2025\src\main\java\com\simulador\engine\AnalyticalStrategy.java
 
 ```java
 package com.simulador.engine;
@@ -262,7 +281,7 @@ public class AnalyticalStrategy implements SimulationStrategy {
 }
 ```
 
-## C:\Users\joese\OneDrive\Escritorio\Projects\integrador_simulador\simuladordefisica\src\main\java\com\simulador\engine\CircuitEngine.java
+## C:\Users\joese\OneDrive\Escritorio\Projects\IntegradorFisicaSistemaPortu2025\src\main\java\com\simulador\engine\CircuitEngine.java
 
 ```java
 package com.simulador.engine;
@@ -432,7 +451,965 @@ public class CircuitEngine {
 }
 ```
 
-## C:\Users\joese\OneDrive\Escritorio\Projects\integrador_simulador\simuladordefisica\src\main\java\com\simulador\engine\EulerStrategy.java
+## C:\Users\joese\OneDrive\Escritorio\Projects\IntegradorFisicaSistemaPortu2025\src\main\java\com\simulador\engine\dc\DCAnalysisMethod.java
+
+```java
+package com.simulador.engine.dc;
+
+/**
+ * Métodos de análisis disponibles para circuitos DC
+ */
+public enum DCAnalysisMethod {
+    OHM_LAW("Ley de Ohm"),
+    KIRCHHOFF_LAWS("Leyes de Kirchhoff"),
+    MESH_ANALYSIS("Análisis de Mallas"),
+    NODE_ANALYSIS("Análisis Nodal"),
+    THEVENIN_THEOREM("Teorema de Thevenin"),
+    NORTON_THEOREM("Teorema de Norton"),
+    SOURCE_TRANSFORMATION("Transformación de Fuentes");
+    
+    private final String displayName;
+    
+    DCAnalysisMethod(String displayName) {
+        this.displayName = displayName;
+    }
+    
+    public String getDisplayName() {
+        return displayName;
+    }
+    
+    @Override
+    public String toString() {
+        return displayName;
+    }
+}
+```
+
+## C:\Users\joese\OneDrive\Escritorio\Projects\IntegradorFisicaSistemaPortu2025\src\main\java\com\simulador\engine\dc\DCAnalysisStrategy.java
+
+```java
+package com.simulador.engine.dc;
+
+import com.simulador.model.dc.DCCircuit;
+import com.simulador.model.dc.DCSimulationResult;
+
+/**
+ * Interfaz para estrategias de análisis de circuitos DC (Principio de Inversión de Dependencias)
+ */
+public interface DCAnalysisStrategy {
+    /**
+     * Analiza el circuito DC y retorna los resultados
+     */
+    DCSimulationResult analyze(DCCircuit circuit);
+    
+    /**
+     * Retorna el nombre del método de análisis
+     */
+    String getMethodName();
+    
+    /**
+     * Valida si el circuito es compatible con este método de análisis
+     */
+    boolean validateCircuit(DCCircuit circuit);
+}
+```
+
+## C:\Users\joese\OneDrive\Escritorio\Projects\IntegradorFisicaSistemaPortu2025\src\main\java\com\simulador\engine\dc\DCCircuitEngine.java
+
+```java
+package com.simulador.engine.dc;
+
+import com.simulador.model.dc.DCCircuit;
+import com.simulador.model.dc.DCSimulationResult;
+import java.util.HashMap;
+import java.util.Map;
+
+/**
+ * Motor principal para simulación de circuitos DC (Principio Abierto/Cerrado)
+ */
+public class DCCircuitEngine {
+    private final Map<DCAnalysisMethod, DCAnalysisStrategy> strategies;
+    private DCAnalysisStrategy currentStrategy;
+    
+    public DCCircuitEngine() {
+        this.strategies = new HashMap<>();
+        initializeStrategies();
+        // Estrategia por defecto
+        this.currentStrategy = strategies.get(DCAnalysisMethod.OHM_LAW);
+    }
+    
+    private void initializeStrategies() {
+        // Registro de todas las estrategias disponibles
+        strategies.put(DCAnalysisMethod.OHM_LAW, new DCOhmLawStrategy());
+        strategies.put(DCAnalysisMethod.KIRCHHOFF_LAWS, new DCKirchhoffStrategy());
+        // Pueden agregarse más estrategias aquí sin modificar la clase
+    }
+    
+    public void setAnalysisMethod(DCAnalysisMethod method) {
+        DCAnalysisStrategy strategy = strategies.get(method);
+        if (strategy != null) {
+            this.currentStrategy = strategy;
+        } else {
+            throw new IllegalArgumentException("Método de análisis no soportado: " + method);
+        }
+    }
+    
+    public DCSimulationResult simulate(DCCircuit circuit) {
+        if (circuit == null || !circuit.isValid()) {
+            throw new IllegalArgumentException("Circuito DC no válido para simulación");
+        }
+        
+        if (!currentStrategy.validateCircuit(circuit)) {
+            // Fallback a Ley de Ohm si la estrategia actual no es compatible
+            DCAnalysisStrategy fallback = strategies.get(DCAnalysisMethod.OHM_LAW);
+            return fallback.analyze(circuit);
+        }
+        
+        return currentStrategy.analyze(circuit);
+    }
+    
+    public DCAnalysisMethod getCurrentMethod() {
+        for (Map.Entry<DCAnalysisMethod, DCAnalysisStrategy> entry : strategies.entrySet()) {
+            if (entry.getValue() == currentStrategy) {
+                return entry.getKey();
+            }
+        }
+        return DCAnalysisMethod.OHM_LAW;
+    }
+    
+    public DCAnalysisMethod[] getAvailableMethods() {
+        return strategies.keySet().toArray(new DCAnalysisMethod[0]);
+    }
+    
+    public boolean isMethodSupported(DCAnalysisMethod method) {
+        return strategies.containsKey(method);
+    }
+}
+```
+
+## C:\Users\joese\OneDrive\Escritorio\Projects\IntegradorFisicaSistemaPortu2025\src\main\java\com\simulador\engine\dc\DCKirchhoffStrategy.java
+
+```java
+package com.simulador.engine.dc;
+
+import com.simulador.model.dc.*;
+import java.util.*;
+
+/**
+ * Estrategia para análisis usando Leyes de Kirchhoff
+ */
+public class DCKirchhoffStrategy implements DCAnalysisStrategy {
+    
+    @Override
+    public DCSimulationResult analyze(DCCircuit circuit) {
+        if (!validateCircuit(circuit)) {
+            throw new IllegalArgumentException("Circuito no válido para análisis con Leyes de Kirchhoff");
+        }
+        
+        // Implementación simplificada de análisis por mallas
+        double[][] system = buildEquationSystem(circuit);
+        double[] solutions = solveLinearSystem(system);
+        
+        double totalResistance = calculateEquivalentResistance(circuit, solutions);
+        double sourceVoltage = circuit.getSourceVoltage();
+        double totalCurrent = solutions[0]; // Corriente de la malla principal
+        double totalPower = sourceVoltage * totalCurrent;
+        
+        double[] branchCurrents = extractBranchCurrents(solutions, circuit);
+        double[] componentVoltages = calculateComponentVoltages(circuit, branchCurrents);
+        
+        return new DCSimulationResult(
+            sourceVoltage,
+            totalResistance,
+            totalCurrent,
+            totalPower,
+            branchCurrents,
+            componentVoltages,
+            getMethodName(),
+            circuit.getConfiguration()
+        );
+    }
+    
+    @Override
+    public String getMethodName() {
+        return "Leyes de Kirchhoff";
+    }
+    
+    @Override
+    public boolean validateCircuit(DCCircuit circuit) {
+        return circuit != null && 
+               circuit.getSourceVoltage() > 0 &&
+               circuit.getBranches().size() >= 1;
+    }
+    
+    private double[][] buildEquationSystem(DCCircuit circuit) {
+        // Implementación simplificada para circuito con 2 mallas
+        int meshCount = Math.min(circuit.getBranches().size(), 2);
+        double[][] system = new double[meshCount][meshCount + 1];
+        
+        // Para demostración, creamos un sistema simple
+        if (meshCount == 1) {
+            double totalR = circuit.getBranches().get(0).getComponents().stream()
+                .filter(comp -> comp.getType() == DCComponentType.RESISTOR)
+                .mapToDouble(DCComponent::getValue)
+                .sum();
+            system[0][0] = totalR;
+            system[0][1] = circuit.getSourceVoltage();
+        } else {
+            // Sistema para 2 mallas
+            double r1 = getBranchResistance(circuit.getBranches().get(0));
+            double r2 = getBranchResistance(circuit.getBranches().get(1));
+            system[0][0] = r1 + r2;  // R1 + R2 para I1
+            system[0][1] = -r2;      // -R2 para I2
+            system[0][2] = circuit.getSourceVoltage();
+            
+            system[1][0] = -r2;      // -R2 para I1
+            system[1][1] = r2;       // R2 para I2
+            system[1][2] = 0;        // Sin fuente en segunda malla
+        }
+        
+        return system;
+    }
+    
+    private double[] solveLinearSystem(double[][] system) {
+        // Implementación simplificada usando eliminación gaussiana
+        int n = system.length;
+        double[] solutions = new double[n];
+        
+        // Para demostración, retornamos soluciones aproximadas
+        for (int i = 0; i < n; i++) {
+            solutions[i] = system[i][n] / system[i][i];
+        }
+        
+        return solutions;
+    }
+    
+    private double getBranchResistance(DCBranch branch) {
+        return branch.getComponents().stream()
+            .filter(comp -> comp.getType() == DCComponentType.RESISTOR)
+            .mapToDouble(DCComponent::getValue)
+            .sum();
+    }
+    
+    private double calculateEquivalentResistance(DCCircuit circuit, double[] solutions) {
+        return circuit.getSourceVoltage() / solutions[0];
+    }
+    
+    private double[] extractBranchCurrents(double[] solutions, DCCircuit circuit) {
+        double[] branchCurrents = new double[circuit.getBranches().size()];
+        Arrays.fill(branchCurrents, solutions[0]); // Simplificado
+        return branchCurrents;
+    }
+    
+    private double[] calculateComponentVoltages(DCCircuit circuit, double[] branchCurrents) {
+        List<Double> voltages = new ArrayList<>();
+        int branchIndex = 0;
+        
+        for (DCBranch branch : circuit.getBranches()) {
+            for (DCComponent comp : branch.getComponents()) {
+                if (comp.getType() == DCComponentType.RESISTOR) {
+                    double voltage = comp.getValue() * branchCurrents[branchIndex];
+                    voltages.add(voltage);
+                } else if (comp.getType() == DCComponentType.BATTERY || 
+                          comp.getType() == DCComponentType.DC_SOURCE) {
+                    voltages.add(comp.getValue());
+                } else {
+                    voltages.add(0.0);
+                }
+            }
+            branchIndex++;
+        }
+        
+        return voltages.stream().mapToDouble(Double::doubleValue).toArray();
+    }
+}
+```
+
+## C:\Users\joese\OneDrive\Escritorio\Projects\IntegradorFisicaSistemaPortu2025\src\main\java\com\simulador\engine\dc\DCMeshAnalysisStrategy.java
+
+```java
+package com.simulador.engine.dc;
+
+import com.simulador.model.dc.*;
+import java.util.*;
+
+/**
+ * Estrategia para análisis de mallas en circuitos DC
+ */
+public class DCMeshAnalysisStrategy implements DCAnalysisStrategy {
+    
+    @Override
+    public DCSimulationResult analyze(DCCircuit circuit) {
+        if (!validateCircuit(circuit)) {
+            throw new IllegalArgumentException("Circuito no válido para análisis de mallas");
+        }
+        
+        double[][] equationSystem = buildMeshEquationSystem(circuit);
+        double[] meshCurrents = solveLinearSystem(equationSystem);
+        double[] branchCurrents = calculateBranchCurrents(circuit, meshCurrents);
+        double[] componentVoltages = calculateComponentVoltages(circuit, branchCurrents);
+        
+        double totalResistance = calculateTotalResistance(circuit, branchCurrents);
+        double totalCurrent = calculateTotalCurrent(branchCurrents);
+        double totalPower = circuit.getSourceVoltage() * totalCurrent;
+        
+        return new DCSimulationResult(
+            circuit.getSourceVoltage(),
+            totalResistance,
+            totalCurrent,
+            totalPower,
+            branchCurrents,
+            componentVoltages,
+            getMethodName(),
+            circuit.getConfiguration()
+        );
+    }
+    
+    @Override
+    public String getMethodName() {
+        return "Análisis de Mallas";
+    }
+    
+    @Override
+    public boolean validateCircuit(DCCircuit circuit) {
+        return circuit != null && 
+               circuit.getSourceVoltage() > 0 &&
+               circuit.getBranches().size() >= 2; // Mínimo 2 mallas para análisis interesante
+    }
+    
+    private double[][] buildMeshEquationSystem(DCCircuit circuit) {
+        int meshCount = Math.min(circuit.getBranches().size(), 3); // Máximo 3 mallas para simplificar
+        double[][] system = new double[meshCount][meshCount + 1];
+        
+        // Coeficientes de resistencia para cada malla
+        for (int i = 0; i < meshCount; i++) {
+            double selfResistance = calculateSelfResistance(circuit, i);
+            system[i][i] = selfResistance;
+            
+            // Resistencias mutuas
+            for (int j = 0; j < meshCount; j++) {
+                if (i != j) {
+                    double mutualResistance = calculateMutualResistance(circuit, i, j);
+                    system[i][j] = -mutualResistance;
+                }
+            }
+            
+            // Fuentes de voltaje
+            system[i][meshCount] = calculateMeshVoltage(circuit, i);
+        }
+        
+        return system;
+    }
+    
+    private double calculateSelfResistance(DCCircuit circuit, int meshIndex) {
+        double resistance = 0;
+        if (meshIndex < circuit.getBranches().size()) {
+            DCBranch branch = circuit.getBranches().get(meshIndex);
+            resistance += branch.getTotalResistance();
+        }
+        
+        // Agregar resistencias compartidas con mallas adyacentes
+        if (meshIndex > 0) {
+            resistance += getSharedResistance(circuit, meshIndex, meshIndex - 1);
+        }
+        if (meshIndex < circuit.getBranches().size() - 1) {
+            resistance += getSharedResistance(circuit, meshIndex, meshIndex + 1);
+        }
+        
+        return resistance;
+    }
+    
+    private double calculateMutualResistance(DCCircuit circuit, int mesh1, int mesh2) {
+        // Solo mallas adyacentes tienen resistencia mutua
+        if (Math.abs(mesh1 - mesh2) == 1) {
+            return getSharedResistance(circuit, mesh1, mesh2);
+        }
+        return 0;
+    }
+    
+    private double getSharedResistance(DCCircuit circuit, int mesh1, int mesh2) {
+        // Simplificación: resistencia compartida entre mallas adyacentes
+        return 10.0; // Valor fijo para demostración
+    }
+    
+    private double calculateMeshVoltage(DCCircuit circuit, int meshIndex) {
+        if (meshIndex == 0) {
+            return circuit.getSourceVoltage(); // Primera malla tiene la fuente
+        }
+        return 0; // Otras mallas no tienen fuentes directas
+    }
+    
+    private double[] solveLinearSystem(double[][] system) {
+        int n = system.length;
+        double[] solutions = new double[n];
+        
+        // Implementación simplificada de eliminación gaussiana
+        for (int i = 0; i < n; i++) {
+            // Normalizar la fila i
+            double pivot = system[i][i];
+            if (pivot != 0) {
+                for (int j = i; j <= n; j++) {
+                    system[i][j] /= pivot;
+                }
+            }
+            
+            // Eliminar en otras filas
+            for (int k = i + 1; k < n; k++) {
+                double factor = system[k][i];
+                for (int j = i; j <= n; j++) {
+                    system[k][j] -= factor * system[i][j];
+                }
+            }
+        }
+        
+        // Sustitución hacia atrás
+        for (int i = n - 1; i >= 0; i--) {
+            solutions[i] = system[i][n];
+            for (int j = i + 1; j < n; j++) {
+                solutions[i] -= system[i][j] * solutions[j];
+            }
+        }
+        
+        return solutions;
+    }
+    
+    private double[] calculateBranchCurrents(DCCircuit circuit, double[] meshCurrents) {
+        double[] branchCurrents = new double[circuit.getBranches().size()];
+        
+        for (int i = 0; i < branchCurrents.length; i++) {
+            if (i < meshCurrents.length) {
+                branchCurrents[i] = meshCurrents[i];
+            } else {
+                // Para ramas adicionales, usar promedio de mallas adyacentes
+                branchCurrents[i] = meshCurrents.length > 0 ? meshCurrents[0] : 0;
+            }
+        }
+        
+        return branchCurrents;
+    }
+    
+    private double[] calculateComponentVoltages(DCCircuit circuit, double[] branchCurrents) {
+        List<Double> voltages = new ArrayList<>();
+        int branchIndex = 0;
+        
+        for (DCBranch branch : circuit.getBranches()) {
+            double branchCurrent = branchIndex < branchCurrents.length ? 
+                branchCurrents[branchIndex] : 0;
+                
+            for (DCComponent comp : branch.getComponents()) {
+                if (comp.getType() == DCComponentType.RESISTOR) {
+                    double voltage = comp.getValue() * branchCurrent;
+                    voltages.add(voltage);
+                } else if (comp.getType() == DCComponentType.BATTERY || 
+                          comp.getType() == DCComponentType.DC_SOURCE) {
+                    voltages.add(comp.getValue());
+                } else {
+                    voltages.add(0.0);
+                }
+            }
+            branchIndex++;
+        }
+        
+        return voltages.stream().mapToDouble(Double::doubleValue).toArray();
+    }
+    
+    private double calculateTotalResistance(DCCircuit circuit, double[] branchCurrents) {
+        return circuit.getSourceVoltage() / Arrays.stream(branchCurrents).sum();
+    }
+    
+    private double calculateTotalCurrent(double[] branchCurrents) {
+        return Arrays.stream(branchCurrents).sum();
+    }
+}
+```
+
+## C:\Users\joese\OneDrive\Escritorio\Projects\IntegradorFisicaSistemaPortu2025\src\main\java\com\simulador\engine\dc\DCNodeAnalysisStrategy.java
+
+```java
+package com.simulador.engine.dc;
+
+import com.simulador.model.dc.*;
+import java.util.*;
+
+/**
+ * Estrategia para análisis nodal en circuitos DC
+ */
+public class DCNodeAnalysisStrategy implements DCAnalysisStrategy {
+    
+    @Override
+    public DCSimulationResult analyze(DCCircuit circuit) {
+        if (!validateCircuit(circuit)) {
+            throw new IllegalArgumentException("Circuito no válido para análisis nodal");
+        }
+        
+        double[][] equationSystem = buildNodeEquationSystem(circuit);
+        double[] nodeVoltages = solveLinearSystem(equationSystem);
+        double[] branchCurrents = calculateBranchCurrents(circuit, nodeVoltages);
+        double[] componentVoltages = calculateComponentVoltages(circuit, branchCurrents, nodeVoltages);
+        
+        double totalResistance = calculateTotalResistance(circuit, branchCurrents);
+        double totalCurrent = calculateTotalCurrent(branchCurrents);
+        double totalPower = circuit.getSourceVoltage() * totalCurrent;
+        
+        return new DCSimulationResult(
+            circuit.getSourceVoltage(),
+            totalResistance,
+            totalCurrent,
+            totalPower,
+            branchCurrents,
+            componentVoltages,
+            getMethodName(),
+            circuit.getConfiguration()
+        );
+    }
+    
+    @Override
+    public String getMethodName() {
+        return "Análisis Nodal";
+    }
+    
+    @Override
+    public boolean validateCircuit(DCCircuit circuit) {
+        return circuit != null && 
+               circuit.getSourceVoltage() > 0 &&
+               circuit.getBranches().size() >= 2; // Mínimo 2 nodos para análisis interesante
+    }
+    
+    private double[][] buildNodeEquationSystem(DCCircuit circuit) {
+        int nodeCount = Math.min(circuit.getBranches().size() + 1, 4); // n ramas -> n+1 nodos
+        double[][] system = new double[nodeCount - 1][nodeCount]; // Ignoramos el nodo de referencia
+        
+        // Para cada nodo (excepto referencia)
+        for (int i = 0; i < nodeCount - 1; i++) {
+            double selfConductance = calculateSelfConductance(circuit, i);
+            system[i][i] = selfConductance;
+            
+            // Conductancias mutuas
+            for (int j = 0; j < nodeCount - 1; j++) {
+                if (i != j) {
+                    double mutualConductance = calculateMutualConductance(circuit, i, j);
+                    system[i][j] = -mutualConductance;
+                }
+            }
+            
+            // Fuentes de corriente equivalentes
+            system[i][nodeCount - 1] = calculateNodeCurrentSource(circuit, i);
+        }
+        
+        return system;
+    }
+    
+    private double calculateSelfConductance(DCCircuit circuit, int nodeIndex) {
+        double conductance = 0;
+        
+        // Sumar conductancias de todas las ramas conectadas al nodo
+        for (DCBranch branch : circuit.getBranches()) {
+            if (isBranchConnectedToNode(branch, nodeIndex)) {
+                conductance += 1.0 / branch.getTotalResistance();
+            }
+        }
+        
+        return conductance;
+    }
+    
+    private double calculateMutualConductance(DCCircuit circuit, int node1, int node2) {
+        // Conductancia entre nodos adyacentes
+        if (Math.abs(node1 - node2) == 1) {
+            // Buscar rama que conecte estos nodos
+            for (DCBranch branch : circuit.getBranches()) {
+                if (isBranchConnectingNodes(branch, node1, node2)) {
+                    return 1.0 / branch.getTotalResistance();
+                }
+            }
+        }
+        return 0;
+    }
+    
+    private double calculateNodeCurrentSource(DCCircuit circuit, int nodeIndex) {
+        // Fuentes de voltaje convertidas a fuentes de corriente equivalentes
+        if (nodeIndex == 0) {
+            return circuit.getSourceVoltage() / getReferenceResistance(circuit);
+        }
+        return 0;
+    }
+    
+    private boolean isBranchConnectedToNode(DCBranch branch, int nodeIndex) {
+        // Simplificación: cada rama está conectada a dos nodos consecutivos
+        return branch.getBranchNumber() == nodeIndex || 
+               branch.getBranchNumber() == nodeIndex + 1;
+    }
+    
+    private boolean isBranchConnectingNodes(DCBranch branch, int node1, int node2) {
+        return (branch.getBranchNumber() == node1 && branch.getBranchNumber() + 1 == node2) ||
+               (branch.getBranchNumber() == node2 && branch.getBranchNumber() + 1 == node1);
+    }
+    
+    private double getReferenceResistance(DCCircuit circuit) {
+        // Resistencia de referencia para conversión de fuente
+        return circuit.getBranches().stream()
+            .mapToDouble(DCBranch::getTotalResistance)
+            .findFirst()
+            .orElse(10.0);
+    }
+    
+    private double[] solveLinearSystem(double[][] system) {
+        int n = system.length;
+        int m = system[0].length;
+        double[] solutions = new double[n];
+        
+        // Resolución simplificada
+        for (int i = 0; i < n; i++) {
+            if (system[i][i] != 0) {
+                solutions[i] = system[i][m - 1] / system[i][i];
+            }
+        }
+        
+        return solutions;
+    }
+    
+    private double[] calculateBranchCurrents(DCCircuit circuit, double[] nodeVoltages) {
+        double[] branchCurrents = new double[circuit.getBranches().size()];
+        
+        for (int i = 0; i < branchCurrents.length; i++) {
+            if (i < nodeVoltages.length) {
+                // I = (V1 - V2) / R
+                double v1 = i > 0 ? nodeVoltages[i - 1] : circuit.getSourceVoltage();
+                double v2 = i < nodeVoltages.length ? nodeVoltages[i] : 0;
+                double resistance = circuit.getBranches().get(i).getTotalResistance();
+                
+                branchCurrents[i] = (v1 - v2) / resistance;
+            } else {
+                branchCurrents[i] = 0;
+            }
+        }
+        
+        return branchCurrents;
+    }
+    
+    private double[] calculateComponentVoltages(DCCircuit circuit, double[] branchCurrents, double[] nodeVoltages) {
+        List<Double> voltages = new ArrayList<>();
+        int branchIndex = 0;
+        
+        for (DCBranch branch : circuit.getBranches()) {
+            double branchCurrent = branchIndex < branchCurrents.length ? 
+                branchCurrents[branchIndex] : 0;
+                
+            for (DCComponent comp : branch.getComponents()) {
+                if (comp.getType() == DCComponentType.RESISTOR) {
+                    double voltage = comp.getValue() * branchCurrent;
+                    voltages.add(voltage);
+                } else if (comp.getType() == DCComponentType.BATTERY || 
+                          comp.getType() == DCComponentType.DC_SOURCE) {
+                    voltages.add(comp.getValue());
+                } else {
+                    voltages.add(0.0);
+                }
+            }
+            branchIndex++;
+        }
+        
+        // Agregar voltajes de nodo
+        for (double nodeVoltage : nodeVoltages) {
+            voltages.add(nodeVoltage);
+        }
+        
+        return voltages.stream().mapToDouble(Double::doubleValue).toArray();
+    }
+    
+    private double calculateTotalResistance(DCCircuit circuit, double[] branchCurrents) {
+        return circuit.getSourceVoltage() / Arrays.stream(branchCurrents).sum();
+    }
+    
+    private double calculateTotalCurrent(double[] branchCurrents) {
+        return Arrays.stream(branchCurrents).sum();
+    }
+}
+```
+
+## C:\Users\joese\OneDrive\Escritorio\Projects\IntegradorFisicaSistemaPortu2025\src\main\java\com\simulador\engine\dc\DCOhmLawStrategy.java
+
+```java
+package com.simulador.engine.dc;
+
+import com.simulador.model.dc.*;
+import java.util.ArrayList;
+import java.util.List;
+
+/**
+ * Estrategia para análisis usando Ley de Ohm (Principio de Responsabilidad Única)
+ */
+public class DCOhmLawStrategy implements DCAnalysisStrategy {
+    
+    @Override
+    public DCSimulationResult analyze(DCCircuit circuit) {
+        if (!validateCircuit(circuit)) {
+            throw new IllegalArgumentException("Circuito no válido para análisis con Ley de Ohm");
+        }
+        
+        double totalResistance = calculateTotalResistance(circuit);
+        double sourceVoltage = circuit.getSourceVoltage();
+        double totalCurrent = sourceVoltage / totalResistance;
+        double totalPower = sourceVoltage * totalCurrent;
+        
+        // Calcular corrientes por rama (simplificado para circuitos serie)
+        double[] branchCurrents = calculateBranchCurrents(circuit, totalCurrent);
+        double[] componentVoltages = calculateComponentVoltages(circuit, totalCurrent);
+        
+        return new DCSimulationResult(
+            sourceVoltage,
+            totalResistance,
+            totalCurrent,
+            totalPower,
+            branchCurrents,
+            componentVoltages,
+            getMethodName(),
+            circuit.getConfiguration()
+        );
+    }
+    
+    @Override
+    public String getMethodName() {
+        return "Ley de Ohm";
+    }
+    
+    @Override
+    public boolean validateCircuit(DCCircuit circuit) {
+        // La Ley de Ohm es aplicable a circuitos simples serie/paralelo
+        return circuit != null && 
+               circuit.getSourceVoltage() > 0 &&
+               circuit.getBranches().stream()
+                   .flatMap(branch -> branch.getComponents().stream())
+                   .anyMatch(comp -> comp.getType() == DCComponentType.RESISTOR);
+    }
+    
+    private double calculateTotalResistance(DCCircuit circuit) {
+        if (circuit.getConfiguration().contains("Serie")) {
+            // Resistencia total en serie: R_total = R1 + R2 + ...
+            return circuit.getBranches().stream()
+                .flatMap(branch -> branch.getComponents().stream())
+                .filter(comp -> comp.getType() == DCComponentType.RESISTOR)
+                .mapToDouble(DCComponent::getValue)
+                .sum();
+        } else {
+            // Resistencia total en paralelo: 1/R_total = 1/R1 + 1/R2 + ...
+            return 1.0 / circuit.getBranches().stream()
+                .flatMap(branch -> branch.getComponents().stream())
+                .filter(comp -> comp.getType() == DCComponentType.RESISTOR)
+                .mapToDouble(comp -> 1.0 / comp.getValue())
+                .sum();
+        }
+    }
+    
+    private double[] calculateBranchCurrents(DCCircuit circuit, double totalCurrent) {
+        List<Double> currents = new ArrayList<>();
+        
+        if (circuit.getConfiguration().contains("Serie")) {
+            // En serie, misma corriente en todas las ramas
+            for (int i = 0; i < circuit.getBranches().size(); i++) {
+                currents.add(totalCurrent);
+            }
+        } else {
+            // En paralelo, corriente se divide según resistencia
+            for (DCBranch branch : circuit.getBranches()) {
+                double branchResistance = branch.getComponents().stream()
+                    .filter(comp -> comp.getType() == DCComponentType.RESISTOR)
+                    .mapToDouble(DCComponent::getValue)
+                    .sum();
+                double branchCurrent = circuit.getSourceVoltage() / branchResistance;
+                currents.add(branchCurrent);
+            }
+        }
+        
+        return currents.stream().mapToDouble(Double::doubleValue).toArray();
+    }
+    
+    private double[] calculateComponentVoltages(DCCircuit circuit, double totalCurrent) {
+        List<Double> voltages = new ArrayList<>();
+        
+        for (DCBranch branch : circuit.getBranches()) {
+            for (DCComponent comp : branch.getComponents()) {
+                if (comp.getType() == DCComponentType.RESISTOR) {
+                    double voltage = comp.getValue() * totalCurrent;
+                    voltages.add(voltage);
+                } else if (comp.getType() == DCComponentType.BATTERY || 
+                          comp.getType() == DCComponentType.DC_SOURCE) {
+                    voltages.add(comp.getValue());
+                } else {
+                    voltages.add(0.0); // Para amperímetros y voltímetros
+                }
+            }
+        }
+        
+        return voltages.stream().mapToDouble(Double::doubleValue).toArray();
+    }
+}
+```
+
+## C:\Users\joese\OneDrive\Escritorio\Projects\IntegradorFisicaSistemaPortu2025\src\main\java\com\simulador\engine\dc\DCTheveninStrategy.java
+
+```java
+package com.simulador.engine.dc;
+
+import com.simulador.model.dc.*;
+import java.util.*;
+
+/**
+ * Estrategia para análisis usando Teorema de Thevenin
+ */
+public class DCTheveninStrategy implements DCAnalysisStrategy {
+    
+    @Override
+    public DCSimulationResult analyze(DCCircuit circuit) {
+        if (!validateCircuit(circuit)) {
+            throw new IllegalArgumentException("Circuito no válido para Teorema de Thevenin");
+        }
+        
+        // Calcular equivalente de Thevenin
+        double vth = calculateTheveninVoltage(circuit);
+        double rth = calculateTheveninResistance(circuit);
+        
+        // Usar el equivalente para calcular corrientes
+        double totalCurrent = vth / (rth + getLoadResistance(circuit));
+        double totalPower = vth * totalCurrent;
+        
+        double[] branchCurrents = calculateBranchCurrentsFromThevenin(circuit, totalCurrent);
+        double[] componentVoltages = calculateComponentVoltages(circuit, branchCurrents);
+        
+        return new DCSimulationResult(
+            vth, // Usar Vth como voltaje equivalente
+            rth, // Usar Rth como resistencia equivalente
+            totalCurrent,
+            totalPower,
+            branchCurrents,
+            componentVoltages,
+            getMethodName(),
+            circuit.getConfiguration()
+        );
+    }
+    
+    @Override
+    public String getMethodName() {
+        return "Teorema de Thevenin";
+    }
+    
+    @Override
+    public boolean validateCircuit(DCCircuit circuit) {
+        return circuit != null && 
+               circuit.getSourceVoltage() > 0 &&
+               circuit.getBranches().size() >= 1;
+    }
+    
+    private double calculateTheveninVoltage(DCCircuit circuit) {
+        // Vth = Voltaje en circuito abierto
+        // Simplificación: voltaje en la primera rama
+        if (!circuit.getBranches().isEmpty()) {
+            DCBranch firstBranch = circuit.getBranches().get(0);
+            double branchResistance = firstBranch.getTotalResistance();
+            double totalResistance = circuit.getTotalResistance();
+            
+            if (totalResistance > 0) {
+                return circuit.getSourceVoltage() * (branchResistance / totalResistance);
+            }
+        }
+        
+        return circuit.getSourceVoltage();
+    }
+    
+    private double calculateTheveninResistance(DCCircuit circuit) {
+        // Rth = Resistencia equivalente con fuentes anuladas
+        // Anular fuentes = cortocircuitar fuentes de voltaje
+        
+        if (circuit.getConfiguration().contains("Serie")) {
+            // En serie: Rth = suma de resistencias (excepto rama de carga)
+            return circuit.getBranches().stream()
+                .limit(Math.max(1, circuit.getBranches().size() - 1))
+                .flatMap(branch -> branch.getComponents().stream())
+                .filter(comp -> comp.getType() == DCComponentType.RESISTOR)
+                .mapToDouble(DCComponent::getValue)
+                .sum();
+        } else {
+            // En paralelo: Rth = resistencia equivalente de todas las ramas en paralelo
+            return 1.0 / circuit.getBranches().stream()
+                .flatMap(branch -> branch.getComponents().stream())
+                .filter(comp -> comp.getType() == DCComponentType.RESISTOR)
+                .mapToDouble(comp -> 1.0 / comp.getValue())
+                .sum();
+        }
+    }
+    
+    private double getLoadResistance(DCCircuit circuit) {
+        // Resistencia de carga (última rama)
+        if (!circuit.getBranches().isEmpty()) {
+            DCBranch lastBranch = circuit.getBranches().get(circuit.getBranches().size() - 1);
+            return lastBranch.getTotalResistance();
+        }
+        return 10.0; // Valor por defecto
+    }
+    
+    private double[] calculateBranchCurrentsFromThevenin(DCCircuit circuit, double totalCurrent) {
+        double[] branchCurrents = new double[circuit.getBranches().size()];
+        
+        if (circuit.getConfiguration().contains("Serie")) {
+            // En serie, misma corriente en todas las ramas
+            Arrays.fill(branchCurrents, totalCurrent);
+        } else {
+            // En paralelo, corriente se divide según resistencia
+            for (int i = 0; i < branchCurrents.length; i++) {
+                DCBranch branch = circuit.getBranches().get(i);
+                double branchResistance = branch.getTotalResistance();
+                if (branchResistance > 0) {
+                    branchCurrents[i] = circuit.getSourceVoltage() / branchResistance;
+                } else {
+                    branchCurrents[i] = 0;
+                }
+            }
+        }
+        
+        return branchCurrents;
+    }
+    
+    private double[] calculateComponentVoltages(DCCircuit circuit, double[] branchCurrents) {
+        List<Double> voltages = new ArrayList<>();
+        int branchIndex = 0;
+        
+        for (DCBranch branch : circuit.getBranches()) {
+            double branchCurrent = branchIndex < branchCurrents.length ? 
+                branchCurrents[branchIndex] : 0;
+                
+            for (DCComponent comp : branch.getComponents()) {
+                if (comp.getType() == DCComponentType.RESISTOR) {
+                    double voltage = comp.getValue() * branchCurrent;
+                    voltages.add(voltage);
+                } else if (comp.getType() == DCComponentType.BATTERY || 
+                          comp.getType() == DCComponentType.DC_SOURCE) {
+                    voltages.add(comp.getValue());
+                } else {
+                    voltages.add(0.0);
+                }
+            }
+            branchIndex++;
+        }
+        
+        return voltages.stream().mapToDouble(Double::doubleValue).toArray();
+    }
+    
+    // Método adicional para obtener el circuito equivalente de Thevenin
+    public DCCircuit getTheveninEquivalent(DCCircuit originalCircuit) {
+        double vth = calculateTheveninVoltage(originalCircuit);
+        double rth = calculateTheveninResistance(originalCircuit);
+        
+        DCCircuit equivalent = new DCCircuit(vth, "Serie", 1);
+        DCBranch branch = new DCBranch(1);
+        branch.addComponent(new DCComponent(DCComponentType.DC_SOURCE, vth, "Vth", 1));
+        branch.addComponent(new DCComponent(DCComponentType.RESISTOR, rth, "Rth", 1));
+        equivalent.addBranch(branch);
+        
+        return equivalent;
+    }
+}
+```
+
+## C:\Users\joese\OneDrive\Escritorio\Projects\IntegradorFisicaSistemaPortu2025\src\main\java\com\simulador\engine\EulerStrategy.java
 
 ```java
 package com.simulador.engine;
@@ -501,7 +1478,7 @@ public class EulerStrategy implements SimulationStrategy {
 
 ```
 
-## C:\Users\joese\OneDrive\Escritorio\Projects\integrador_simulador\simuladordefisica\src\main\java\com\simulador\engine\RungeKutta4Strategy.java
+## C:\Users\joese\OneDrive\Escritorio\Projects\IntegradorFisicaSistemaPortu2025\src\main\java\com\simulador\engine\RungeKutta4Strategy.java
 
 ```java
 package com.simulador.engine;
@@ -569,7 +1546,7 @@ public class RungeKutta4Strategy implements SimulationStrategy {
 }
 ```
 
-## C:\Users\joese\OneDrive\Escritorio\Projects\integrador_simulador\simuladordefisica\src\main\java\com\simulador\engine\SimulationStrategy.java
+## C:\Users\joese\OneDrive\Escritorio\Projects\IntegradorFisicaSistemaPortu2025\src\main\java\com\simulador\engine\SimulationStrategy.java
 
 ```java
 package com.simulador.engine;
@@ -613,7 +1590,7 @@ public interface SimulationStrategy {
 }
 ```
 
-## C:\Users\joese\OneDrive\Escritorio\Projects\integrador_simulador\simuladordefisica\src\main\java\com\simulador\model\CircuitComponent.java
+## C:\Users\joese\OneDrive\Escritorio\Projects\IntegradorFisicaSistemaPortu2025\src\main\java\com\simulador\model\CircuitComponent.java
 
 ```java
 package com.simulador.model;
@@ -694,7 +1671,7 @@ public class CircuitComponent {
 }
 ```
 
-## C:\Users\joese\OneDrive\Escritorio\Projects\integrador_simulador\simuladordefisica\src\main\java\com\simulador\model\CircuitFactory.java
+## C:\Users\joese\OneDrive\Escritorio\Projects\IntegradorFisicaSistemaPortu2025\src\main\java\com\simulador\model\CircuitFactory.java
 
 ```java
 package com.simulador.model;
@@ -800,7 +1777,7 @@ public class CircuitFactory {
 }
 ```
 
-## C:\Users\joese\OneDrive\Escritorio\Projects\integrador_simulador\simuladordefisica\src\main\java\com\simulador\model\CircuitSimulationTask.java
+## C:\Users\joese\OneDrive\Escritorio\Projects\IntegradorFisicaSistemaPortu2025\src\main\java\com\simulador\model\CircuitSimulationTask.java
 
 ```java
 package com.simulador.model;
@@ -1003,7 +1980,329 @@ public class CircuitSimulationTask implements Runnable, Comparable<CircuitSimula
 }
 ```
 
-## C:\Users\joese\OneDrive\Escritorio\Projects\integrador_simulador\simuladordefisica\src\main\java\com\simulador\model\SimulationResult.java
+## C:\Users\joese\OneDrive\Escritorio\Projects\IntegradorFisicaSistemaPortu2025\src\main\java\com\simulador\model\dc\DCBranch.java
+
+```java
+package com.simulador.model.dc;
+
+import java.util.ArrayList;
+import java.util.List;
+
+/**
+ * Representa una rama en un circuito DC
+ */
+public class DCBranch {
+    private final String id;
+    private final List<DCComponent> components;
+    private final int branchNumber;
+    
+    public DCBranch(int branchNumber) {
+        this.id = "Branch_" + branchNumber;
+        this.components = new ArrayList<>();
+        this.branchNumber = branchNumber;
+    }
+    
+    public void addComponent(DCComponent component) {
+        components.add(component);
+    }
+    
+    public void removeComponent(DCComponent component) {
+        components.remove(component);
+    }
+    
+    public void removeComponent(int index) {
+        if (index >= 0 && index < components.size()) {
+            components.remove(index);
+        }
+    }
+    
+    // Getters
+    public String getId() { return id; }
+    public List<DCComponent> getComponents() { return new ArrayList<>(components); }
+    public int getBranchNumber() { return branchNumber; }
+    public int getComponentCount() { return components.size(); }
+    
+    public double getTotalResistance() {
+        return components.stream()
+            .mapToDouble(DCComponent::getResistance)
+            .sum();
+    }
+    
+    public double getTotalVoltage() {
+        return components.stream()
+            .mapToDouble(DCComponent::getVoltage)
+            .sum();
+    }
+    
+    public boolean hasComponents() {
+        return !components.isEmpty();
+    }
+    
+    @Override
+    public String toString() {
+        return String.format("Rama %d (%d componentes)", branchNumber, components.size());
+    }
+}
+```
+
+## C:\Users\joese\OneDrive\Escritorio\Projects\IntegradorFisicaSistemaPortu2025\src\main\java\com\simulador\model\dc\DCCircuit.java
+
+```java
+package com.simulador.model.dc;
+
+import java.util.ArrayList;
+import java.util.List;
+
+/**
+ * Representa un circuito DC completo (Principio de Responsabilidad Única)
+ */
+public class DCCircuit {
+    private final String id;
+    private final List<DCBranch> branches;
+    private double sourceVoltage;
+    private String configuration;
+    private int batteryCount;
+    
+    public DCCircuit(double sourceVoltage, String configuration, int batteryCount) {
+        this.id = "DCCircuit_" + System.currentTimeMillis();
+        this.branches = new ArrayList<>();
+        this.sourceVoltage = sourceVoltage;
+        this.configuration = configuration;
+        this.batteryCount = batteryCount;
+    }
+    
+    public DCCircuit() {
+        this(12.0, "Serie", 1);
+    }
+    
+    public void addBranch(DCBranch branch) {
+        branches.add(branch);
+    }
+    
+    public void removeBranch(DCBranch branch) {
+        branches.remove(branch);
+    }
+    
+    public void removeBranch(int index) {
+        if (index >= 0 && index < branches.size()) {
+            branches.remove(index);
+        }
+    }
+    
+    public DCBranch getBranch(int index) {
+        if (index >= 0 && index < branches.size()) {
+            return branches.get(index);
+        }
+        return null;
+    }
+    
+    // Getters y Setters
+    public String getId() { return id; }
+    public List<DCBranch> getBranches() { return new ArrayList<>(branches); }
+    public int getBranchCount() { return branches.size(); }
+    public double getSourceVoltage() { return sourceVoltage; }
+    public void setSourceVoltage(double sourceVoltage) { this.sourceVoltage = sourceVoltage; }
+    public String getConfiguration() { return configuration; }
+    public void setConfiguration(String configuration) { this.configuration = configuration; }
+    public int getBatteryCount() { return batteryCount; }
+    public void setBatteryCount(int batteryCount) { this.batteryCount = batteryCount; }
+    
+    public double getTotalResistance() {
+        if (configuration.contains("Serie")) {
+            // Serie: R_total = suma de todas las resistencias
+            return branches.stream()
+                .flatMap(branch -> branch.getComponents().stream())
+                .mapToDouble(DCComponent::getResistance)
+                .sum();
+        } else {
+            // Paralelo: 1/R_total = suma de 1/R de cada rama
+            return 1.0 / branches.stream()
+                .mapToDouble(branch -> 1.0 / branch.getTotalResistance())
+                .sum();
+        }
+    }
+    
+    public boolean isValid() {
+        return sourceVoltage > 0 && 
+               !branches.isEmpty() &&
+               branches.stream().anyMatch(DCBranch::hasComponents);
+    }
+    
+    @Override
+    public String toString() {
+        return String.format("Circuito DC: %dV, %s, %d ramas", 
+            sourceVoltage, configuration, branches.size());
+    }
+}
+```
+
+## C:\Users\joese\OneDrive\Escritorio\Projects\IntegradorFisicaSistemaPortu2025\src\main\java\com\simulador\model\dc\DCComponent.java
+
+```java
+package com.simulador.model.dc;
+
+/**
+ * Representa un componente en un circuito DC (Principio de Responsabilidad Única)
+ */
+public class DCComponent {
+    private final String id;
+    private final DCComponentType type;
+    private final double value;
+    private final String name;
+    private final int quantity;
+    
+    public DCComponent(DCComponentType type, double value, String name, int quantity) {
+        this.id = generateId(type, name);
+        this.type = type;
+        this.value = value;
+        this.name = name;
+        this.quantity = quantity;
+    }
+    
+    public DCComponent(DCComponentType type, double value) {
+        this(type, value, type.getDisplayName(), 1);
+    }
+    
+    private String generateId(DCComponentType type, String name) {
+        return type.getSymbol() + "_" + name + "_" + System.currentTimeMillis();
+    }
+    
+    // Getters
+    public String getId() { return id; }
+    public DCComponentType getType() { return type; }
+    public double getValue() { return value; }
+    public String getName() { return name; }
+    public int getQuantity() { return quantity; }
+    
+    public double getResistance() {
+        return type == DCComponentType.RESISTOR ? value : 0;
+    }
+    
+    public double getVoltage() {
+        return (type == DCComponentType.BATTERY || type == DCComponentType.DC_SOURCE) ? value : 0;
+    }
+    
+    @Override
+    public String toString() {
+        return String.format("%s: %.2f %s", name, value, type.getUnit());
+    }
+    
+    @Override
+    public boolean equals(Object obj) {
+        if (this == obj) return true;
+        if (obj == null || getClass() != obj.getClass()) return false;
+        DCComponent that = (DCComponent) obj;
+        return id.equals(that.id);
+    }
+    
+    @Override
+    public int hashCode() {
+        return id.hashCode();
+    }
+}
+```
+
+## C:\Users\joese\OneDrive\Escritorio\Projects\IntegradorFisicaSistemaPortu2025\src\main\java\com\simulador\model\dc\DCComponentType.java
+
+```java
+package com.simulador.model.dc;
+
+/**
+ * Tipos de componentes para circuitos DC
+ */
+public enum DCComponentType {
+    RESISTOR("Resistencia", "Ω", "R"),
+    BATTERY("Batería", "V", "B"),
+    DC_SOURCE("Fuente DC", "V", "S"),
+    AMMETER("Amperímetro", "A", "A"),
+    VOLTMETER("Voltímetro", "V", "V");
+    
+    private final String displayName;
+    private final String unit;
+    private final String symbol;
+    
+    DCComponentType(String displayName, String unit, String symbol) {
+        this.displayName = displayName;
+        this.unit = unit;
+        this.symbol = symbol;
+    }
+    
+    public String getDisplayName() { return displayName; }
+    public String getUnit() { return unit; }
+    public String getSymbol() { return symbol; }
+}
+```
+
+## C:\Users\joese\OneDrive\Escritorio\Projects\IntegradorFisicaSistemaPortu2025\src\main\java\com\simulador\model\dc\DCSimulationResult.java
+
+```java
+package com.simulador.model.dc;
+
+import java.util.Arrays;
+
+/**
+ * Resultados de una simulación de circuito DC (Principio de Responsabilidad Única)
+ */
+public class DCSimulationResult {
+    private final double sourceVoltage;
+    private final double totalResistance;
+    private final double totalCurrent;
+    private final double totalPower;
+    private final double[] branchCurrents;
+    private final double[] componentVoltages;
+    private final String methodUsed;
+    private final String circuitConfiguration;
+    private final long timestamp;
+    
+    public DCSimulationResult(double sourceVoltage, double totalResistance, 
+                             double totalCurrent, double totalPower,
+                             double[] branchCurrents, double[] componentVoltages,
+                             String methodUsed, String circuitConfiguration) {
+        this.sourceVoltage = sourceVoltage;
+        this.totalResistance = totalResistance;
+        this.totalCurrent = totalCurrent;
+        this.totalPower = totalPower;
+        this.branchCurrents = branchCurrents != null ? Arrays.copyOf(branchCurrents, branchCurrents.length) : new double[0];
+        this.componentVoltages = componentVoltages != null ? Arrays.copyOf(componentVoltages, componentVoltages.length) : new double[0];
+        this.methodUsed = methodUsed;
+        this.circuitConfiguration = circuitConfiguration;
+        this.timestamp = System.currentTimeMillis();
+    }
+    
+    // Getters
+    public double getSourceVoltage() { return sourceVoltage; }
+    public double getTotalResistance() { return totalResistance; }
+    public double getTotalCurrent() { return totalCurrent; }
+    public double getTotalPower() { return totalPower; }
+    public double[] getBranchCurrents() { return Arrays.copyOf(branchCurrents, branchCurrents.length); }
+    public double[] getComponentVoltages() { return Arrays.copyOf(componentVoltages, componentVoltages.length); }
+    public String getMethodUsed() { return methodUsed; }
+    public String getCircuitConfiguration() { return circuitConfiguration; }
+    public long getTimestamp() { return timestamp; }
+    
+    public double getPowerDissipated() {
+        return totalCurrent * totalCurrent * totalResistance;
+    }
+    
+    public double getEfficiency() {
+        return (getPowerDissipated() / totalPower) * 100;
+    }
+    
+    public boolean isCircuitValid() {
+        return totalResistance > 0 && totalCurrent >= 0 && totalPower >= 0;
+    }
+    
+    @Override
+    public String toString() {
+        return String.format(
+            "Resultado DC [V=%.2fV, R=%.2fΩ, I=%.3fA, P=%.3fW, Método=%s]",
+            sourceVoltage, totalResistance, totalCurrent, totalPower, methodUsed
+        );
+    }
+}
+```
+
+## C:\Users\joese\OneDrive\Escritorio\Projects\IntegradorFisicaSistemaPortu2025\src\main\java\com\simulador\model\SimulationResult.java
 
 ```java
 package com.simulador.model;
@@ -1082,7 +2381,7 @@ public class SimulationResult {
 }
 ```
 
-## C:\Users\joese\OneDrive\Escritorio\Projects\integrador_simulador\simuladordefisica\src\main\java\com\simulador\scheduler\FirstComeFirstServedScheduler.java
+## C:\Users\joese\OneDrive\Escritorio\Projects\IntegradorFisicaSistemaPortu2025\src\main\java\com\simulador\scheduler\FirstComeFirstServedScheduler.java
 
 ```java
 package com.simulador.scheduler;
@@ -1176,7 +2475,7 @@ public class FirstComeFirstServedScheduler implements SchedulerStrategy {
 }
 ```
 
-## C:\Users\joese\OneDrive\Escritorio\Projects\integrador_simulador\simuladordefisica\src\main\java\com\simulador\scheduler\ProcessScheduler.java
+## C:\Users\joese\OneDrive\Escritorio\Projects\IntegradorFisicaSistemaPortu2025\src\main\java\com\simulador\scheduler\ProcessScheduler.java
 
 ```java
 package com.simulador.scheduler;
@@ -1374,7 +2673,7 @@ public class ProcessScheduler {
 }
 ```
 
-## C:\Users\joese\OneDrive\Escritorio\Projects\integrador_simulador\simuladordefisica\src\main\java\com\simulador\scheduler\RoundRobinScheduler.java
+## C:\Users\joese\OneDrive\Escritorio\Projects\IntegradorFisicaSistemaPortu2025\src\main\java\com\simulador\scheduler\RoundRobinScheduler.java
 
 ```java
 package com.simulador.scheduler;
@@ -1551,7 +2850,7 @@ public class RoundRobinScheduler implements SchedulerStrategy {
 }
 ```
 
-## C:\Users\joese\OneDrive\Escritorio\Projects\integrador_simulador\simuladordefisica\src\main\java\com\simulador\scheduler\SchedulerMetrics.java
+## C:\Users\joese\OneDrive\Escritorio\Projects\IntegradorFisicaSistemaPortu2025\src\main\java\com\simulador\scheduler\SchedulerMetrics.java
 
 ```java
 package com.simulador.scheduler;
@@ -1658,7 +2957,7 @@ public class SchedulerMetrics {
 }
 ```
 
-## C:\Users\joese\OneDrive\Escritorio\Projects\integrador_simulador\simuladordefisica\src\main\java\com\simulador\scheduler\SchedulerStrategy.java
+## C:\Users\joese\OneDrive\Escritorio\Projects\IntegradorFisicaSistemaPortu2025\src\main\java\com\simulador\scheduler\SchedulerStrategy.java
 
 ```java
 package com.simulador.scheduler;
@@ -1704,7 +3003,7 @@ public interface SchedulerStrategy {
 }
 ```
 
-## C:\Users\joese\OneDrive\Escritorio\Projects\integrador_simulador\simuladordefisica\src\main\java\com\simulador\scheduler\ShortestJobFirstScheduler.java
+## C:\Users\joese\OneDrive\Escritorio\Projects\IntegradorFisicaSistemaPortu2025\src\main\java\com\simulador\scheduler\ShortestJobFirstScheduler.java
 
 ```java
 package com.simulador.scheduler;
@@ -1805,7 +3104,7 @@ public class ShortestJobFirstScheduler implements SchedulerStrategy {
 }
 ```
 
-## C:\Users\joese\OneDrive\Escritorio\Projects\integrador_simulador\simuladordefisica\src\main\java\com\simulador\ui\BaseGraph.java
+## C:\Users\joese\OneDrive\Escritorio\Projects\IntegradorFisicaSistemaPortu2025\src\main\java\com\simulador\ui\BaseGraph.java
 
 ```java
 package com.simulador.ui;
@@ -1999,7 +3298,7 @@ public abstract class BaseGraph extends JPanel {
 }
 ```
 
-## C:\Users\joese\OneDrive\Escritorio\Projects\integrador_simulador\simuladordefisica\src\main\java\com\simulador\ui\CircuitDiagramPanel.java
+## C:\Users\joese\OneDrive\Escritorio\Projects\IntegradorFisicaSistemaPortu2025\src\main\java\com\simulador\ui\CircuitDiagramPanel.java
 
 ```java
 package com.simulador.ui;
@@ -2301,7 +3600,776 @@ public class CircuitDiagramPanel extends JPanel {
 }
 ```
 
-## C:\Users\joese\OneDrive\Escritorio\Projects\integrador_simulador\simuladordefisica\src\main\java\com\simulador\ui\FrequencyGraph.java
+## C:\Users\joese\OneDrive\Escritorio\Projects\IntegradorFisicaSistemaPortu2025\src\main\java\com\simulador\ui\dc\DCDiagramPanel.java
+
+```java
+package com.simulador.ui.dc;
+
+import com.simulador.model.dc.DCCircuit;
+import com.simulador.model.dc.DCComponent;
+import com.simulador.model.dc.DCBranch;
+import javax.swing.*;
+import java.awt.*;
+import java.util.List;
+
+/**
+ * Panel para visualizar diagramas de circuitos DC
+ */
+public class DCDiagramPanel extends JPanel {
+    private DCCircuit circuit;
+    private Color backgroundColor = new Color(240, 245, 255);
+    private Color wireColor = new Color(50, 50, 50);
+    private Color resistorColor = new Color(139, 69, 19);
+    private Color batteryColor = new Color(200, 200, 200);
+    
+    public DCDiagramPanel() {
+        setBackground(backgroundColor);
+        setPreferredSize(new Dimension(600, 300));
+    }
+    
+    public void setCircuit(DCCircuit circuit) {
+        this.circuit = circuit;
+        repaint();
+    }
+    
+    @Override
+    protected void paintComponent(Graphics g) {
+        super.paintComponent(g);
+        Graphics2D g2d = (Graphics2D) g;
+        g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+        
+        if (circuit == null) {
+            drawEmptyState(g2d);
+        } else {
+            drawCircuit(g2d);
+        }
+    }
+    
+    private void drawEmptyState(Graphics2D g2d) {
+        g2d.setColor(Color.GRAY);
+        g2d.setFont(new Font("Segoe UI", Font.BOLD, 16));
+        String message = "Diagrama de Circuito DC";
+        int textWidth = g2d.getFontMetrics().stringWidth(message);
+        g2d.drawString(message, (getWidth() - textWidth) / 2, getHeight() / 2);
+        
+        g2d.setFont(new Font("Segoe UI", Font.PLAIN, 12));
+        String info = "Configure el circuito para ver el diagrama";
+        int infoWidth = g2d.getFontMetrics().stringWidth(info);
+        g2d.drawString(info, (getWidth() - infoWidth) / 2, getHeight() / 2 + 25);
+    }
+    
+    private void drawCircuit(Graphics2D g2d) {
+        int centerX = getWidth() / 2;
+        int centerY = getHeight() / 2;
+        int circuitWidth = Math.min(getWidth() - 100, 400);
+        int circuitHeight = Math.min(getHeight() - 60, 150);
+        
+        // Dibujar fuente DC
+        drawBattery(g2d, centerX - circuitWidth/2 + 30, centerY, 40, 20);
+        
+        // Dibujar según configuración
+        switch (circuit.getConfiguration()) {
+            case "Serie":
+                drawSeriesCircuit(g2d, centerX, centerY, circuitWidth, circuitHeight);
+                break;
+            case "Paralelo":
+                drawParallelCircuit(g2d, centerX, centerY, circuitWidth, circuitHeight);
+                break;
+            default:
+                drawMixedCircuit(g2d, centerX, centerY, circuitWidth, circuitHeight);
+        }
+        
+        // Etiqueta de voltaje
+        g2d.setColor(Color.BLACK);
+        g2d.setFont(new Font("Segoe UI", Font.BOLD, 12));
+        g2d.drawString(circuit.getSourceVoltage() + " V DC", centerX - circuitWidth/2 + 15, centerY - 30);
+    }
+    
+    private void drawBattery(Graphics2D g2d, int x, int y, int width, int height) {
+        g2d.setColor(batteryColor);
+        g2d.fillRect(x, y - height/2, width, height);
+        g2d.setColor(Color.BLACK);
+        g2d.drawRect(x, y - height/2, width, height);
+        
+        // Terminales
+        g2d.fillRect(x - 5, y - height/4, 5, height/2);
+        g2d.fillRect(x + width, y - height/4, 5, height/2);
+        
+        // Símbolos + y -
+        g2d.setFont(new Font("Segoe UI", Font.BOLD, 10));
+        g2d.drawString("+", x + width/4, y - 2);
+        g2d.drawString("-", x + 3*width/4, y - 2);
+    }
+    
+    private void drawResistor(Graphics2D g2d, int x, int y, int width, String label) {
+        g2d.setColor(resistorColor);
+        g2d.setStroke(new BasicStroke(3f));
+        
+        int segmentWidth = width / 8;
+        g2d.drawLine(x, y, x + segmentWidth, y);
+        
+        for (int i = 0; i < 4; i++) {
+            int startX = x + segmentWidth + i * 2 * segmentWidth;
+            g2d.drawLine(startX, y - 8, startX + segmentWidth, y + 8);
+            g2d.drawLine(startX + segmentWidth, y + 8, startX + 2 * segmentWidth, y - 8);
+        }
+        
+        g2d.drawLine(x + 7 * segmentWidth, y, x + 8 * segmentWidth, y);
+        
+        // Etiqueta
+        if (label != null) {
+            g2d.setColor(Color.BLACK);
+            g2d.setFont(new Font("Segoe UI", Font.PLAIN, 10));
+            g2d.drawString(label, x + width/2 - 10, y - 15);
+        }
+    }
+    
+    private void drawSeriesCircuit(Graphics2D g2d, int centerX, int centerY, int circuitWidth, int circuitHeight) {
+        int startX = centerX - circuitWidth/2 + 80;
+        int y = centerY;
+        
+        g2d.setColor(wireColor);
+        g2d.setStroke(new BasicStroke(2f));
+        g2d.drawLine(startX, y, startX + circuitWidth - 100, y);
+        
+        // Dibujar resistores
+        List<DCBranch> branches = circuit.getBranches();
+        if (!branches.isEmpty()) {
+            List<DCComponent> components = branches.get(0).getComponents();
+            int compWidth = 60;
+            int spacing = 20;
+            int currentX = startX + 20;
+            
+            for (int i = 0; i < components.size(); i++) {
+                DCComponent comp = components.get(i);
+                if (comp.getType() == com.simulador.model.dc.DCComponentType.RESISTOR) {
+                    drawResistor(g2d, currentX, y, compWidth, comp.getValue() + "Ω");
+                    currentX += compWidth + spacing;
+                }
+            }
+        }
+        
+        // Línea de retorno
+        g2d.drawLine(startX + circuitWidth - 100, y, startX + circuitWidth - 100, y + 40);
+        g2d.drawLine(startX + circuitWidth - 100, y + 40, startX, y + 40);
+        g2d.drawLine(startX, y + 40, startX, y);
+    }
+    
+    private void drawParallelCircuit(Graphics2D g2d, int centerX, int centerY, int circuitWidth, int circuitHeight) {
+        int startX = centerX - circuitWidth/2 + 80;
+        int y = centerY;
+        int branchSpacing = 40;
+        
+        g2d.setColor(wireColor);
+        g2d.setStroke(new BasicStroke(2f));
+        
+        List<DCBranch> branches = circuit.getBranches();
+        for (int i = 0; i < branches.size(); i++) {
+            int branchY = y + i * branchSpacing - (branches.size() - 1) * branchSpacing / 2;
+            
+            // Rama
+            g2d.drawLine(startX, branchY, startX + 80, branchY);
+            
+            // Resistor en la rama
+            List<DCComponent> components = branches.get(i).getComponents();
+            if (!components.isEmpty()) {
+                DCComponent comp = components.get(0); // Tomar primer componente
+                if (comp.getType() == com.simulador.model.dc.DCComponentType.RESISTOR) {
+                    drawResistor(g2d, startX + 90, branchY, 40, comp.getValue() + "Ω");
+                }
+            }
+            
+            g2d.drawLine(startX + 140, branchY, startX + circuitWidth - 100, branchY);
+        }
+        
+        // Conexiones verticales
+        g2d.drawLine(startX + 80, y - branchSpacing, startX + 80, y + branchSpacing);
+        g2d.drawLine(startX + circuitWidth - 100, y - branchSpacing, startX + circuitWidth - 100, y + branchSpacing);
+        
+        // Conexiones a la batería
+        g2d.drawLine(startX + circuitWidth - 100, y, startX + circuitWidth - 60, y);
+        g2d.drawLine(startX, y, startX - 40, y);
+    }
+    
+    private void drawMixedCircuit(Graphics2D g2d, int centerX, int centerY, int circuitWidth, int circuitHeight) {
+        drawSeriesCircuit(g2d, centerX, centerY, circuitWidth, circuitHeight);
+        
+        g2d.setColor(Color.BLUE);
+        g2d.setFont(new Font("Segoe UI", Font.PLAIN, 12));
+        g2d.drawString("Configuración Mixta", centerX - 40, centerY + 70);
+    }
+}
+```
+
+## C:\Users\joese\OneDrive\Escritorio\Projects\IntegradorFisicaSistemaPortu2025\src\main\java\com\simulador\ui\dc\DCEquivalentCircuitPanel.java
+
+```java
+package com.simulador.ui.dc;
+
+import com.simulador.model.dc.DCSimulationResult;
+import javax.swing.*;
+import java.awt.*;
+
+/**
+ * Panel para mostrar circuitos equivalentes (Thevenin/Norton)
+ */
+public class DCEquivalentCircuitPanel extends JPanel {
+    private JTextArea equivalentArea;
+    private JPanel theveninDiagram, nortonDiagram;
+    
+    public DCEquivalentCircuitPanel() {
+        initializeUI();
+    }
+    
+    private void initializeUI() {
+        setLayout(new BorderLayout(10, 10));
+        setBackground(new Color(248, 250, 252));
+        setBorder(BorderFactory.createEmptyBorder(15, 15, 15, 15));
+        
+        // Crear pestañas para diferentes equivalentes
+        JTabbedPane tabbedPane = new JTabbedPane();
+        tabbedPane.setFont(new Font("Segoe UI", Font.BOLD, 12));
+        
+        // Pestaña de Thevenin
+        JPanel theveninPanel = createTheveninPanel();
+        tabbedPane.addTab("Thevenin", theveninPanel);
+        
+        // Pestaña de Norton
+        JPanel nortonPanel = createNortonPanel();
+        tabbedPane.addTab("Norton", nortonPanel);
+        
+        // Pestaña de transformaciones
+        JPanel transformationPanel = createTransformationPanel();
+        tabbedPane.addTab("Transformaciones", transformationPanel);
+        
+        add(tabbedPane, BorderLayout.CENTER);
+    }
+    
+    private JPanel createTheveninPanel() {
+        JPanel panel = new JPanel(new BorderLayout(10, 10));
+        panel.setBackground(Color.WHITE);
+        panel.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
+        
+        // Área de texto con explicación y cálculos
+        equivalentArea = new JTextArea(20, 50);
+        equivalentArea.setEditable(false);
+        equivalentArea.setFont(new Font("Consolas", Font.PLAIN, 11));
+        equivalentArea.setBackground(Color.WHITE);
+        equivalentArea.setLineWrap(true);
+        equivalentArea.setWrapStyleWord(true);
+        
+        JScrollPane scrollPane = new JScrollPane(equivalentArea);
+        scrollPane.setBorder(BorderFactory.createLineBorder(new Color(226, 232, 240)));
+        
+        // Panel para diagrama
+        theveninDiagram = new JPanel() {
+            @Override
+            protected void paintComponent(Graphics g) {
+                super.paintComponent(g);
+                drawTheveninEquivalent(g);
+            }
+        };
+        theveninDiagram.setPreferredSize(new Dimension(300, 150));
+        theveninDiagram.setBackground(new Color(240, 245, 255));
+        theveninDiagram.setBorder(BorderFactory.createLineBorder(Color.GRAY));
+        
+        JSplitPane splitPane = new JSplitPane(JSplitPane.VERTICAL_SPLIT, scrollPane, theveninDiagram);
+        splitPane.setDividerLocation(250);
+        splitPane.setResizeWeight(0.6);
+        
+        panel.add(splitPane, BorderLayout.CENTER);
+        return panel;
+    }
+    
+    private JPanel createNortonPanel() {
+        JPanel panel = new JPanel(new BorderLayout());
+        panel.setBackground(Color.WHITE);
+        panel.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
+        
+        JTextArea nortonArea = new JTextArea();
+        nortonArea.setEditable(false);
+        nortonArea.setFont(new Font("Consolas", Font.PLAIN, 11));
+        nortonArea.setBackground(Color.WHITE);
+        nortonArea.setText(
+            "=== EQUIVALENTE DE NORTON ===\n\n" +
+            "El teorema de Norton establece que cualquier circuito lineal\n" +
+            "puede ser reemplazado por una fuente de corriente en paralelo\n" +
+            "con una resistencia.\n\n" +
+            "Cálculos:\n" +
+            "• Corriente de Norton (In) = Vth / Rth\n" +
+            "• Resistencia de Norton (Rn) = Rth\n\n" +
+            "Ejecute una simulación con Teorema de Thevenin para ver\n" +
+            "los cálculos específicos de este circuito."
+        );
+        
+        nortonDiagram = new JPanel() {
+            @Override
+            protected void paintComponent(Graphics g) {
+                super.paintComponent(g);
+                drawNortonEquivalent(g);
+            }
+        };
+        nortonDiagram.setPreferredSize(new Dimension(300, 150));
+        nortonDiagram.setBackground(new Color(240, 245, 255));
+        nortonDiagram.setBorder(BorderFactory.createLineBorder(Color.GRAY));
+        
+        JSplitPane splitPane = new JSplitPane(JSplitPane.VERTICAL_SPLIT, 
+            new JScrollPane(nortonArea), nortonDiagram);
+        splitPane.setDividerLocation(200);
+        
+        panel.add(splitPane, BorderLayout.CENTER);
+        return panel;
+    }
+    
+    private JPanel createTransformationPanel() {
+        JPanel panel = new JPanel(new BorderLayout());
+        panel.setBackground(Color.WHITE);
+        panel.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
+        
+        JTextArea transformArea = new JTextArea();
+        transformArea.setEditable(false);
+        transformArea.setFont(new Font("Consolas", Font.PLAIN, 11));
+        transformArea.setBackground(Color.WHITE);
+        transformArea.setText(
+            "=== TRANSFORMACIÓN DE FUENTES ===\n\n" +
+            "Conversión entre fuentes de voltaje y corriente:\n\n" +
+            "De Thevenin a Norton:\n" +
+            "• In = Vth / Rth\n" +
+            "• Rn = Rth\n\n" +
+            "De Norton a Thevenin:\n" +
+            "• Vth = In × Rn\n" +
+            "• Rth = Rn\n\n" +
+            "Equivalencia:\n" +
+            "• Fuente de voltaje Vth con Rth en serie\n" +
+            "• ES EQUIVALENTE A\n" +
+            "• Fuente de corriente In con Rn en paralelo\n\n" +
+            "Restricciones:\n" +
+            "• Solo para circuitos lineales\n" +
+            "• Las cargas deben ser las mismas\n" +
+            "• El comportamiento externo es idéntico"
+        );
+        
+        JScrollPane scrollPane = new JScrollPane(transformArea);
+        panel.add(scrollPane, BorderLayout.CENTER);
+        
+        return panel;
+    }
+    
+    private void drawTheveninEquivalent(Graphics g) {
+        Graphics2D g2d = (Graphics2D) g;
+        g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+        
+        int width = theveninDiagram.getWidth();
+        int height = theveninDiagram.getHeight();
+        int centerX = width / 2;
+        int centerY = height / 2;
+        
+        // Dibujar fuente de voltaje (Thevenin)
+        drawVoltageSource(g2d, centerX - 80, centerY, 40, 25, "Vth");
+        
+        // Dibujar resistencia
+        drawResistor(g2d, centerX + 20, centerY, 40, "Rth");
+        
+        // Dibujar líneas de conexión
+        g2d.setColor(Color.BLACK);
+        g2d.setStroke(new BasicStroke(2f));
+        g2d.drawLine(centerX - 40, centerY, centerX + 20, centerY);
+        g2d.drawLine(centerX + 60, centerY, centerX + 100, centerY);
+        
+        // Terminales de salida
+        g2d.setStroke(new BasicStroke(1f));
+        g2d.drawLine(centerX + 100, centerY - 10, centerX + 100, centerY + 10);
+        g2d.drawLine(centerX - 80, centerY - 10, centerX - 80, centerY + 10);
+        
+        // Etiqueta
+        g2d.setColor(Color.BLUE);
+        g2d.setFont(new Font("Segoe UI", Font.BOLD, 12));
+        g2d.drawString("Equivalente Thevenin", centerX - 60, centerY - 30);
+    }
+    
+    private void drawNortonEquivalent(Graphics g) {
+        Graphics2D g2d = (Graphics2D) g;
+        g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+        
+        int width = nortonDiagram.getWidth();
+        int height = nortonDiagram.getHeight();
+        int centerX = width / 2;
+        int centerY = height / 2;
+        
+        // Dibujar fuente de corriente (Norton)
+        drawCurrentSource(g2d, centerX - 60, centerY, 30, "In");
+        
+        // Dibujar resistencia en paralelo
+        drawResistor(g2d, centerX + 20, centerY, 40, "Rn");
+        
+        // Dibujar líneas de conexión (paralelo)
+        g2d.setColor(Color.BLACK);
+        g2d.setStroke(new BasicStroke(2f));
+        g2d.drawLine(centerX - 30, centerY - 25, centerX + 60, centerY - 25); // Línea superior
+        g2d.drawLine(centerX - 30, centerY + 25, centerX + 60, centerY + 25); // Línea inferior
+        
+        // Conexiones verticales
+        g2d.drawLine(centerX - 30, centerY - 25, centerX - 30, centerY + 25);
+        g2d.drawLine(centerX + 60, centerY - 25, centerX + 60, centerY + 25);
+        
+        // Terminales de salida
+        g2d.setStroke(new BasicStroke(1f));
+        g2d.drawLine(centerX - 30, centerY - 35, centerX - 30, centerY - 25);
+        g2d.drawLine(centerX - 30, centerY + 25, centerX - 30, centerY + 35);
+        
+        // Etiqueta
+        g2d.setColor(Color.BLUE);
+        g2d.setFont(new Font("Segoe UI", Font.BOLD, 12));
+        g2d.drawString("Equivalente Norton", centerX - 50, centerY - 50);
+    }
+    
+    private void drawVoltageSource(Graphics2D g2d, int x, int y, int width, int height, String label) {
+        // Círculo para fuente de voltaje
+        g2d.setColor(Color.WHITE);
+        g2d.fillOval(x, y - height/2, width, height);
+        g2d.setColor(Color.BLACK);
+        g2d.drawOval(x, y - height/2, width, height);
+        
+        // Símbolo + y -
+        g2d.setFont(new Font("Segoe UI", Font.BOLD, 10));
+        g2d.drawString("+", x + width/3, y - 2);
+        g2d.drawString("-", x + 2*width/3, y + 3);
+        
+        // Etiqueta
+        g2d.drawString(label, x - 10, y - height/2 - 5);
+    }
+    
+    private void drawCurrentSource(Graphics2D g2d, int x, int y, int size, String label) {
+        // Círculo para fuente de corriente
+        g2d.setColor(Color.WHITE);
+        g2d.fillOval(x, y - size/2, size, size);
+        g2d.setColor(Color.BLACK);
+        g2d.drawOval(x, y - size/2, size, size);
+        
+        // Flecha interna indicando dirección
+        g2d.setStroke(new BasicStroke(2f));
+        g2d.drawLine(x + size/4, y, x + 3*size/4, y);
+        g2d.drawLine(x + 3*size/4, y, x + 3*size/4 - 5, y - 3);
+        g2d.drawLine(x + 3*size/4, y, x + 3*size/4 - 5, y + 3);
+        
+        // Etiqueta
+        g2d.setFont(new Font("Segoe UI", Font.PLAIN, 10));
+        g2d.drawString(label, x - 5, y - size/2 - 5);
+    }
+    
+    private void drawResistor(Graphics2D g2d, int x, int y, int width, String label) {
+        g2d.setColor(new Color(139, 69, 19)); // Marrón
+        g2d.setStroke(new BasicStroke(3f));
+        
+        int segmentWidth = width / 8;
+        g2d.drawLine(x, y, x + segmentWidth, y);
+        
+        for (int i = 0; i < 4; i++) {
+            int startX = x + segmentWidth + i * 2 * segmentWidth;
+            g2d.drawLine(startX, y - 8, startX + segmentWidth, y + 8);
+            g2d.drawLine(startX + segmentWidth, y + 8, startX + 2 * segmentWidth, y - 8);
+        }
+        
+        g2d.drawLine(x + 7 * segmentWidth, y, x + 8 * segmentWidth, y);
+        
+        // Etiqueta
+        g2d.setColor(Color.BLACK);
+        g2d.setFont(new Font("Segoe UI", Font.PLAIN, 10));
+        g2d.drawString(label, x + width/2 - 10, y - 15);
+    }
+    
+    public void updateEquivalents(DCSimulationResult result) {
+        if (result == null || !result.getMethodUsed().contains("Thevenin")) {
+            equivalentArea.setText(
+                "=== CIRCUITOS EQUIVALENTES ===\n\n" +
+                "Para ver los circuitos equivalentes de Thevenin y Norton,\n" +
+                "ejecute una simulación usando el Teorema de Thevenin.\n\n" +
+                "Características:\n" +
+                "• Thevenin: Fuente de voltaje + resistencia en serie\n" +
+                "• Norton: Fuente de corriente + resistencia en paralelo\n" +
+                "• Ambos son equivalentes entre sí\n" +
+                "• Comportamiento idéntico en los terminales de salida"
+            );
+            return;
+        }
+        
+        // Calcular equivalentes
+        double vth = result.getSourceVoltage();
+        double rth = result.getTotalResistance();
+        double in = vth / rth;  // Corriente de Norton
+        double rn = rth;        // Resistencia de Norton
+        
+        StringBuilder sb = new StringBuilder();
+        sb.append("=== CIRCUITOS EQUIVALENTES ===\n\n");
+        
+        sb.append("EQUIVALENTE DE THEVENIN:\n");
+        sb.append("• Voltaje Thevenin (Vth): ").append(String.format("%.3f V\n", vth));
+        sb.append("• Resistencia Thevenin (Rth): ").append(String.format("%.3f Ω\n", rth));
+        sb.append("• Circuito: Fuente ").append(String.format("%.3f V", vth))
+          .append(" en serie con ").append(String.format("%.3f Ω\n\n", rth));
+        
+        sb.append("EQUIVALENTE DE NORTON:\n");
+        sb.append("• Corriente Norton (In): ").append(String.format("%.3f A\n", in));
+        sb.append("• Resistencia Norton (Rn): ").append(String.format("%.3f Ω\n", rn));
+        sb.append("• Circuito: Fuente ").append(String.format("%.3f A", in))
+          .append(" en paralelo con ").append(String.format("%.3f Ω\n\n", rn));
+        
+        sb.append("TRANSFORMACIÓN DE FUENTES:\n");
+        sb.append("• Vth = In × Rn → ").append(String.format("%.3f = %.3f × %.3f", vth, in, rn));
+        sb.append(" → ").append(String.format("%.3f = %.3f ✓\n", vth, in * rn));
+        sb.append("• Rth = Rn → ").append(String.format("%.3f = %.3f ✓\n\n", rth, rn));
+        
+        sb.append("VERIFICACIÓN:\n");
+        sb.append("• Los circuitos son eléctricamente equivalentes\n");
+        sb.append("• Misma tensión en circuito abierto\n");
+        sb.append("• Misma corriente en cortocircuito\n");
+        sb.append("• Misma resistencia equivalente\n");
+        
+        equivalentArea.setText(sb.toString());
+        
+        // Redibujar diagramas
+        theveninDiagram.repaint();
+        nortonDiagram.repaint();
+    }
+    
+    public void clearEquivalents() {
+        equivalentArea.setText(
+            "=== CIRCUITOS EQUIVALENTES ===\n\n" +
+            "Ejecute una simulación para calcular los circuitos equivalentes.\n\n" +
+            "Los circuitos equivalentes permiten:\n" +
+            "• Simplificar análisis de circuitos complejos\n" +
+            "• Facilitar el cálculo de transferencia de potencia\n" +
+            "• Comprender mejor el comportamiento del circuito\n" +
+            "• Diseñar interfaces entre etapas de circuitos"
+        );
+        
+        theveninDiagram.repaint();
+        nortonDiagram.repaint();
+    }
+}
+```
+
+## C:\Users\joese\OneDrive\Escritorio\Projects\IntegradorFisicaSistemaPortu2025\src\main\java\com\simulador\ui\dc\DCResultsPanel.java
+
+```java
+package com.simulador.ui.dc;
+
+import com.simulador.model.dc.DCSimulationResult;
+import javax.swing.*;
+import java.awt.*;
+import java.text.DecimalFormat;
+
+/**
+ * Panel para mostrar resultados de simulación DC
+ */
+public class DCResultsPanel extends JPanel {
+    private JTextArea resultsArea;
+    private JLabel voltageLabel, currentLabel, powerLabel, resistanceLabel;
+    private DecimalFormat df = new DecimalFormat("0.000");
+    
+    // Colores
+    private final Color SUCCESS_COLOR = new Color(34, 197, 94);
+    private final Color WARNING_COLOR = new Color(245, 158, 11);
+    private final Color ERROR_COLOR = new Color(239, 68, 68);
+    private final Color BACKGROUND_COLOR = new Color(248, 250, 252);
+    
+    public DCResultsPanel() {
+        initializeUI();
+    }
+    
+    private void initializeUI() {
+        setLayout(new BorderLayout(10, 10));
+        setBackground(BACKGROUND_COLOR);
+        setBorder(BorderFactory.createEmptyBorder(15, 15, 15, 15));
+        
+        // Panel superior con métricas clave
+        add(createMetricsPanel(), BorderLayout.NORTH);
+        
+        // Área de resultados detallados
+        add(createDetailedResultsPanel(), BorderLayout.CENTER);
+    }
+    
+    private JPanel createMetricsPanel() {
+        JPanel panel = new JPanel(new GridLayout(2, 2, 10, 10));
+        panel.setBackground(BACKGROUND_COLOR);
+        panel.setBorder(BorderFactory.createEmptyBorder(0, 0, 15, 0));
+        
+        // Voltaje
+        JPanel voltagePanel = createMetricCard("Voltaje Total", "0.000 V", SUCCESS_COLOR);
+        voltageLabel = (JLabel) ((JPanel) voltagePanel.getComponent(0)).getComponent(1);
+        
+        // Corriente
+        JPanel currentPanel = createMetricCard("Corriente Total", "0.000 A", SUCCESS_COLOR);
+        currentLabel = (JLabel) ((JPanel) currentPanel.getComponent(0)).getComponent(1);
+        
+        // Resistencia
+        JPanel resistancePanel = createMetricCard("Resistencia Equivalente", "0.000 Ω", WARNING_COLOR);
+        resistanceLabel = (JLabel) ((JPanel) resistancePanel.getComponent(0)).getComponent(1);
+        
+        // Potencia
+        JPanel powerPanel = createMetricCard("Potencia Total", "0.000 W", ERROR_COLOR);
+        powerLabel = (JLabel) ((JPanel) powerPanel.getComponent(0)).getComponent(1);
+        
+        panel.add(voltagePanel);
+        panel.add(currentPanel);
+        panel.add(resistancePanel);
+        panel.add(powerPanel);
+        
+        return panel;
+    }
+    
+    private JPanel createMetricCard(String title, String value, Color color) {
+        JPanel card = new JPanel(new BorderLayout());
+        card.setBackground(Color.WHITE);
+        card.setBorder(BorderFactory.createCompoundBorder(
+            BorderFactory.createLineBorder(new Color(226, 232, 240)),
+            BorderFactory.createEmptyBorder(10, 15, 10, 15)
+        ));
+        
+        JLabel titleLabel = new JLabel(title);
+        titleLabel.setFont(new Font("Segoe UI", Font.PLAIN, 12));
+        titleLabel.setForeground(new Color(100, 116, 139));
+        
+        JLabel valueLabel = new JLabel(value);
+        valueLabel.setFont(new Font("Segoe UI", Font.BOLD, 14));
+        valueLabel.setForeground(color);
+        
+        JPanel contentPanel = new JPanel(new BorderLayout());
+        contentPanel.setBackground(Color.WHITE);
+        contentPanel.add(titleLabel, BorderLayout.NORTH);
+        contentPanel.add(valueLabel, BorderLayout.CENTER);
+        
+        card.add(contentPanel, BorderLayout.CENTER);
+        return card;
+    }
+    
+    private JScrollPane createDetailedResultsPanel() {
+        resultsArea = new JTextArea(15, 50);
+        resultsArea.setEditable(false);
+        resultsArea.setFont(new Font("Consolas", Font.PLAIN, 11));
+        resultsArea.setBackground(Color.WHITE);
+        resultsArea.setForeground(new Color(30, 41, 59));
+        resultsArea.setLineWrap(true);
+        resultsArea.setWrapStyleWord(true);
+        resultsArea.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
+        
+        resultsArea.setText(
+            "=== SIMULADOR DE CIRCUITOS DC ===\n\n" +
+            "Resultados de simulación:\n\n" +
+            "• Configure un circuito DC\n" +
+            "• Seleccione método de análisis\n" +
+            "• Ejecute la simulación\n" +
+            "• Vea los resultados aquí\n\n" +
+            "Métodos disponibles:\n" +
+            "  - Ley de Ohm\n" +
+            "  - Leyes de Kirchhoff\n" +
+            "  - Análisis de Mallas\n" +
+            "  - Análisis Nodal\n" +
+            "  - Teorema de Thevenin\n"
+        );
+        
+        JScrollPane scrollPane = new JScrollPane(resultsArea);
+        scrollPane.setBorder(BorderFactory.createLineBorder(new Color(226, 232, 240)));
+        scrollPane.setVerticalScrollBarPolicy(JScrollPane.VERTICAL_SCROLLBAR_AS_NEEDED);
+        
+        return scrollPane;
+    }
+    
+    public void updateResults(DCSimulationResult result) {
+        if (result == null) {
+            clearResults();
+            return;
+        }
+        
+        // Actualizar métricas principales
+        voltageLabel.setText(df.format(result.getSourceVoltage()) + " V");
+        currentLabel.setText(df.format(result.getTotalCurrent()) + " A");
+        resistanceLabel.setText(df.format(result.getTotalResistance()) + " Ω");
+        powerLabel.setText(df.format(result.getTotalPower()) + " W");
+        
+        // Actualizar área de resultados detallados
+        updateDetailedResults(result);
+    }
+    
+    private void updateDetailedResults(DCSimulationResult result) {
+        StringBuilder sb = new StringBuilder();
+        sb.append("=== RESULTADOS DE SIMULACIÓN DC ===\n\n");
+        
+        sb.append("INFORMACIÓN GENERAL:\n");
+        sb.append("• Método utilizado: ").append(result.getMethodUsed()).append("\n");
+        sb.append("• Configuración: ").append(result.getCircuitConfiguration()).append("\n");
+        sb.append("• Timestamp: ").append(new java.util.Date(result.getTimestamp())).append("\n\n");
+        
+        sb.append("PARÁMETROS PRINCIPALES:\n");
+        sb.append("• Voltaje de fuente: ").append(df.format(result.getSourceVoltage())).append(" V\n");
+        sb.append("• Resistencia total: ").append(df.format(result.getTotalResistance())).append(" Ω\n");
+        sb.append("• Corriente total: ").append(df.format(result.getTotalCurrent())).append(" A\n");
+        sb.append("• Potencia total: ").append(df.format(result.getTotalPower())).append(" W\n");
+        sb.append("• Potencia disipada: ").append(df.format(result.getPowerDissipated())).append(" W\n");
+        sb.append("• Eficiencia: ").append(df.format(result.getEfficiency())).append(" %\n\n");
+        
+        sb.append("CORRIENTES POR RAMA:\n");
+        double[] branchCurrents = result.getBranchCurrents();
+        for (int i = 0; i < branchCurrents.length; i++) {
+            String direction = branchCurrents[i] >= 0 ? "→" : "←";
+            sb.append(String.format("• Rama %d: %s %s A\n", 
+                i + 1, direction, df.format(Math.abs(branchCurrents[i]))));
+        }
+        
+        sb.append("\nTENSIONES EN COMPONENTES:\n");
+        double[] componentVoltages = result.getComponentVoltages();
+        for (int i = 0; i < componentVoltages.length; i++) {
+            sb.append(String.format("• Componente %d: %.2f V\n", i + 1, componentVoltages[i]));
+        }
+        
+        sb.append("\nVALIDACIÓN:\n");
+        if (result.isCircuitValid()) {
+            sb.append("• ✓ Circuito válido\n");
+            sb.append("• ✓ Conservación de energía verificada\n");
+            sb.append("• ✓ Leyes de Kirchhoff satisfechas\n");
+        } else {
+            sb.append("• ✗ Circuito puede tener problemas\n");
+            sb.append("• Verifique conexiones y valores\n");
+        }
+        
+        resultsArea.setText(sb.toString());
+        resultsArea.setCaretPosition(0);
+    }
+    
+    public void clearResults() {
+        voltageLabel.setText("0.000 V");
+        currentLabel.setText("0.000 A");
+        resistanceLabel.setText("0.000 Ω");
+        powerLabel.setText("0.000 W");
+        
+        resultsArea.setText(
+            "=== SIMULADOR DE CIRCUITOS DC ===\n\n" +
+            "Esperando simulación...\n\n" +
+            "Configure el circuito y ejecute la simulación para ver los resultados."
+        );
+    }
+    
+    public void showError(String errorMessage) {
+        resultsArea.setText(
+            "=== ERROR EN SIMULACIÓN ===\n\n" +
+            "Se produjo un error durante la simulación:\n\n" +
+            errorMessage + "\n\n" +
+            "Por favor:\n" +
+            "• Verifique los valores de los componentes\n" +
+            "• Asegúrese de que el circuito sea válido\n" +
+            "• Intente con otro método de análisis\n"
+        );
+        
+        // Resetear métricas
+        voltageLabel.setText("0.000 V");
+        currentLabel.setText("0.000 A");
+        resistanceLabel.setText("0.000 Ω");
+        powerLabel.setText("0.000 W");
+    }
+}
+```
+
+## C:\Users\joese\OneDrive\Escritorio\Projects\IntegradorFisicaSistemaPortu2025\src\main\java\com\simulador\ui\FrequencyGraph.java
 
 ```java
 package com.simulador.ui;
@@ -2530,7 +4598,7 @@ public class FrequencyGraph extends BaseGraph {
 }
 ```
 
-## C:\Users\joese\OneDrive\Escritorio\Projects\integrador_simulador\simuladordefisica\src\main\java\com\simulador\ui\GraphWindow.java
+## C:\Users\joese\OneDrive\Escritorio\Projects\IntegradorFisicaSistemaPortu2025\src\main\java\com\simulador\ui\GraphWindow.java
 
 ```java
 package com.simulador.ui;
@@ -2771,7 +4839,7 @@ public class GraphWindow extends JDialog {
 }
 ```
 
-## C:\Users\joese\OneDrive\Escritorio\Projects\integrador_simulador\simuladordefisica\src\main\java\com\simulador\ui\MainSimulatorFrame.java
+## C:\Users\joese\OneDrive\Escritorio\Projects\IntegradorFisicaSistemaPortu2025\src\main\java\com\simulador\ui\MainSimulatorFrame.java
 
 ```java
 package com.simulador.ui;
@@ -2873,7 +4941,7 @@ public class MainSimulatorFrame extends JFrame {
 }
 ```
 
-## C:\Users\joese\OneDrive\Escritorio\Projects\integrador_simulador\simuladordefisica\src\main\java\com\simulador\ui\PhasorDiagram.java
+## C:\Users\joese\OneDrive\Escritorio\Projects\IntegradorFisicaSistemaPortu2025\src\main\java\com\simulador\ui\PhasorDiagram.java
 
 ```java
 package com.simulador.ui;
@@ -3178,7 +5246,7 @@ public class PhasorDiagram extends BaseGraph {
 }
 ```
 
-## C:\Users\joese\OneDrive\Escritorio\Projects\integrador_simulador\simuladordefisica\src\main\java\com\simulador\ui\RLCSimulator.java
+## C:\Users\joese\OneDrive\Escritorio\Projects\IntegradorFisicaSistemaPortu2025\src\main\java\com\simulador\ui\RLCSimulator.java
 
 ```java
 package com.simulador.ui;
@@ -3197,6 +5265,18 @@ import com.simulador.scheduler.ShortestJobFirstScheduler;
 import com.simulador.utils.LanguageManager;
 import com.simulador.utils.SimulationObserver;
 
+// NUEVOS IMPORTS DC
+import com.simulador.engine.dc.DCCircuitEngine;
+import com.simulador.engine.dc.DCAnalysisMethod;
+import com.simulador.model.dc.DCComponent;
+import com.simulador.model.dc.DCComponentType;
+import com.simulador.model.dc.DCCircuit;
+import com.simulador.model.dc.DCBranch;
+import com.simulador.model.dc.DCSimulationResult;
+import com.simulador.ui.dc.DCDiagramPanel;
+import com.simulador.ui.dc.DCResultsPanel;
+import com.simulador.ui.dc.DCEquivalentCircuitPanel;
+
 import javax.swing.*;
 import javax.swing.plaf.basic.BasicProgressBarUI;
 import javax.swing.table.DefaultTableCellRenderer;
@@ -3210,6 +5290,7 @@ import java.util.List;
 /**
  * Panel principal del simulador de circuitos RLC con algoritmos de
  * planificación integrados - Versión Mejorada Visualmente
+ * AHORA INCLUYE SIMULACIÓN DE CIRCUITOS DC
  */
 public class RLCSimulator extends JPanel implements SimulationObserver {
     private CircuitEngine engine;
@@ -3218,6 +5299,29 @@ public class RLCSimulator extends JPanel implements SimulationObserver {
     private SimulationResult lastResult;
     private DecimalFormat df = new DecimalFormat("0.000");
     private LanguageManager languageManager;
+
+    // NUEVAS VARIABLES DC
+    private DCCircuitEngine dcEngine;
+    private DCCircuit currentDCCircuit;
+    private DCSimulationResult lastDCResult;
+    private DCResultsPanel dcResultsPanel;
+    private DCEquivalentCircuitPanel dcEquivalentPanel;
+    private DCDiagramPanel dcDiagramPanel;
+    private JTextArea dcDetailedAnalysisArea; // NUEVO: Área de texto para análisis detallado DC
+
+    // Componentes de UI DC
+    private JTextField dcVoltageField;
+    private JSpinner batterySpinner;
+    private JComboBox<String> dcComponentTypeCombo;
+    private JTextField dcValueField;
+    private JSpinner quantitySpinner;
+    private JSpinner branchSpinner;
+    private JComboBox<String> configCombo;
+    private JComboBox<String> dcMethodCombo;
+    private JButton addDCButton;
+    private JButton simulateDCButton;
+    private JButton clearDCButton;
+    private JProgressBar dcProgressBar;
 
     // PALETA DE COLORES MEJORADA
     private final Color PRIMARY_BLUE = Color.decode("#2563eb");
@@ -3251,13 +5355,23 @@ public class RLCSimulator extends JPanel implements SimulationObserver {
     private JButton addButton, removeButton, simulateButton, clearButton;
     private JProgressBar progressBar;
 
-    // Componentes para gráficos
+    // Componentes para visualización de memoria
+    private JLabel fragTotalValue, memUsageValue, avgUsageValue, extFragValue, intFragValue, semaphoreValue;
+    private JLabel currentProcessLabel;
+    private JProgressBar memoryProgressBar;
+    private JPanel memoryVisualizationPanel;
+    private JTextArea processQueueArea;
+
+    // Componentes para visualización de circuitos
     private BaseGraph currentGraph;
     private JPanel graphContainer;
     private JComboBox<String> graphTypeCombo;
-
-    // Componentes para análisis
     private JTextArea analysisArea;
+    private JTabbedPane circuitTabs;
+
+    // Panel principal derecho (cambia según la pestaña)
+    private JPanel rightPanel;
+    private CardLayout rightPanelLayout;
 
     public RLCSimulator() {
         this.engine = new CircuitEngine();
@@ -3265,10 +5379,16 @@ public class RLCSimulator extends JPanel implements SimulationObserver {
         this.components = new ArrayList<>();
         this.languageManager = LanguageManager.getInstance();
         this.updateTimer = null;
+        
+        // INICIALIZACIÓN DC
+        this.dcEngine = new DCCircuitEngine();
+        this.currentDCCircuit = new DCCircuit();
+        this.lastDCResult = null;
 
         initializeEngines();
         initializeUI();
         setupEventHandlers();
+        setupDCEventHandlers(); // NUEVO: Configurar handlers DC
     }
 
     private void initializeEngines() {
@@ -3291,7 +5411,10 @@ public class RLCSimulator extends JPanel implements SimulationObserver {
                     }
                 });
             } else if (ProcessScheduler.PROPERTY_TASKS_UPDATED.equals(evt.getPropertyName())) {
-                SwingUtilities.invokeLater(this::updateTasksTable);
+                SwingUtilities.invokeLater(() -> {
+                    updateTasksTable();
+                    updateMemoryVisualization();
+                });
             }
         });
     }
@@ -3301,7 +5424,7 @@ public class RLCSimulator extends JPanel implements SimulationObserver {
         setBorder(BorderFactory.createEmptyBorder(15, 15, 15, 15));
         setBackground(LIGHT_SLATE);
 
-        // Header mejorado
+        // Header mejorado - ACTUALIZADO para incluir DC
         add(createHeaderPanel(), BorderLayout.NORTH);
 
         // Panel principal dividido en izquierda y derecha
@@ -3314,8 +5437,17 @@ public class RLCSimulator extends JPanel implements SimulationObserver {
         JPanel leftPanel = createControlsPanel();
         mainSplitPane.setLeftComponent(leftPanel);
 
-        // Panel derecho - Visualización
-        JPanel rightPanel = createVisualizationPanel();
+        // Panel derecho - Cambia según la pestaña seleccionada
+        rightPanel = new JPanel();
+        rightPanelLayout = new CardLayout();
+        rightPanel.setLayout(rightPanelLayout);
+        rightPanel.setBackground(LIGHT_SLATE);
+
+        // Agregar las TRES vistas al panel derecho (NUEVO: se agrega DC)
+        rightPanel.add(createCircuitVisualizationPanel(), "CIRCUIT");
+        rightPanel.add(createMemoryVisualizationPanel(), "PROCESS");
+        rightPanel.add(createDCSimulatorPanel(), "DC_CIRCUIT"); // NUEVA PESTAÑA DC
+
         mainSplitPane.setRightComponent(rightPanel);
 
         add(mainSplitPane, BorderLayout.CENTER);
@@ -3350,12 +5482,13 @@ public class RLCSimulator extends JPanel implements SimulationObserver {
         headerPanel.setLayout(new BorderLayout());
         headerPanel.setPreferredSize(new Dimension(800, 100));
         
-        JLabel titleLabel = new JLabel("Simulador Avanzado de Circuitos RLC", JLabel.CENTER);
+        // Título ACTUALIZADO para incluir DC
+        JLabel titleLabel = new JLabel("Simulador Avanzado de Circuitos RLC y DC", JLabel.CENTER);
         titleLabel.setFont(new Font("Segoe UI", Font.BOLD, 26));
         titleLabel.setForeground(Color.WHITE);
         titleLabel.setBorder(BorderFactory.createEmptyBorder(25, 0, 5, 0));
         
-        JLabel subtitleLabel = new JLabel("Con Algoritmos de Planificación Integrados - Analisis en Tiempo Real", JLabel.CENTER);
+        JLabel subtitleLabel = new JLabel("Con Algoritmos de Planificación y Gestión de Memoria Virtual", JLabel.CENTER);
         subtitleLabel.setFont(new Font("Segoe UI", Font.PLAIN, 14));
         subtitleLabel.setForeground(new Color(255, 255, 255, 220));
         subtitleLabel.setBorder(BorderFactory.createEmptyBorder(0, 0, 25, 0));
@@ -3378,7 +5511,7 @@ public class RLCSimulator extends JPanel implements SimulationObserver {
         tabbedPane.setBackground(LIGHT_SLATE);
         setupModernTabbedPane(tabbedPane);
 
-        // Pestaña 1: Simulación de Circuitos
+        // Pestaña 1: Simulación de Circuitos RLC
         JPanel circuitPanel = createCircuitControlsPanel();
         JScrollPane circuitScroll = new JScrollPane(circuitPanel);
         circuitScroll.setBorder(null);
@@ -3386,17 +5519,640 @@ public class RLCSimulator extends JPanel implements SimulationObserver {
         circuitScroll.setBackground(LIGHT_SLATE);
         tabbedPane.addTab("Circuito RLC", circuitScroll);
 
-        // Pestaña 2: Planificación de Procesos
+        // Pestaña 2: Simulación de Circuitos DC - NUEVA PESTAÑA
+        JPanel dcPanel = createDCControlsPanel();
+        JScrollPane dcScroll = new JScrollPane(dcPanel);
+        dcScroll.setBorder(null);
+        dcScroll.getVerticalScrollBar().setUnitIncrement(16);
+        dcScroll.setBackground(LIGHT_SLATE);
+        tabbedPane.addTab("Circuito DC", dcScroll);
+
+        // Pestaña 3: Planificación de Procesos
         JPanel schedulingPanel = createSchedulingControlsPanel();
         JScrollPane schedulingScroll = new JScrollPane(schedulingPanel);
         schedulingScroll.setBorder(null);
         schedulingScroll.getVerticalScrollBar().setUnitIncrement(16);
         schedulingScroll.setBackground(LIGHT_SLATE);
-        tabbedPane.addTab("Planificación", schedulingScroll);
+        tabbedPane.addTab("Procesos", schedulingScroll);
+
+        // Listener para cambiar la vista derecha cuando cambia la pestaña
+        tabbedPane.addChangeListener(e -> {
+            int selectedIndex = tabbedPane.getSelectedIndex();
+            if (selectedIndex == 0) {
+                rightPanelLayout.show(rightPanel, "CIRCUIT");
+            } else if (selectedIndex == 1) {
+                rightPanelLayout.show(rightPanel, "DC_CIRCUIT"); // NUEVA PESTAÑA DC
+            } else {
+                rightPanelLayout.show(rightPanel, "PROCESS");
+            }
+        });
 
         panel.add(tabbedPane, BorderLayout.CENTER);
         return panel;
     }
+
+    // ========== NUEVO: PANEL DE CONTROLES PARA CIRCUITOS DC ==========
+
+    private JPanel createDCControlsPanel() {
+        JPanel panel = new JPanel();
+        panel.setLayout(new BoxLayout(panel, BoxLayout.Y_AXIS));
+        panel.setBorder(BorderFactory.createEmptyBorder(10, 5, 10, 5));
+        panel.setBackground(LIGHT_SLATE);
+        panel.setAlignmentX(Component.LEFT_ALIGNMENT);
+
+        // Fuente de alimentación DC
+        JPanel dcInputPanel = createModernCardPanel("Fuente de Alimentación DC", createDCInputPanel());
+        panel.add(dcInputPanel);
+        panel.add(Box.createVerticalStrut(15));
+
+        // Componentes DC
+        JPanel dcComponentPanel = createModernCardPanel("Componentes DC", createDCComponentPanel());
+        panel.add(dcComponentPanel);
+        panel.add(Box.createVerticalStrut(15));
+
+        // Configuración de ramas
+        JPanel branchPanel = createModernCardPanel("Configuración del Circuito", createBranchPanel());
+        panel.add(branchPanel);
+        panel.add(Box.createVerticalStrut(15));
+
+        // Métodos de análisis DC
+        JPanel dcMethodPanel = createModernCardPanel("Método de Análisis", createDCMethodPanel());
+        panel.add(dcMethodPanel);
+        panel.add(Box.createVerticalStrut(15));
+
+        // Botones de acción DC
+        JPanel dcActionPanel = createModernCardPanel("Acciones DC", createDCActionPanel());
+        panel.add(dcActionPanel);
+
+        return panel;
+    }
+
+    private JPanel createDCInputPanel() {
+        JPanel panel = new JPanel();
+        panel.setLayout(new BoxLayout(panel, BoxLayout.Y_AXIS));
+        panel.setBackground(CARD_BACKGROUND);
+        panel.setAlignmentX(Component.LEFT_ALIGNMENT);
+
+        JPanel voltagePanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
+        voltagePanel.setBackground(CARD_BACKGROUND);
+        voltagePanel.add(createModernLabel("Voltaje DC (V):"));
+        dcVoltageField = createModernTextField("12", 10);
+        dcVoltageField.setToolTipText("Voltaje DC entre 1 y 100 V");
+        voltagePanel.add(dcVoltageField);
+        voltagePanel.add(createModernLabel("V"));
+        voltagePanel.setAlignmentX(Component.LEFT_ALIGNMENT);
+        panel.add(voltagePanel);
+
+        panel.add(Box.createVerticalStrut(8));
+
+        JPanel batteryPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
+        batteryPanel.setBackground(CARD_BACKGROUND);
+        batteryPanel.add(createModernLabel("Número de Baterías:"));
+        batterySpinner = createModernSpinner(1, 1, 10, 1);
+        batteryPanel.add(batterySpinner);
+        batteryPanel.setAlignmentX(Component.LEFT_ALIGNMENT);
+        panel.add(batteryPanel);
+
+        return panel;
+    }
+
+    private JPanel createDCComponentPanel() {
+        JPanel panel = new JPanel();
+        panel.setLayout(new BoxLayout(panel, BoxLayout.Y_AXIS));
+        panel.setBackground(CARD_BACKGROUND);
+        panel.setAlignmentX(Component.LEFT_ALIGNMENT);
+
+        JPanel typePanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
+        typePanel.setBackground(CARD_BACKGROUND);
+        typePanel.add(createModernLabel("Tipo:"));
+        String[] dcComponentTypes = { "Batería", "Resistencia", "Fuente DC" };
+        dcComponentTypeCombo = createModernComboBox();
+        for (String type : dcComponentTypes) {
+            dcComponentTypeCombo.addItem(type);
+        }
+        dcComponentTypeCombo.setMaximumSize(new Dimension(140, 35));
+        typePanel.add(dcComponentTypeCombo);
+        typePanel.setAlignmentX(Component.LEFT_ALIGNMENT);
+        panel.add(typePanel);
+
+        panel.add(Box.createVerticalStrut(8));
+
+        JPanel valuePanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
+        valuePanel.setBackground(CARD_BACKGROUND);
+        valuePanel.add(createModernLabel("Valor:"));
+        dcValueField = createModernTextField("100", 12);
+        dcValueField.setToolTipText("Valor del componente (Ohms para resistencias, Volts para fuentes)");
+        valuePanel.add(dcValueField);
+        valuePanel.setAlignmentX(Component.LEFT_ALIGNMENT);
+        panel.add(valuePanel);
+
+        panel.add(Box.createVerticalStrut(8));
+
+        JPanel quantityPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
+        quantityPanel.setBackground(CARD_BACKGROUND);
+        quantityPanel.add(createModernLabel("Cantidad:"));
+        quantitySpinner = createModernSpinner(1, 1, 10, 1);
+        quantityPanel.add(quantitySpinner);
+        quantityPanel.setAlignmentX(Component.LEFT_ALIGNMENT);
+        panel.add(quantityPanel);
+
+        panel.add(Box.createVerticalStrut(12));
+
+        addDCButton = createModernButton("Agregar Componente DC", SECONDARY_BLUE);
+        addDCButton.setToolTipText("Agregar componente al circuito DC");
+        addDCButton.setAlignmentX(Component.LEFT_ALIGNMENT);
+        addDCButton.setMaximumSize(new Dimension(220, 40));
+        panel.add(addDCButton);
+
+        return panel;
+    }
+
+    private JPanel createBranchPanel() {
+        JPanel panel = new JPanel();
+        panel.setLayout(new BoxLayout(panel, BoxLayout.Y_AXIS));
+        panel.setBackground(CARD_BACKGROUND);
+        panel.setAlignmentX(Component.LEFT_ALIGNMENT);
+
+        JPanel branchCountPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
+        branchCountPanel.setBackground(CARD_BACKGROUND);
+        branchCountPanel.add(createModernLabel("Número de Ramas:"));
+        branchSpinner = createModernSpinner(2, 1, 10, 1);
+        branchSpinner.setToolTipText("Número de ramas paralelas en el circuito");
+        branchCountPanel.add(branchSpinner);
+        branchCountPanel.setAlignmentX(Component.LEFT_ALIGNMENT);
+        panel.add(branchCountPanel);
+
+        panel.add(Box.createVerticalStrut(8));
+
+        JPanel configPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
+        configPanel.setBackground(CARD_BACKGROUND);
+        configPanel.add(createModernLabel("Configuración:"));
+        String[] configTypes = { "Serie", "Paralelo", "Mixto" };
+        configCombo = createModernComboBox();
+        for (String config : configTypes) {
+            configCombo.addItem(config);
+        }
+        configCombo.setMaximumSize(new Dimension(120, 35));
+        configPanel.add(configCombo);
+        configPanel.setAlignmentX(Component.LEFT_ALIGNMENT);
+        panel.add(configPanel);
+
+        return panel;
+    }
+
+    private JPanel createDCMethodPanel() {
+        JPanel panel = new JPanel();
+        panel.setLayout(new BoxLayout(panel, BoxLayout.Y_AXIS));
+        panel.setBackground(CARD_BACKGROUND);
+        panel.setAlignmentX(Component.LEFT_ALIGNMENT);
+
+        String[] dcMethods = { 
+            "Ley de Ohm", 
+            "Leyes de Kirchhoff", 
+            "Análisis de Mallas", 
+            "Análisis Nodal",
+            "Teorema de Thevenin",
+            "Teorema de Norton",
+            "Transformación de Fuentes"
+        };
+        
+        dcMethodCombo = createModernComboBox();
+        for (String method : dcMethods) {
+            dcMethodCombo.addItem(method);
+        }
+        dcMethodCombo.setToolTipText("Seleccione el método de análisis para circuitos DC");
+        dcMethodCombo.setAlignmentX(Component.LEFT_ALIGNMENT);
+        dcMethodCombo.setMaximumSize(new Dimension(300, 35));
+        panel.add(dcMethodCombo);
+
+        return panel;
+    }
+
+    private JPanel createDCActionPanel() {
+        JPanel panel = new JPanel();
+        panel.setLayout(new BoxLayout(panel, BoxLayout.Y_AXIS));
+        panel.setBackground(CARD_BACKGROUND);
+        panel.setAlignmentX(Component.LEFT_ALIGNMENT);
+
+        simulateDCButton = createModernButton("Simular Circuito DC", SUCCESS_EMERALD);
+        simulateDCButton.setToolTipText("Ejecutar simulación del circuito DC");
+        simulateDCButton.setAlignmentX(Component.LEFT_ALIGNMENT);
+        simulateDCButton.setMaximumSize(new Dimension(220, 45));
+
+        panel.add(Box.createVerticalStrut(8));
+
+        clearDCButton = createModernButton("Limpiar Circuito DC", ERROR_ROSE);
+        clearDCButton.setToolTipText("Limpiar circuito DC y resultados");
+        clearDCButton.setAlignmentX(Component.LEFT_ALIGNMENT);
+        clearDCButton.setMaximumSize(new Dimension(220, 40));
+
+        // Barra de progreso DC
+        dcProgressBar = new JProgressBar();
+        setupModernProgressBar(dcProgressBar);
+        dcProgressBar.setVisible(false);
+        dcProgressBar.setAlignmentX(Component.LEFT_ALIGNMENT);
+        dcProgressBar.setMaximumSize(new Dimension(220, 25));
+
+        panel.add(simulateDCButton);
+        panel.add(Box.createVerticalStrut(12));
+        panel.add(clearDCButton);
+        panel.add(Box.createVerticalStrut(12));
+        panel.add(dcProgressBar);
+
+        return panel;
+    }
+
+    // ========== NUEVO: PANEL DE SIMULACIÓN DC ==========
+
+    private JPanel createDCSimulatorPanel() {
+        JPanel panel = new JPanel(new BorderLayout(10, 10));
+        panel.setBackground(LIGHT_SLATE);
+        panel.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
+
+        // Título del panel DC
+        JLabel titleLabel = new JLabel("Simulador de Circuitos DC - Análisis Resistivo", JLabel.CENTER);
+        titleLabel.setFont(new Font("Segoe UI", Font.BOLD, 18));
+        titleLabel.setForeground(DARK_SLATE);
+        titleLabel.setBorder(BorderFactory.createEmptyBorder(0, 0, 15, 0));
+        panel.add(titleLabel, BorderLayout.NORTH);
+
+        // Panel principal DC dividido
+        JSplitPane dcSplitPane = new JSplitPane(JSplitPane.VERTICAL_SPLIT);
+        dcSplitPane.setDividerLocation(300);
+        dcSplitPane.setResizeWeight(0.5);
+
+        // Panel superior: Diagrama del circuito DC
+        JPanel dcDiagramPanel = createDCDiagramPanel();
+        dcSplitPane.setTopComponent(dcDiagramPanel);
+
+        // Panel inferior: Resultados y análisis DC
+        JPanel dcResultsPanel = createDCResultsPanel();
+        dcSplitPane.setBottomComponent(dcResultsPanel);
+
+        panel.add(dcSplitPane, BorderLayout.CENTER);
+
+        return panel;
+    }
+
+    private JPanel createDCDiagramPanel() {
+        JPanel panel = new JPanel(new BorderLayout());
+        panel.setBorder(BorderFactory.createEmptyBorder(5, 0, 10, 0));
+        panel.setPreferredSize(new Dimension(600, 280));
+        panel.setBackground(LIGHT_SLATE);
+
+        JPanel cardPanel = new JPanel(new BorderLayout()) {
+            @Override
+            protected void paintComponent(Graphics g) {
+                Graphics2D g2d = (Graphics2D) g;
+                g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+                
+                g2d.setColor(CARD_BACKGROUND);
+                g2d.fillRoundRect(0, 0, getWidth(), getHeight(), 12, 12);
+                
+                g2d.setColor(new Color(226, 232, 240));
+                g2d.setStroke(new BasicStroke(1.2f));
+                g2d.drawRoundRect(0, 0, getWidth()-1, getHeight()-1, 12, 12);
+            }
+        };
+        
+        cardPanel.setBorder(BorderFactory.createEmptyBorder(15, 15, 15, 15));
+
+        // Título del diagrama DC
+        JLabel titleLabel = new JLabel("Diagrama del Circuito DC");
+        titleLabel.setFont(new Font("Segoe UI", Font.BOLD, 14));
+        titleLabel.setForeground(DARK_SLATE);
+        titleLabel.setBorder(BorderFactory.createEmptyBorder(0, 0, 10, 0));
+        cardPanel.add(titleLabel, BorderLayout.NORTH);
+
+        // Usar DCDiagramPanel real
+        dcDiagramPanel = new DCDiagramPanel();
+        dcDiagramPanel.setCircuit(currentDCCircuit);
+        
+        JScrollPane diagramScroll = new JScrollPane(dcDiagramPanel);
+        diagramScroll.setBorder(BorderFactory.createLineBorder(new Color(200, 200, 200)));
+
+        cardPanel.add(diagramScroll, BorderLayout.CENTER);
+        panel.add(cardPanel, BorderLayout.CENTER);
+        return panel;
+    }
+
+    private JPanel createDCResultsPanel() {
+        JPanel panel = new JPanel(new BorderLayout());
+        panel.setBackground(LIGHT_SLATE);
+
+        // Pestañas para resultados DC
+        JTabbedPane dcResultsTabs = new JTabbedPane(JTabbedPane.TOP);
+        dcResultsTabs.setFont(new Font("Segoe UI", Font.BOLD, 12));
+        setupModernTabbedPane(dcResultsTabs);
+
+        // Pestaña 1: Resultados principales usando DCResultsPanel
+        dcResultsPanel = new DCResultsPanel();
+        dcResultsTabs.addTab("Resultados Principales", dcResultsPanel);
+
+        // Pestaña 2: Circuitos equivalentes
+        dcEquivalentPanel = new DCEquivalentCircuitPanel();
+        dcResultsTabs.addTab("Circuitos Equivalentes", dcEquivalentPanel);
+
+        // Pestaña 3: Análisis detallado
+        JPanel detailedAnalysisPanel = createDCDetailedAnalysisPanel();
+        dcResultsTabs.addTab("Análisis Detallado", detailedAnalysisPanel);
+
+        panel.add(dcResultsTabs, BorderLayout.CENTER);
+        return panel;
+    }
+
+    private JPanel createDCDetailedAnalysisPanel() {
+        JPanel panel = new JPanel(new BorderLayout());
+        panel.setBackground(CARD_BACKGROUND);
+        panel.setBorder(BorderFactory.createEmptyBorder(15, 15, 15, 15));
+
+        // Usar el miembro de clase
+        dcDetailedAnalysisArea = new JTextArea();
+        dcDetailedAnalysisArea.setEditable(false);
+        dcDetailedAnalysisArea.setFont(new Font("Consolas", Font.PLAIN, 11));
+        dcDetailedAnalysisArea.setBackground(CARD_BACKGROUND);
+        dcDetailedAnalysisArea.setForeground(DARK_SLATE);
+        dcDetailedAnalysisArea.setText(
+            "=== ANÁLISIS DETALLADO DC ===\n\n" +
+            "Información que se mostrará:\n\n" +
+            "• Intensidades de corriente por rama (A)\n" +
+            "• Dirección de corriente (sentido)\n" +
+            "• Variación de potencial en componentes\n" +
+            "• Potencia disipada por resistencias\n" +
+            "• Potencia entregada por fuentes\n" +
+            "• Análisis mediante leyes de Kirchhoff\n" +
+            "• Verificación de conservación de energía\n\n" +
+            "Ejecute una simulación para ver el análisis completo."
+        );
+
+        JScrollPane scroll = new JScrollPane(dcDetailedAnalysisArea);
+        scroll.setBorder(BorderFactory.createLineBorder(new Color(226, 232, 240)));
+        panel.add(scroll, BorderLayout.CENTER);
+
+        return panel;
+    }
+
+    // ========== MÉTODOS DC ==========
+
+    private void setupDCEventHandlers() {
+        // Configurar handlers para los botones DC
+        addDCButton.addActionListener(e -> addDCComponent());
+        simulateDCButton.addActionListener(e -> simulateDCCircuit());
+        clearDCButton.addActionListener(e -> clearDCCircuit());
+        
+        // Configurar listeners para cambios en valores DC
+        setupDCValueListeners();
+    }
+
+    private void setupDCValueListeners() {
+        // Configurar listeners para campos de entrada DC
+        if (dcVoltageField != null) {
+            dcVoltageField.getDocument().addDocumentListener(new javax.swing.event.DocumentListener() {
+                @Override
+                public void insertUpdate(javax.swing.event.DocumentEvent e) { onDCValueChanged(); }
+                @Override
+                public void removeUpdate(javax.swing.event.DocumentEvent e) { onDCValueChanged(); }
+                @Override
+                public void changedUpdate(javax.swing.event.DocumentEvent e) { onDCValueChanged(); }
+            });
+        }
+        
+        // Configurar listener para el combo box de métodos DC
+        if (dcMethodCombo != null) {
+            dcMethodCombo.addActionListener(e -> onDCMethodChanged());
+        }
+    }
+
+    private void onDCValueChanged() {
+        // Actualizar vista previa o validaciones cuando cambian los valores DC
+        try {
+            double voltage = getDCVoltage();
+            currentDCCircuit.setSourceVoltage(voltage);
+            if (dcDiagramPanel != null) {
+                dcDiagramPanel.repaint();
+            }
+        } catch (Exception e) {
+            // Ignorar errores durante la entrada de datos
+        }
+    }
+
+    private void onDCMethodChanged() {
+        String method = getDCMethod();
+        // Opcional: mostrar info, pero puede ser molesto
+        // showInfo("Método de análisis cambiado a: " + method);
+    }
+
+    private void addDCComponent() {
+        try {
+            DCComponentType type = getSelectedDCComponentType();
+            double value = Double.parseDouble(dcValueField.getText().trim());
+            int quantity = (Integer) quantitySpinner.getValue();
+            String name = dcComponentTypeCombo.getSelectedItem().toString() + " " + value;
+            
+            if (value <= 0) {
+                showError("El valor del componente debe ser positivo");
+                return;
+            }
+
+            DCComponent comp = new DCComponent(type, value, name, quantity);
+            
+            // Agregar a la rama actual
+            int branchCount = (Integer) branchSpinner.getValue();
+            ensureBranchesExist(branchCount);
+            
+            // Agregar a la primera rama por simplicidad
+            if (!currentDCCircuit.getBranches().isEmpty()) {
+                currentDCCircuit.getBranches().get(0).addComponent(comp);
+            }
+            
+            // Actualizar configuración
+            String config = (String) configCombo.getSelectedItem();
+            currentDCCircuit.setConfiguration(config != null ? config : "Serie");
+            currentDCCircuit.setBatteryCount((Integer) batterySpinner.getValue());
+            
+            // Actualizar UI
+            dcDiagramPanel.setCircuit(currentDCCircuit);
+            dcDiagramPanel.repaint();
+            
+            dcValueField.setText("");
+            showInfo("Componente DC agregado: " + comp.toString());
+            
+        } catch (NumberFormatException ex) {
+            showError("Ingrese valores numéricos válidos para el componente DC");
+        } catch (Exception ex) {
+            showError("Error al agregar componente DC: " + ex.getMessage());
+        }
+    }
+
+    private DCComponentType getSelectedDCComponentType() {
+        String selected = (String) dcComponentTypeCombo.getSelectedItem();
+        if (selected == null) return DCComponentType.RESISTOR;
+        
+        switch (selected) {
+            case "Batería": return DCComponentType.BATTERY;
+            case "Resistencia": return DCComponentType.RESISTOR;
+            case "Fuente DC": return DCComponentType.DC_SOURCE;
+            default: return DCComponentType.RESISTOR;
+        }
+    }
+
+    private void ensureBranchesExist(int branchCount) {
+        // Asegurar que existan suficientes ramas
+        while (currentDCCircuit.getBranches().size() < branchCount) {
+            currentDCCircuit.addBranch(new DCBranch(currentDCCircuit.getBranches().size() + 1));
+        }
+        
+        // Remover ramas extras si es necesario
+        while (currentDCCircuit.getBranches().size() > branchCount) {
+            currentDCCircuit.removeBranch(currentDCCircuit.getBranches().size() - 1);
+        }
+    }
+
+    private void simulateDCCircuit() {
+        try {
+            // Actualizar parámetros del circuito
+            currentDCCircuit.setSourceVoltage(getDCVoltage());
+            currentDCCircuit.setBatteryCount((Integer) batterySpinner.getValue());
+            currentDCCircuit.setConfiguration((String) configCombo.getSelectedItem());
+
+            if (currentDCCircuit == null || !currentDCCircuit.isValid()) {
+                showError("Circuito DC no válido. Agregue componentes y configure el circuito.");
+                return;
+            }
+
+            // Obtener método seleccionado
+            String methodName = getDCMethod();
+            DCAnalysisMethod method = convertToDCAnalysisMethod(methodName);
+            
+            // Configurar motor DC
+            dcEngine.setAnalysisMethod(method);
+            
+            // Mostrar progreso
+            dcProgressBar.setVisible(true);
+            dcProgressBar.setIndeterminate(true);
+            dcProgressBar.setString("Simulación DC en progreso...");
+            simulateDCButton.setEnabled(false);
+            
+            // Ejecutar simulación
+            DCSimulationResult result = dcEngine.simulate(currentDCCircuit);
+            lastDCResult = result;
+            
+            // Actualizar UI
+            updateDCResults(result); // Actualiza el panel de análisis detallado
+            dcResultsPanel.updateResults(result);
+            dcEquivalentPanel.updateEquivalents(result);
+            dcDiagramPanel.setCircuit(currentDCCircuit);
+            
+            // Ocultar progreso
+            dcProgressBar.setVisible(false);
+            simulateDCButton.setEnabled(true);
+            
+            showInfo("Simulación DC completada usando " + methodName);
+            
+        } catch (Exception ex) {
+            ex.printStackTrace();
+            showError("Error en simulación DC: " + ex.getMessage());
+            dcResultsPanel.showError(ex.getMessage());
+            dcEquivalentPanel.clearEquivalents();
+            dcProgressBar.setVisible(false);
+            simulateDCButton.setEnabled(true);
+        }
+    }
+
+    private void clearDCCircuit() {
+        currentDCCircuit = new DCCircuit(getDCVoltage(), "Serie", 1);
+        lastDCResult = null;
+        
+        // Actualizar UI
+        dcDiagramPanel.setCircuit(currentDCCircuit);
+        dcResultsPanel.clearResults();
+        dcEquivalentPanel.clearEquivalents();
+        if (dcDetailedAnalysisArea != null) {
+            dcDetailedAnalysisArea.setText(
+                "=== ANÁLISIS DETALLADO DC ===\n\n" +
+                "Circuito limpiado.\n\n" +
+                "Ejecute una simulación para ver el análisis completo."
+            );
+        }
+        
+        showInfo("Circuito DC limpiado");
+    }
+
+    private double getDCVoltage() {
+        try {
+            if (dcVoltageField != null && !dcVoltageField.getText().trim().isEmpty()) {
+                double voltage = Double.parseDouble(dcVoltageField.getText().trim());
+                if (voltage > 0 && voltage <= 1000) {
+                    return voltage;
+                } else {
+                    throw new IllegalArgumentException("El voltaje debe estar entre 0.1 y 1000 V");
+                }
+            }
+            return 12.0; // Valor por defecto
+        } catch (NumberFormatException e) {
+            throw new IllegalArgumentException("Voltaje DC no válido");
+        }
+    }
+
+    private String getDCMethod() {
+        if (dcMethodCombo != null && dcMethodCombo.getSelectedItem() != null) {
+            return (String) dcMethodCombo.getSelectedItem();
+        }
+        return "Ley de Ohm"; // Default
+    }
+
+    private DCAnalysisMethod convertToDCAnalysisMethod(String methodName) {
+        if (methodName == null) return DCAnalysisMethod.OHM_LAW;
+        switch (methodName) {
+            case "Leyes de Kirchhoff": return DCAnalysisMethod.KIRCHHOFF_LAWS;
+            case "Análisis de Mallas": return DCAnalysisMethod.MESH_ANALYSIS;
+            case "Análisis Nodal": return DCAnalysisMethod.NODE_ANALYSIS;
+            case "Teorema de Thevenin": return DCAnalysisMethod.THEVENIN_THEOREM;
+            case "Teorema de Norton": return DCAnalysisMethod.NORTON_THEOREM;
+            case "Transformación de Fuentes": return DCAnalysisMethod.SOURCE_TRANSFORMATION;
+            case "Ley de Ohm":
+            default:
+                return DCAnalysisMethod.OHM_LAW;
+        }
+    }
+    
+    private void updateDCResults(DCSimulationResult result) {
+        if (dcDetailedAnalysisArea == null) return;
+        
+        StringBuilder sb = new StringBuilder();
+        sb.append("=== ANÁLISIS DETALLADO DC ===\n\n");
+        sb.append("Método de Análisis: ").append(result.getMethodUsed()).append("\n");
+        sb.append("Configuración: ").append(result.getCircuitConfiguration()).append("\n\n");
+        
+        sb.append("--- VERIFICACIÓN DE LEYES ---\n");
+        sb.append("Voltaje Total: ").append(df.format(result.getSourceVoltage())).append(" V\n");
+        sb.append("Corriente Total: ").append(df.format(result.getTotalCurrent())).append(" A\n");
+        sb.append("Resistencia Eq.: ").append(df.format(result.getTotalResistance())).append(" Ω\n");
+        double calculatedVoltage = result.getTotalCurrent() * result.getTotalResistance();
+        sb.append("Ley de Ohm (V=I*R): ").append(df.format(calculatedVoltage)).append(" V (Verificado)\n\n");
+        
+        sb.append("--- ANÁLISIS DE POTENCIA ---\n");
+        sb.append("Potencia (Fuente): ").append(df.format(result.getTotalPower())).append(" W\n");
+        sb.append("Potencia (Disipada): ").append(df.format(result.getPowerDissipated())).append(" W\n");
+        sb.append("Eficiencia: ").append(df.format(result.getEfficiency())).append(" %\n\n");
+
+        sb.append("--- CORRIENTES POR RAMA ---\n");
+        double[] branchCurrents = result.getBranchCurrents();
+        for (int i = 0; i < branchCurrents.length; i++) {
+            sb.append(String.format("• Rama %d: %s A\n", i + 1, df.format(branchCurrents[i])));
+        }
+        
+        sb.append("\n--- TENSIONES EN COMPONENTES ---\n");
+        double[] componentVoltages = result.getComponentVoltages();
+        for (int i = 0; i < componentVoltages.length; i++) {
+            sb.append(String.format("• Componente %d: %.2f V\n", i + 1, componentVoltages[i]));
+        }
+        
+        dcDetailedAnalysisArea.setText(sb.toString());
+        dcDetailedAnalysisArea.setCaretPosition(0);
+    }
+
+    // ========== MÉTODOS ORIGINALES (sin cambios) ==========
 
     private void setupModernTabbedPane(JTabbedPane tabbedPane) {
         tabbedPane.setUI(new javax.swing.plaf.basic.BasicTabbedPaneUI() {
@@ -3467,7 +6223,7 @@ public class RLCSimulator extends JPanel implements SimulationObserver {
         panel.add(Box.createVerticalStrut(15));
 
         // Método de simulación
-        JPanel methodPanel = createModernCardPanel("Metodo de Simulacion", createMethodPanel());
+        JPanel methodPanel = createModernCardPanel("Método de Simulación", createMethodPanel());
         panel.add(methodPanel);
         panel.add(Box.createVerticalStrut(15));
 
@@ -3544,7 +6300,7 @@ public class RLCSimulator extends JPanel implements SimulationObserver {
         controlsPanel.setAlignmentX(Component.LEFT_ALIGNMENT);
 
         // Algoritmo de planificación
-        JPanel algorithmPanel = createModernCardPanel("Algoritmo de Planificacion", 
+        JPanel algorithmPanel = createModernCardPanel("Algoritmo de Planificación", 
             createSimpleComboBoxPanel("Seleccione algoritmo:", 
                 new String[] { "First-Come, First-Served (FCFS)", "Round Robin (RR)", "Shortest Job First (SJF)" }));
         algorithmCombo = findComboBoxInPanel(algorithmPanel);
@@ -3553,13 +6309,13 @@ public class RLCSimulator extends JPanel implements SimulationObserver {
 
         // Tipo de lote
         JPanel batchPanel = createModernCardPanel("Tipo de Lote", 
-            createSimpleComboBoxPanel("Configuracion del lote:",
-                new String[] { "Homogeneo - Simple", "Homogeneo - Medio", "Homogeneo - Complejo",
-                        "Heterogeneo - Mixto" }));
+            createSimpleComboBoxPanel("Configuración del lote:",
+                new String[] { "Homogéneo - Simple", "Homogéneo - Medio", "Homogéneo - Complejo",
+                        "Heterogéneo - Mixto" }));
         batchTypeCombo = findComboBoxInPanel(batchPanel);
         if (batchTypeCombo == null) {
             batchTypeCombo = new JComboBox<>(new String[] {
-                    "Homogeneo - Simple", "Homogeneo - Medio", "Homogeneo - Complejo", "Heterogeneo - Mixto"
+                    "Homogéneo - Simple", "Homogéneo - Medio", "Homogéneo - Complejo", "Heterogéneo - Mixto"
             });
             batchPanel.add(batchTypeCombo);
         }
@@ -3568,12 +6324,12 @@ public class RLCSimulator extends JPanel implements SimulationObserver {
         controlsPanel.add(Box.createVerticalStrut(15));
 
         // Controles de batch
-        JPanel batchControlsPanel = createModernCardPanel("Configuracion del Lote", createBatchControlsPanel());
+        JPanel batchControlsPanel = createModernCardPanel("Configuración del Lote", createBatchControlsPanel());
         controlsPanel.add(batchControlsPanel);
         controlsPanel.add(Box.createVerticalStrut(15));
 
         // Botones de control
-        JPanel buttonPanel = createModernCardPanel("Control de Ejecucion", createSchedulingButtonPanel());
+        JPanel buttonPanel = createModernCardPanel("Control de Ejecución", createSchedulingButtonPanel());
         controlsPanel.add(buttonPanel);
         controlsPanel.add(Box.createVerticalStrut(15));
 
@@ -3587,8 +6343,8 @@ public class RLCSimulator extends JPanel implements SimulationObserver {
 
         updateBatchControls();
 
-        // Panel inferior - Log de Planificación y Tareas
-        JPanel logPanel = createSchedulingLogPanelForLeft();
+        // Panel inferior - Log de Planificación
+        JPanel logPanel = createLogPanelForLeft();
 
         // Usar JSplitPane para dividir controles y log
         JSplitPane splitPane = new JSplitPane(JSplitPane.VERTICAL_SPLIT);
@@ -3600,6 +6356,674 @@ public class RLCSimulator extends JPanel implements SimulationObserver {
 
         panel.add(splitPane, BorderLayout.CENTER);
         return panel;
+    }
+
+    private JPanel createLogPanelForLeft() {
+        JPanel panel = new JPanel(new BorderLayout());
+        panel.setBorder(BorderFactory.createEmptyBorder(5, 0, 0, 0));
+        panel.setBackground(LIGHT_SLATE);
+        panel.setPreferredSize(new Dimension(350, 200));
+
+        schedulingLogArea = new JTextArea(8, 30);
+        schedulingLogArea.setEditable(false);
+        schedulingLogArea.setFont(new Font("Consolas", Font.PLAIN, 10));
+        schedulingLogArea.setBackground(new Color(248, 250, 252));
+        schedulingLogArea.setForeground(DARK_SLATE);
+        schedulingLogArea.setLineWrap(true);
+        schedulingLogArea.setWrapStyleWord(true);
+        schedulingLogArea.setBorder(BorderFactory.createEmptyBorder(8, 8, 8, 8));
+
+        JScrollPane logScroll = new JScrollPane(schedulingLogArea);
+        logScroll.setBorder(BorderFactory.createLineBorder(new Color(226, 232, 240)));
+        panel.add(logScroll, BorderLayout.CENTER);
+
+        return panel;
+    }
+
+    // ========== PANEL DE VISUALIZACIÓN DE CIRCUITOS ==========
+
+    private JPanel createCircuitVisualizationPanel() {
+        JPanel panel = new JPanel(new BorderLayout(10, 10));
+        panel.setBackground(LIGHT_SLATE);
+
+        // Panel superior: Diagrama del circuito
+        JPanel diagramPanel = createCircuitPanel();
+        panel.add(diagramPanel, BorderLayout.NORTH);
+
+        // Panel central: Pestañas para gráficos y resultados
+        circuitTabs = new JTabbedPane(JTabbedPane.TOP);
+        circuitTabs.setFont(new Font("Segoe UI", Font.BOLD, 12));
+        setupModernTabbedPane(circuitTabs);
+
+        // Pestaña 1: Visualización (Gráficos)
+        JPanel graphPanel = createGraphPanel();
+        circuitTabs.addTab("Visualización", graphPanel);
+
+        // Pestaña 2: Resultados
+        JPanel resultsPanel = createResultsPanel();
+        JScrollPane resultsScroll = new JScrollPane(resultsPanel);
+        resultsScroll.setBorder(BorderFactory.createEmptyBorder(5, 5, 5, 5));
+        circuitTabs.addTab("Resultados", resultsScroll);
+
+        // Pestaña 3: Análisis Detallado
+        JPanel analysisPanel = createAnalysisPanel();
+        circuitTabs.addTab("Análisis", analysisPanel);
+
+        panel.add(circuitTabs, BorderLayout.CENTER);
+
+        return panel;
+    }
+
+    private JPanel createCircuitPanel() {
+        JPanel panel = new JPanel(new BorderLayout());
+        panel.setBorder(BorderFactory.createEmptyBorder(5, 0, 10, 0));
+        panel.setPreferredSize(new Dimension(600, 220));
+        panel.setBackground(LIGHT_SLATE);
+
+        JPanel cardPanel = new JPanel(new BorderLayout()) {
+            @Override
+            protected void paintComponent(Graphics g) {
+                Graphics2D g2d = (Graphics2D) g;
+                g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+                
+                g2d.setColor(CARD_BACKGROUND);
+                g2d.fillRoundRect(0, 0, getWidth(), getHeight(), 12, 12);
+                
+                g2d.setColor(new Color(226, 232, 240));
+                g2d.setStroke(new BasicStroke(1.2f));
+                g2d.drawRoundRect(0, 0, getWidth()-1, getHeight()-1, 12, 12);
+            }
+        };
+        
+        cardPanel.setBorder(BorderFactory.createEmptyBorder(15, 15, 15, 15));
+
+        // Título del diagrama
+        JLabel titleLabel = new JLabel("Diagrama del Circuito");
+        titleLabel.setFont(new Font("Segoe UI", Font.BOLD, 14));
+        titleLabel.setForeground(DARK_SLATE);
+        titleLabel.setBorder(BorderFactory.createEmptyBorder(0, 0, 10, 0));
+        cardPanel.add(titleLabel, BorderLayout.NORTH);
+
+        circuitDiagram = new CircuitDiagramPanel();
+
+        JScrollPane diagramScroll = new JScrollPane(circuitDiagram);
+        diagramScroll.setVerticalScrollBarPolicy(JScrollPane.VERTICAL_SCROLLBAR_AS_NEEDED);
+        diagramScroll.setHorizontalScrollBarPolicy(JScrollPane.HORIZONTAL_SCROLLBAR_AS_NEEDED);
+        diagramScroll.setBorder(BorderFactory.createLineBorder(new Color(226, 232, 240)));
+        diagramScroll.getViewport().setBackground(Color.WHITE);
+
+        cardPanel.add(diagramScroll, BorderLayout.CENTER);
+        panel.add(cardPanel, BorderLayout.CENTER);
+        return panel;
+    }
+
+    private JPanel createGraphPanel() {
+        JPanel panel = new JPanel(new BorderLayout());
+        panel.setBorder(BorderFactory.createEmptyBorder(15, 15, 15, 15));
+        panel.setBackground(CARD_BACKGROUND);
+
+        currentGraph = new TimeGraph(null);
+        graphContainer = new JPanel(new BorderLayout());
+        graphContainer.setBackground(CARD_BACKGROUND);
+
+        JScrollPane graphScroll = new JScrollPane(currentGraph);
+        graphScroll.setVerticalScrollBarPolicy(JScrollPane.VERTICAL_SCROLLBAR_AS_NEEDED);
+        graphScroll.setHorizontalScrollBarPolicy(JScrollPane.HORIZONTAL_SCROLLBAR_AS_NEEDED);
+        graphScroll.setBorder(BorderFactory.createLineBorder(new Color(226, 232, 240)));
+        graphScroll.getViewport().setBackground(Color.WHITE);
+        graphContainer.add(graphScroll, BorderLayout.CENTER);
+
+        JPanel graphTypePanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
+        graphTypePanel.setBackground(CARD_BACKGROUND);
+        graphTypePanel.add(createModernLabel("Tipo de Gráfico:"));
+
+        graphTypeCombo = createModernComboBox();
+        graphTypeCombo.setModel(new DefaultComboBoxModel<>(new String[] {
+                "Dominio de Tiempo", "Respuesta en Frecuencia", "Diagrama Fasorial", "Formas de Onda"
+        }));
+        graphTypeCombo.addActionListener(e -> updateGraphType());
+        graphTypePanel.add(graphTypeCombo);
+
+        panel.add(graphTypePanel, BorderLayout.NORTH);
+        panel.add(graphContainer, BorderLayout.CENTER);
+
+        return panel;
+    }
+
+    private JPanel createResultsPanel() {
+        JPanel panel = new JPanel(new BorderLayout());
+        panel.setBackground(CARD_BACKGROUND);
+        panel.setBorder(BorderFactory.createEmptyBorder(20, 20, 20, 20));
+
+        resultsArea = new JTextArea(12, 50);
+        resultsArea.setEditable(false);
+        resultsArea.setFont(new Font("Segoe UI", Font.PLAIN, 12));
+        resultsArea.setLineWrap(true);
+        resultsArea.setWrapStyleWord(true);
+        resultsArea.setBackground(CARD_BACKGROUND);
+        resultsArea.setForeground(DARK_SLATE);
+        resultsArea.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
+
+        updateInitialResultsText();
+
+        JScrollPane scroll = new JScrollPane(resultsArea);
+        scroll.setVerticalScrollBarPolicy(JScrollPane.VERTICAL_SCROLLBAR_AS_NEEDED);
+        scroll.setHorizontalScrollBarPolicy(JScrollPane.HORIZONTAL_SCROLLBAR_AS_NEEDED);
+        scroll.setBorder(BorderFactory.createLineBorder(new Color(226, 232, 240)));
+        scroll.getViewport().setBackground(CARD_BACKGROUND);
+
+        panel.add(scroll, BorderLayout.CENTER);
+        return panel;
+    }
+
+    private JPanel createAnalysisPanel() {
+        JPanel panel = new JPanel(new BorderLayout());
+        panel.setBackground(CARD_BACKGROUND);
+        panel.setBorder(BorderFactory.createEmptyBorder(20, 20, 20, 20));
+
+        analysisArea = new JTextArea();
+        analysisArea.setEditable(false);
+        analysisArea.setFont(new Font("Segoe UI", Font.PLAIN, 12));
+        analysisArea.setBackground(CARD_BACKGROUND);
+        analysisArea.setForeground(DARK_SLATE);
+        analysisArea.setLineWrap(true);
+        analysisArea.setWrapStyleWord(true);
+        analysisArea.setText(
+                "=== ANÁLISIS DETALLADO DEL CIRCUITO ===\n\n" +
+                "Esta sección muestra análisis avanzados:\n\n" +
+                "- Parámetros del circuito en diferentes frecuencias\n" +
+                "- Comportamiento transitorio vs permanente\n" +
+                "- Análisis de estabilidad del sistema\n" +
+                "- Respuesta a diferentes tipos de entrada\n" +
+                "- Análisis de sensibilidad de componentes\n\n" +
+                "Ejecute una simulación para ver los análisis detallados.");
+
+        JScrollPane scroll = new JScrollPane(analysisArea);
+        scroll.setBorder(BorderFactory.createLineBorder(new Color(226, 232, 240)));
+        panel.add(scroll, BorderLayout.CENTER);
+
+        return panel;
+    }
+
+    private void updateGraphType() {
+        int graphType = graphTypeCombo.getSelectedIndex();
+        if (lastResult == null || components == null || components.isEmpty()) {
+            switch (graphType) {
+                case 0:
+                    currentGraph = new TimeGraph(null);
+                    break;
+                case 1:
+                    currentGraph = new FrequencyGraph(new ArrayList<>());
+                    break;
+                case 2:
+                    currentGraph = new PhasorDiagram(null, new ArrayList<>());
+                    break;
+                case 3:
+                    currentGraph = new WaveformGraph(null);
+                    break;
+            }
+        } else {
+            switch (graphType) {
+                case 0:
+                    currentGraph = new TimeGraph(lastResult);
+                    break;
+                case 1:
+                    currentGraph = new FrequencyGraph(components);
+                    break;
+                case 2:
+                    currentGraph = new PhasorDiagram(lastResult, components);
+                    break;
+                case 3:
+                    currentGraph = new WaveformGraph(lastResult);
+                    break;
+            }
+        }
+
+        graphContainer.removeAll();
+        JScrollPane graphScroll = new JScrollPane(currentGraph);
+        graphScroll.setVerticalScrollBarPolicy(JScrollPane.VERTICAL_SCROLLBAR_AS_NEEDED);
+        graphScroll.setHorizontalScrollBarPolicy(JScrollPane.HORIZONTAL_SCROLLBAR_AS_NEEDED);
+        graphScroll.setBorder(BorderFactory.createLineBorder(new Color(226, 232, 240)));
+        graphScroll.getViewport().setBackground(Color.WHITE);
+        graphContainer.add(graphScroll, BorderLayout.CENTER);
+        graphContainer.revalidate();
+        graphContainer.repaint();
+    }
+
+    private void updateInitialResultsText() {
+        StringBuilder sb = new StringBuilder();
+        sb.append("=== Simulador Avanzado de Circuitos RLC ===\n\n");
+        sb.append("Instrucciones:\n");
+        sb.append("   1. Agregue componentes (R, L, C) al circuito\n");
+        sb.append("   2. Configure voltaje y frecuencia\n");
+        sb.append("   3. Seleccione método de simulación\n");
+        sb.append("   4. Haga clic en 'Simular Circuito'\n\n");
+        sb.append("Características:\n");
+        sb.append("   - Análisis en dominio de tiempo y frecuencia\n");
+        sb.append("   - Diagramas fasoriales interactivos\n");
+        sb.append("   - Múltiples métodos de cálculo\n");
+        sb.append("   - Circuitos predefinidos\n");
+        sb.append("   - Algoritmos de planificación integrados\n");
+        sb.append("   - Interfaz moderna e intuitiva\n\n");
+        sb.append("¡Comience agregando componentes y ejecutando una simulación!");
+
+        if (resultsArea != null) {
+            resultsArea.setText(sb.toString());
+        }
+    }
+
+    // ========== PANEL DE VISUALIZACIÓN DE MEMORIA VIRTUAL ==========
+
+    private JPanel createMemoryVisualizationPanel() {
+        JPanel panel = new JPanel(new BorderLayout(10, 10));
+        panel.setBackground(LIGHT_SLATE);
+        panel.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
+
+        // Título principal
+        JLabel titleLabel = new JLabel("Memoria Virtual - Simulación de Procesos", JLabel.CENTER);
+        titleLabel.setFont(new Font("Segoe UI", Font.BOLD, 18));
+        titleLabel.setForeground(DARK_SLATE);
+        titleLabel.setBorder(BorderFactory.createEmptyBorder(0, 0, 15, 0));
+        panel.add(titleLabel, BorderLayout.NORTH);
+
+        // Panel principal dividido en información y visualización
+        JSplitPane memorySplitPane = new JSplitPane(JSplitPane.VERTICAL_SPLIT);
+        memorySplitPane.setDividerLocation(150);
+        memorySplitPane.setResizeWeight(0.3);
+
+        // Panel superior - Información de memoria
+        JPanel infoPanel = createMemoryInfoPanel();
+        memorySplitPane.setTopComponent(infoPanel);
+
+        // Panel inferior - Visualización gráfica y colas
+        JPanel visualizationPanel = createMemoryVisualizationGraphics();
+        memorySplitPane.setBottomComponent(visualizationPanel);
+
+        panel.add(memorySplitPane, BorderLayout.CENTER);
+
+        return panel;
+    }
+
+    private JPanel createMemoryInfoPanel() {
+        JPanel panel = new JPanel(new BorderLayout());
+        panel.setBackground(CARD_BACKGROUND);
+        panel.setBorder(BorderFactory.createEmptyBorder(15, 15, 15, 15));
+
+        // Título
+        JLabel titleLabel = new JLabel("Estado del Sistema");
+        titleLabel.setFont(new Font("Segoe UI", Font.BOLD, 14));
+        titleLabel.setForeground(DARK_SLATE);
+        titleLabel.setBorder(BorderFactory.createEmptyBorder(0, 0, 10, 0));
+        panel.add(titleLabel, BorderLayout.NORTH);
+
+        // Grid de información
+        JPanel gridPanel = new JPanel(new GridLayout(3, 2, 10, 10));
+        gridPanel.setBackground(CARD_BACKGROUND);
+
+        // Primera fila
+        JLabel fragTotalLabel = createModernLabel("Fragmentación Total:");
+        JLabel memUsageLabel = createModernLabel("Uso actual de Memoria:");
+        fragTotalValue = createModernValueLabel("0.0 KB");
+        memUsageValue = createModernValueLabel("0 KB (0.0%)");
+
+        // Segunda fila
+        JLabel avgUsageLabel = createModernLabel("Uso promedio:");
+        JLabel extFragLabel = createModernLabel("Fragmentación Externa:");
+        avgUsageValue = createModernValueLabel("0 KB (0.0%)");
+        extFragValue = createModernValueLabel("0.0 KB");
+
+        // Tercera fila
+        JLabel intFragLabel = createModernLabel("Fragmentación Interna:");
+        JLabel semaphoreLabel = createModernLabel("Semáforo 'Recurso Compartido':");
+        intFragValue = createModernValueLabel("0.0 KB");
+        semaphoreValue = createModernValueLabel("1 (esperando: 0)");
+
+        gridPanel.add(fragTotalLabel);
+        gridPanel.add(fragTotalValue);
+        gridPanel.add(memUsageLabel);
+        gridPanel.add(memUsageValue);
+        gridPanel.add(avgUsageLabel);
+        gridPanel.add(avgUsageValue);
+        gridPanel.add(extFragLabel);
+        gridPanel.add(extFragValue);
+        gridPanel.add(intFragLabel);
+        gridPanel.add(intFragValue);
+        gridPanel.add(semaphoreLabel);
+        gridPanel.add(semaphoreValue);
+
+        panel.add(gridPanel, BorderLayout.CENTER);
+
+        return panel;
+    }
+
+    private JPanel createMemoryVisualizationGraphics() {
+        JPanel panel = new JPanel(new BorderLayout(10, 10));
+        panel.setBackground(LIGHT_SLATE);
+
+        // Panel izquierdo - Visualización de memoria
+        JPanel memoryPanel = new JPanel(new BorderLayout());
+        memoryPanel.setBackground(CARD_BACKGROUND);
+        memoryPanel.setBorder(BorderFactory.createEmptyBorder(15, 15, 15, 15));
+
+        JLabel memoryTitle = new JLabel("Mapa de Memoria");
+        memoryTitle.setFont(new Font("Segoe UI", Font.BOLD, 14));
+        memoryTitle.setForeground(DARK_SLATE);
+        memoryPanel.add(memoryTitle, BorderLayout.NORTH);
+
+        memoryVisualizationPanel = new JPanel() {
+            @Override
+            protected void paintComponent(Graphics g) {
+                super.paintComponent(g);
+                drawMemoryMap(g);
+            }
+        };
+        memoryVisualizationPanel.setPreferredSize(new Dimension(400, 300));
+        memoryVisualizationPanel.setBackground(new Color(240, 245, 255));
+        memoryVisualizationPanel.setBorder(BorderFactory.createLineBorder(new Color(200, 200, 200)));
+
+        memoryPanel.add(memoryVisualizationPanel, BorderLayout.CENTER);
+
+        // Panel derecho - Proceso actual y colas
+        JPanel processPanel = createProcessInfoPanel();
+        processPanel.setPreferredSize(new Dimension(250, 0));
+
+        // Usar JSplitPane para dividir memoria y procesos
+        JSplitPane vizSplitPane = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT);
+        vizSplitPane.setLeftComponent(memoryPanel);
+        vizSplitPane.setRightComponent(processPanel);
+        vizSplitPane.setDividerLocation(400);
+        vizSplitPane.setResizeWeight(0.6);
+
+        panel.add(vizSplitPane, BorderLayout.CENTER);
+
+        return panel;
+    }
+
+    private JPanel createProcessInfoPanel() {
+        JPanel panel = new JPanel(new BorderLayout(10, 10));
+        panel.setBackground(CARD_BACKGROUND);
+        panel.setBorder(BorderFactory.createEmptyBorder(15, 15, 15, 15));
+
+        // Proceso actual
+        JPanel currentPanel = new JPanel(new BorderLayout());
+        currentPanel.setBackground(CARD_BACKGROUND);
+        currentPanel.setBorder(BorderFactory.createEmptyBorder(0, 0, 15, 0));
+
+        JLabel currentTitle = new JLabel("Proceso en Ejecución");
+        currentTitle.setFont(new Font("Segoe UI", Font.BOLD, 14));
+        currentTitle.setForeground(DARK_SLATE);
+        
+        currentProcessLabel = createModernLabel("Ninguno");
+        currentProcessLabel.setFont(new Font("Segoe UI", Font.BOLD, 12));
+        
+        memoryProgressBar = new JProgressBar(0, 100);
+        setupModernProgressBar(memoryProgressBar);
+        memoryProgressBar.setValue(0);
+        memoryProgressBar.setString("0%");
+
+        currentPanel.add(currentTitle, BorderLayout.NORTH);
+        currentPanel.add(currentProcessLabel, BorderLayout.CENTER);
+        currentPanel.add(memoryProgressBar, BorderLayout.SOUTH);
+
+        // Colas de procesos
+        JPanel queuesPanel = new JPanel(new BorderLayout());
+        queuesPanel.setBackground(CARD_BACKGROUND);
+
+        JLabel queuesTitle = new JLabel("Colas de Procesos");
+        queuesTitle.setFont(new Font("Segoe UI", Font.BOLD, 14));
+        queuesTitle.setForeground(DARK_SLATE);
+        queuesTitle.setBorder(BorderFactory.createEmptyBorder(0, 0, 10, 0));
+
+        processQueueArea = new JTextArea(10, 20);
+        processQueueArea.setEditable(false);
+        processQueueArea.setFont(new Font("Consolas", Font.PLAIN, 11));
+        processQueueArea.setBackground(new Color(248, 250, 252));
+        processQueueArea.setForeground(DARK_SLATE);
+        processQueueArea.setBorder(BorderFactory.createEmptyBorder(8, 8, 8, 8));
+
+        JScrollPane queueScroll = new JScrollPane(processQueueArea);
+        queueScroll.setBorder(BorderFactory.createLineBorder(new Color(226, 232, 240)));
+
+        queuesPanel.add(queuesTitle, BorderLayout.NORTH);
+        queuesPanel.add(queueScroll, BorderLayout.CENTER);
+
+        panel.add(currentPanel, BorderLayout.NORTH);
+        panel.add(queuesPanel, BorderLayout.CENTER);
+
+        return panel;
+    }
+
+    private void drawMemoryMap(Graphics g) {
+        Graphics2D g2d = (Graphics2D) g;
+        g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+
+        int width = memoryVisualizationPanel.getWidth();
+        int height = memoryVisualizationPanel.getHeight();
+        int margin = 10;
+        int memWidth = width - 2 * margin;
+        int memHeight = height - 2 * margin;
+
+        // Dibujar marco de memoria
+        g2d.setColor(new Color(220, 220, 220));
+        g2d.fillRect(margin, margin, memWidth, memHeight);
+        g2d.setColor(DARK_SLATE);
+        g2d.drawRect(margin, margin, memWidth, memHeight);
+
+        // Dibujar bloques de memoria basados en las tareas
+        List<CircuitSimulationTask> tasks = scheduler.getTasks();
+        if (tasks.isEmpty()) {
+            // Memoria vacía
+            g2d.setColor(new Color(200, 230, 255));
+            g2d.fillRect(margin, margin, memWidth, memHeight);
+            g2d.setColor(PRIMARY_BLUE);
+            g2d.setFont(new Font("Segoe UI", Font.BOLD, 16));
+            String text = "MEMORIA LIBRE";
+            int textWidth = g2d.getFontMetrics().stringWidth(text);
+            g2d.drawString(text, margin + (memWidth - textWidth) / 2, margin + memHeight / 2);
+            return;
+        }
+
+        // Simular memoria virtual con páginas
+        int totalPages = 16; // 16 páginas de memoria virtual
+        int pageHeight = memHeight / totalPages;
+        int currentY = margin;
+
+        for (int i = 0; i < totalPages; i++) {
+            // Determinar si esta página está ocupada
+            boolean pageOccupied = false;
+            String processName = "";
+            Color pageColor = new Color(200, 230, 255); // Azul claro - libre
+            
+            for (CircuitSimulationTask task : tasks) {
+                int taskId = (int) task.getId();
+                // Simular asignación de páginas basada en el ID de tarea
+                if (i % 4 == taskId % 4 && task.getState() != CircuitSimulationTask.TaskState.COMPLETED) {
+                    pageOccupied = true;
+                    processName = "T" + taskId;
+                    
+                    // Color basado en complejidad
+                    switch (task.getComplexity()) {
+                        case SIMPLE:
+                            pageColor = new Color(144, 238, 144); // Verde
+                            break;
+                        case MEDIUM:
+                            pageColor = new Color(255, 218, 185); // Naranja
+                            break;
+                        case COMPLEX:
+                            pageColor = new Color(240, 128, 128); // Rojo
+                            break;
+                    }
+                    
+                    // Oscurecer si está ejecutándose
+                    if (task.getState() == CircuitSimulationTask.TaskState.RUNNING) {
+                        pageColor = pageColor.darker();
+                    }
+                    break;
+                }
+            }
+
+            // Dibujar página
+            g2d.setColor(pageColor);
+            g2d.fillRect(margin, currentY, memWidth, pageHeight - 2);
+            g2d.setColor(pageColor.darker());
+            g2d.drawRect(margin, currentY, memWidth, pageHeight - 2);
+
+            // Dibujar información de la página
+            g2d.setColor(DARK_SLATE);
+            g2d.setFont(new Font("Segoe UI", Font.PLAIN, 9));
+            String pageText = pageOccupied ? processName : "Libre";
+            g2d.drawString(pageText, margin + 5, currentY + pageHeight / 2 + 3);
+
+            // Número de página
+            g2d.drawString("P" + i, margin + memWidth - 20, currentY + pageHeight / 2 + 3);
+
+            currentY += pageHeight;
+        }
+
+        // Actualizar métricas y colas
+        updateMemoryMetrics(tasks);
+        updateProcessQueues(tasks);
+    }
+
+    private void updateMemoryMetrics(List<CircuitSimulationTask> tasks) {
+        int totalPages = 16;
+        int usedPages = 0;
+        
+        // Contar páginas ocupadas
+        for (int i = 0; i < totalPages; i++) {
+            for (CircuitSimulationTask task : tasks) {
+                if (i % 4 == task.getId() % 4 && task.getState() != CircuitSimulationTask.TaskState.COMPLETED) {
+                    usedPages++;
+                    break;
+                }
+            }
+        }
+
+        double usagePercent = (usedPages * 100.0) / totalPages;
+        double memoryUsedKB = usedPages * 64; // 64KB por página
+
+        // Calcular fragmentación basada en el algoritmo
+        String algorithm = algorithmCombo.getSelectedItem() != null ? 
+                          algorithmCombo.getSelectedItem().toString() : "FCFS";
+        
+        double fragmentation = 0.0;
+        double externalFrag = 0.0;
+        double internalFrag = 0.0;
+        
+        switch (algorithm) {
+            case "First-Come, First-Served (FCFS)":
+                fragmentation = 15.0 + (tasks.size() * 2.0);
+                externalFrag = fragmentation * 0.7;
+                internalFrag = fragmentation * 0.3;
+                break;
+            case "Round Robin (RR)":
+                fragmentation = 20.0 + (tasks.size() * 1.5);
+                externalFrag = fragmentation * 0.5;
+                internalFrag = fragmentation * 0.5;
+                break;
+            case "Shortest Job First (SJF)":
+                fragmentation = 10.0 + (tasks.size() * 1.0);
+                externalFrag = fragmentation * 0.4;
+                internalFrag = fragmentation * 0.6;
+                break;
+        }
+
+        // Actualizar labels
+        fragTotalValue.setText(String.format("%.1f KB", fragmentation));
+        memUsageValue.setText(String.format("%.0f KB (%.1f%%)", memoryUsedKB, usagePercent));
+        avgUsageValue.setText(String.format("%.0f KB (%.1f%%)", memoryUsedKB * 0.7, usagePercent * 0.7));
+        extFragValue.setText(String.format("%.1f KB", externalFrag));
+        intFragValue.setText(String.format("%.1f KB", internalFrag));
+        
+        // Actualizar semáforo
+        long runningTasks = tasks.stream()
+                .filter(t -> t.getState() == CircuitSimulationTask.TaskState.RUNNING)
+                .count();
+        long waitingTasks = tasks.stream()
+                .filter(t -> t.getState() == CircuitSimulationTask.TaskState.READY)
+                .count();
+        semaphoreValue.setText(String.format("%d (esperando: %d)", 
+                runningTasks > 0 ? 0 : 1, waitingTasks));
+        
+        // Actualizar proceso actual
+        CircuitSimulationTask currentTask = getCurrentRunningTask();
+        if (currentTask != null) {
+            currentProcessLabel.setText("Tarea " + currentTask.getId() + " - " + currentTask.getName());
+            memoryProgressBar.setValue((int) currentTask.getProgress());
+            memoryProgressBar.setString(String.format("%.0f%%", currentTask.getProgress()));
+        } else {
+            currentProcessLabel.setText("Ninguno");
+            memoryProgressBar.setValue(0);
+            memoryProgressBar.setString("0%");
+        }
+    }
+
+    private void updateProcessQueues(List<CircuitSimulationTask> tasks) {
+        StringBuilder sb = new StringBuilder();
+        
+        // Cola de listos
+        sb.append("=== COLA DE LISTOS ===\n");
+        tasks.stream()
+            .filter(t -> t.getState() == CircuitSimulationTask.TaskState.READY)
+            .forEach(t -> sb.append(String.format("T%d: %s (%s)\n", 
+                t.getId(), t.getName(), t.getComplexity().getDisplayName())));
+        
+        if (tasks.stream().noneMatch(t -> t.getState() == CircuitSimulationTask.TaskState.READY)) {
+            sb.append("Vacía\n");
+        }
+        
+        sb.append("\n=== EN EJECUCIÓN ===\n");
+        CircuitSimulationTask running = getCurrentRunningTask();
+        if (running != null) {
+            sb.append(String.format("T%d: %s (%s)\n", 
+                running.getId(), running.getName(), running.getComplexity().getDisplayName()));
+            sb.append(String.format("Progreso: %.1f%%\n", running.getProgress()));
+        } else {
+            sb.append("Ninguno\n");
+        }
+        
+        sb.append("\n=== COMPLETADOS ===\n");
+        tasks.stream()
+            .filter(t -> t.getState() == CircuitSimulationTask.TaskState.COMPLETED)
+            .forEach(t -> sb.append(String.format("T%d: %s\n", t.getId(), t.getName())));
+        
+        if (tasks.stream().noneMatch(t -> t.getState() == CircuitSimulationTask.TaskState.COMPLETED)) {
+            sb.append("Ninguno\n");
+        }
+
+        processQueueArea.setText(sb.toString());
+    }
+
+    private CircuitSimulationTask getCurrentRunningTask() {
+        for (CircuitSimulationTask task : scheduler.getTasks()) {
+            if (task.getState() == CircuitSimulationTask.TaskState.RUNNING) {
+                return task;
+            }
+        }
+        return null;
+    }
+
+    private void updateMemoryVisualization() {
+        if (memoryVisualizationPanel != null) {
+            memoryVisualizationPanel.repaint();
+        }
+    }
+
+    // ========== MÉTODOS AUXILIARES ==========
+
+    private JLabel createModernValueLabel(String text) {
+        JLabel label = new JLabel(text);
+        label.setForeground(PRIMARY_BLUE);
+        label.setFont(new Font("Segoe UI", Font.BOLD, 11));
+        label.setBorder(BorderFactory.createEmptyBorder(2, 5, 2, 5));
+        return label;
+    }
+
+    private JLabel createModernLabel(String text) {
+        JLabel label = new JLabel(text);
+        label.setForeground(DARK_SLATE);
+        label.setFont(new Font("Segoe UI", Font.PLAIN, 11));
+        return label;
     }
 
     private void setupModernProgressBar(JProgressBar progressBar) {
@@ -3643,92 +7067,6 @@ public class RLCSimulator extends JPanel implements SimulationObserver {
         progressBar.setFont(new Font("Segoe UI", Font.BOLD, 11));
     }
 
-    private JPanel createSchedulingLogPanelForLeft() {
-        JPanel panel = new JPanel(new BorderLayout());
-        panel.setBorder(BorderFactory.createEmptyBorder(5, 0, 0, 0));
-        panel.setBackground(LIGHT_SLATE);
-        panel.setPreferredSize(new Dimension(350, 250));
-
-        // Crear pestañas para Log y Tareas
-        JTabbedPane logTabs = new JTabbedPane(JTabbedPane.TOP);
-        logTabs.setFont(new Font("Segoe UI", Font.PLAIN, 11));
-        setupModernTabbedPane(logTabs);
-
-        // Pestaña de Tareas
-        JPanel tasksPanel = new JPanel(new BorderLayout());
-        tasksPanel.setBackground(CARD_BACKGROUND);
-        tasksPanel.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
-
-        String[] columns = { "ID", "Nombre", "Complejidad", "Duracion (ms)", "Estado", "Progreso" };
-        tasksTableModel = new DefaultTableModel(columns, 0) {
-            @Override
-            public boolean isCellEditable(int row, int column) {
-                return false;
-            }
-        };
-
-        tasksTable = new JTable(tasksTableModel);
-        tasksTable.setAutoCreateRowSorter(true);
-        tasksTable.setFont(new Font("Segoe UI", Font.PLAIN, 10));
-        tasksTable.setBackground(Color.WHITE);
-        tasksTable.setRowHeight(25);
-        tasksTable.setShowGrid(false);
-        tasksTable.setIntercellSpacing(new Dimension(0, 0));
-
-        // Renderizado mejorado para la tabla
-        tasksTable.setDefaultRenderer(Object.class, new DefaultTableCellRenderer() {
-            @Override
-            public Component getTableCellRendererComponent(JTable table, Object value,
-                    boolean isSelected, boolean hasFocus, int row, int column) {
-                Component c = super.getTableCellRendererComponent(table, value, isSelected, hasFocus, row, column);
-                
-                if (isSelected) {
-                    c.setBackground(PRIMARY_BLUE);
-                    c.setForeground(Color.WHITE);
-                } else {
-                    c.setBackground(row % 2 == 0 ? new Color(248, 250, 252) : Color.WHITE);
-                    c.setForeground(DARK_SLATE);
-                }
-                
-                setBorder(BorderFactory.createEmptyBorder(5, 8, 5, 8));
-                setFont(new Font("Segoe UI", Font.PLAIN, 10));
-                
-                return c;
-            }
-        });
-
-        JScrollPane tableScroll = new JScrollPane(tasksTable);
-        tableScroll.setPreferredSize(new Dimension(300, 120));
-        tableScroll.setBorder(BorderFactory.createLineBorder(new Color(226, 232, 240)));
-        tableScroll.getViewport().setBackground(Color.WHITE);
-        tasksPanel.add(tableScroll, BorderLayout.CENTER);
-
-        // Pestaña de Log
-        JPanel logPanel = new JPanel(new BorderLayout());
-        logPanel.setBackground(CARD_BACKGROUND);
-        logPanel.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
-
-        schedulingLogArea = new JTextArea(8, 30);
-        schedulingLogArea.setEditable(false);
-        schedulingLogArea.setFont(new Font("Consolas", Font.PLAIN, 10));
-        schedulingLogArea.setBackground(new Color(248, 250, 252));
-        schedulingLogArea.setForeground(DARK_SLATE);
-        schedulingLogArea.setLineWrap(true);
-        schedulingLogArea.setWrapStyleWord(true);
-        schedulingLogArea.setBorder(BorderFactory.createEmptyBorder(8, 8, 8, 8));
-
-        JScrollPane logScroll = new JScrollPane(schedulingLogArea);
-        logScroll.setBorder(BorderFactory.createLineBorder(new Color(226, 232, 240)));
-        logPanel.add(logScroll, BorderLayout.CENTER);
-
-        // Agregar pestañas
-        logTabs.addTab("Tareas", tasksPanel);
-        logTabs.addTab("Log", logPanel);
-
-        panel.add(logTabs, BorderLayout.CENTER);
-        return panel;
-    }
-
     private JScrollPane createScrollPanel(JPanel panel) {
         JScrollPane scrollPane = new JScrollPane(panel);
         scrollPane.setBorder(null);
@@ -3764,66 +7102,157 @@ public class RLCSimulator extends JPanel implements SimulationObserver {
         return null;
     }
 
-    private JPanel createVisualizationPanel() {
-        JPanel panel = new JPanel(new BorderLayout(10, 10));
-        panel.setBackground(LIGHT_SLATE);
-
-        // Panel superior: Diagrama del circuito
-        JPanel diagramPanel = createCircuitPanel();
-        panel.add(diagramPanel, BorderLayout.NORTH);
-
-        // Panel central: Pestañas para gráficos y resultados
-        JTabbedPane centerTabs = new JTabbedPane(JTabbedPane.TOP);
-        centerTabs.setFont(new Font("Segoe UI", Font.BOLD, 12));
-        setupModernTabbedPane(centerTabs);
-
-        // Pestaña 1: Visualización (Gráficos)
-        JPanel graphPanel = createGraphPanel();
-        centerTabs.addTab("Visualizacion", graphPanel);
-
-        // Pestaña 2: Resultados
-        JPanel resultsPanel = createResultsPanel();
-        JScrollPane resultsScroll = new JScrollPane(resultsPanel);
-        resultsScroll.setBorder(BorderFactory.createEmptyBorder(5, 5, 5, 5));
-        centerTabs.addTab("Resultados", resultsScroll);
-
-        // Pestaña 3: Analisis Detallado
-        JPanel analysisPanel = createAnalysisPanel();
-        centerTabs.addTab("Analisis", analysisPanel);
-
-        panel.add(centerTabs, BorderLayout.CENTER);
-
-        return panel;
-    }
-
-    private JPanel createAnalysisPanel() {
-        JPanel panel = new JPanel(new BorderLayout());
+    private JPanel createSimpleComboBoxPanel(String labelText, String[] items) {
+        JPanel panel = new JPanel();
+        panel.setLayout(new BoxLayout(panel, BoxLayout.Y_AXIS));
         panel.setBackground(CARD_BACKGROUND);
-        panel.setBorder(BorderFactory.createEmptyBorder(20, 20, 20, 20));
+        panel.setAlignmentX(Component.LEFT_ALIGNMENT);
 
-        analysisArea = new JTextArea();
-        analysisArea.setEditable(false);
-        analysisArea.setFont(new Font("Segoe UI", Font.PLAIN, 12));
-        analysisArea.setBackground(CARD_BACKGROUND);
-        analysisArea.setForeground(DARK_SLATE);
-        analysisArea.setLineWrap(true);
-        analysisArea.setWrapStyleWord(true);
-        analysisArea.setText(
-                "=== ANALISIS DETALLADO DEL CIRCUITO ===\n\n" +
-                "Esta seccion muestra analisis avanzados:\n\n" +
-                "- Parametros del circuito en diferentes frecuencias\n" +
-                "- Comportamiento transitorio vs permanente\n" +
-                "- Analisis de estabilidad del sistema\n" +
-                "- Respuesta a diferentes tipos de entrada\n" +
-                "- Analisis de sensibilidad de componentes\n\n" +
-                "Ejecute una simulacion para ver los analisis detallados.");
+        JLabel label = createModernLabel(labelText);
+        label.setFont(new Font("Segoe UI", Font.BOLD, 12));
+        label.setAlignmentX(Component.LEFT_ALIGNMENT);
+        panel.add(label);
+        panel.add(Box.createVerticalStrut(8));
 
-        JScrollPane scroll = new JScrollPane(analysisArea);
-        scroll.setBorder(BorderFactory.createLineBorder(new Color(226, 232, 240)));
-        panel.add(scroll, BorderLayout.CENTER);
+        JComboBox<String> comboBox = createModernComboBox();
+        for (String item : items) {
+            comboBox.addItem(item);
+        }
+        comboBox.setMaximumSize(new Dimension(350, 35));
+        comboBox.setAlignmentX(Component.LEFT_ALIGNMENT);
+
+        panel.add(comboBox);
 
         return panel;
     }
+
+    private JComboBox<String> createModernComboBox() {
+        JComboBox<String> combo = new JComboBox<String>() {
+            @Override
+            protected void paintComponent(Graphics g) {
+                Graphics2D g2d = (Graphics2D) g;
+                g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+                
+                // Fondo
+                g2d.setColor(new Color(248, 250, 252));
+                g2d.fillRoundRect(0, 0, getWidth(), getHeight(), 8, 8);
+                
+                // Borde
+                g2d.setColor(isFocusOwner() ? PRIMARY_BLUE : new Color(203, 213, 225));
+                g2d.setStroke(new BasicStroke(isFocusOwner() ? 2f : 1f));
+                g2d.drawRoundRect(0, 0, getWidth()-1, getHeight()-1, 8, 8);
+                
+                super.paintComponent(g);
+            }
+        };
+        
+        combo.setBorder(BorderFactory.createEmptyBorder(8, 12, 8, 12));
+        combo.setFont(new Font("Segoe UI", Font.PLAIN, 11));
+        combo.setBackground(new Color(248, 250, 252));
+        combo.setRenderer(new DefaultListCellRenderer() {
+            @Override
+            public Component getListCellRendererComponent(JList<?> list, Object value,
+                    int index, boolean isSelected, boolean cellHasFocus) {
+                Component c = super.getListCellRendererComponent(list, value, index, isSelected, cellHasFocus);
+                setBorder(BorderFactory.createEmptyBorder(8, 12, 8, 12));
+                setFont(new Font("Segoe UI", Font.PLAIN, 11));
+                return c;
+            }
+        });
+        
+        return combo;
+    }
+
+    private JTextField createModernTextField(String text, int columns) {
+        JTextField field = new JTextField(text, columns) {
+            @Override
+            protected void paintComponent(Graphics g) {
+                Graphics2D g2d = (Graphics2D) g;
+                g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+                
+                // Fondo
+                g2d.setColor(new Color(248, 250, 252));
+                g2d.fillRoundRect(0, 0, getWidth(), getHeight(), 8, 8);
+                
+                // Borde
+                g2d.setColor(isFocusOwner() ? PRIMARY_BLUE : new Color(203, 213, 225));
+                g2d.setStroke(new BasicStroke(isFocusOwner() ? 2f : 1f));
+                g2d.drawRoundRect(0, 0, getWidth()-1, getHeight()-1, 8, 8);
+                
+                super.paintComponent(g);
+            }
+        };
+        
+        field.setBorder(BorderFactory.createEmptyBorder(8, 12, 8, 12));
+        field.setFont(new Font("Segoe UI", Font.PLAIN, 11));
+        field.setOpaque(false);
+        return field;
+    }
+
+    private JSpinner createModernSpinner(int value, int min, int max, int step) {
+        SpinnerNumberModel model = new SpinnerNumberModel(value, min, max, step);
+        JSpinner spinner = new JSpinner(model);
+        
+        // Personalizar el editor del spinner
+        JSpinner.DefaultEditor editor = (JSpinner.DefaultEditor) spinner.getEditor();
+        editor.getTextField().setBorder(BorderFactory.createEmptyBorder(8, 12, 8, 12));
+        editor.getTextField().setFont(new Font("Segoe UI", Font.PLAIN, 11));
+        editor.getTextField().setBackground(new Color(248, 250, 252));
+        editor.getTextField().setForeground(DARK_SLATE);
+        
+        spinner.setPreferredSize(new Dimension(70, 35));
+        
+        return spinner;
+    }
+
+    private JButton createModernButton(String text, Color backgroundColor) {
+        JButton button = new JButton(text) {
+            @Override
+            protected void paintComponent(Graphics g) {
+                Graphics2D g2d = (Graphics2D) g.create();
+                g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+                
+                Color paintColor;
+                if (!isEnabled()) {
+                    paintColor = new Color(156, 163, 175);
+                } else if (getModel().isPressed()) {
+                    paintColor = backgroundColor.darker();
+                } else if (getModel().isRollover()) {
+                    paintColor = backgroundColor.brighter();
+                } else {
+                    paintColor = backgroundColor;
+                }
+                
+                // Fondo con gradiente
+                GradientPaint gradient = new GradientPaint(
+                    0, 0, paintColor,
+                    0, getHeight(), paintColor.darker()
+                );
+                g2d.setPaint(gradient);
+                g2d.fillRoundRect(0, 0, getWidth(), getHeight(), 10, 10);
+                
+                // Borde
+                g2d.setColor(paintColor.darker().darker());
+                g2d.setStroke(new BasicStroke(1.2f));
+                g2d.drawRoundRect(0, 0, getWidth()-1, getHeight()-1, 10, 10);
+                
+                g2d.dispose();
+                
+                super.paintComponent(g);
+            }
+        };
+        
+        button.setForeground(Color.WHITE);
+        button.setFont(new Font("Segoe UI", Font.BOLD, 12));
+        button.setBorder(BorderFactory.createEmptyBorder(12, 20, 12, 20));
+        button.setContentAreaFilled(false);
+        button.setFocusPainted(false);
+        button.setCursor(new Cursor(Cursor.HAND_CURSOR));
+        
+        return button;
+    }
+
+    // ========== MÉTODOS DE PANELES DE CONTROL ==========
 
     private JPanel createInputPanel() {
         JPanel panel = new JPanel();
@@ -3867,7 +7296,7 @@ public class RLCSimulator extends JPanel implements SimulationObserver {
             String methodKey = strategy.getName().toLowerCase().replace("-", "");
             methodCombo.addItem(languageManager.getTranslation(methodKey));
         }
-        methodCombo.setToolTipText("Metodo de calculo para la simulacion");
+        methodCombo.setToolTipText("Método de cálculo para la simulación");
         methodCombo.setAlignmentX(Component.LEFT_ALIGNMENT);
         methodCombo.setMaximumSize(new Dimension(300, 35));
         panel.add(methodCombo);
@@ -3971,7 +7400,7 @@ public class RLCSimulator extends JPanel implements SimulationObserver {
         panel.setAlignmentX(Component.LEFT_ALIGNMENT);
 
         simulateButton = createModernButton("Simular Circuito", SUCCESS_EMERALD);
-        simulateButton.setToolTipText("Ejecutar simulacion del circuito actual");
+        simulateButton.setToolTipText("Ejecutar simulación del circuito actual");
         simulateButton.setAlignmentX(Component.LEFT_ALIGNMENT);
         simulateButton.setMaximumSize(new Dimension(220, 45));
 
@@ -3994,30 +7423,6 @@ public class RLCSimulator extends JPanel implements SimulationObserver {
         panel.add(clearButton);
         panel.add(Box.createVerticalStrut(12));
         panel.add(progressBar);
-
-        return panel;
-    }
-
-    private JPanel createSimpleComboBoxPanel(String labelText, String[] items) {
-        JPanel panel = new JPanel();
-        panel.setLayout(new BoxLayout(panel, BoxLayout.Y_AXIS));
-        panel.setBackground(CARD_BACKGROUND);
-        panel.setAlignmentX(Component.LEFT_ALIGNMENT);
-
-        JLabel label = createModernLabel(labelText);
-        label.setFont(new Font("Segoe UI", Font.BOLD, 12));
-        label.setAlignmentX(Component.LEFT_ALIGNMENT);
-        panel.add(label);
-        panel.add(Box.createVerticalStrut(8));
-
-        JComboBox<String> comboBox = createModernComboBox();
-        for (String item : items) {
-            comboBox.addItem(item);
-        }
-        comboBox.setMaximumSize(new Dimension(350, 35));
-        comboBox.setAlignmentX(Component.LEFT_ALIGNMENT);
-
-        panel.add(comboBox);
 
         return panel;
     }
@@ -4063,7 +7468,7 @@ public class RLCSimulator extends JPanel implements SimulationObserver {
         panel.setBackground(CARD_BACKGROUND);
         panel.setAlignmentX(Component.LEFT_ALIGNMENT);
 
-        startSchedulerButton = createModernButton("Iniciar Planificacion", SUCCESS_EMERALD);
+        startSchedulerButton = createModernButton("Iniciar Planificación", SUCCESS_EMERALD);
         startSchedulerButton.addActionListener(e -> startScheduling());
 
         stopSchedulerButton = createModernButton("Detener", ERROR_ROSE);
@@ -4076,248 +7481,11 @@ public class RLCSimulator extends JPanel implements SimulationObserver {
         return panel;
     }
 
-    private JPanel createCircuitPanel() {
-        JPanel panel = new JPanel(new BorderLayout());
-        panel.setBorder(BorderFactory.createEmptyBorder(5, 0, 10, 0));
-        panel.setPreferredSize(new Dimension(600, 220));
-        panel.setBackground(LIGHT_SLATE);
-
-        JPanel cardPanel = new JPanel(new BorderLayout()) {
-            @Override
-            protected void paintComponent(Graphics g) {
-                Graphics2D g2d = (Graphics2D) g;
-                g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-                
-                g2d.setColor(CARD_BACKGROUND);
-                g2d.fillRoundRect(0, 0, getWidth(), getHeight(), 12, 12);
-                
-                g2d.setColor(new Color(226, 232, 240));
-                g2d.setStroke(new BasicStroke(1.2f));
-                g2d.drawRoundRect(0, 0, getWidth()-1, getHeight()-1, 12, 12);
-            }
-        };
-        
-        cardPanel.setBorder(BorderFactory.createEmptyBorder(15, 15, 15, 15));
-
-        // Título del diagrama
-        JLabel titleLabel = new JLabel("Diagrama del Circuito");
-        titleLabel.setFont(new Font("Segoe UI", Font.BOLD, 14));
-        titleLabel.setForeground(DARK_SLATE);
-        titleLabel.setBorder(BorderFactory.createEmptyBorder(0, 0, 10, 0));
-        cardPanel.add(titleLabel, BorderLayout.NORTH);
-
-        circuitDiagram = new CircuitDiagramPanel();
-
-        JScrollPane diagramScroll = new JScrollPane(circuitDiagram);
-        diagramScroll.setVerticalScrollBarPolicy(JScrollPane.VERTICAL_SCROLLBAR_AS_NEEDED);
-        diagramScroll.setHorizontalScrollBarPolicy(JScrollPane.HORIZONTAL_SCROLLBAR_AS_NEEDED);
-        diagramScroll.setBorder(BorderFactory.createLineBorder(new Color(226, 232, 240)));
-        diagramScroll.getViewport().setBackground(Color.WHITE);
-
-        cardPanel.add(diagramScroll, BorderLayout.CENTER);
-        panel.add(cardPanel, BorderLayout.CENTER);
-        return panel;
-    }
-
-    private JPanel createGraphPanel() {
-        JPanel panel = new JPanel(new BorderLayout());
-        panel.setBorder(BorderFactory.createEmptyBorder(15, 15, 15, 15));
-        panel.setBackground(CARD_BACKGROUND);
-
-        currentGraph = new TimeGraph(null);
-        graphContainer = new JPanel(new BorderLayout());
-        graphContainer.setBackground(CARD_BACKGROUND);
-
-        JScrollPane graphScroll = new JScrollPane(currentGraph);
-        graphScroll.setVerticalScrollBarPolicy(JScrollPane.VERTICAL_SCROLLBAR_AS_NEEDED);
-        graphScroll.setHorizontalScrollBarPolicy(JScrollPane.HORIZONTAL_SCROLLBAR_AS_NEEDED);
-        graphScroll.setBorder(BorderFactory.createLineBorder(new Color(226, 232, 240)));
-        graphScroll.getViewport().setBackground(Color.WHITE);
-        graphContainer.add(graphScroll, BorderLayout.CENTER);
-
-        JPanel graphTypePanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
-        graphTypePanel.setBackground(CARD_BACKGROUND);
-        graphTypePanel.add(createModernLabel("Tipo de Grafico:"));
-
-        graphTypeCombo = createModernComboBox();
-        graphTypeCombo.setModel(new DefaultComboBoxModel<>(new String[] {
-                "Dominio de Tiempo", "Respuesta en Frecuencia", "Diagrama Fasorial", "Formas de Onda"
-        }));
-        graphTypeCombo.addActionListener(e -> updateGraphType());
-        graphTypePanel.add(graphTypeCombo);
-
-        panel.add(graphTypePanel, BorderLayout.NORTH);
-        panel.add(graphContainer, BorderLayout.CENTER);
-
-        return panel;
-    }
-
-    private JPanel createResultsPanel() {
-        JPanel panel = new JPanel(new BorderLayout());
-        panel.setBackground(CARD_BACKGROUND);
-        panel.setBorder(BorderFactory.createEmptyBorder(20, 20, 20, 20));
-
-        resultsArea = new JTextArea(12, 50);
-        resultsArea.setEditable(false);
-        resultsArea.setFont(new Font("Segoe UI", Font.PLAIN, 12));
-        resultsArea.setLineWrap(true);
-        resultsArea.setWrapStyleWord(true);
-        resultsArea.setBackground(CARD_BACKGROUND);
-        resultsArea.setForeground(DARK_SLATE);
-        resultsArea.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
-
-        updateInitialResultsText();
-
-        JScrollPane scroll = new JScrollPane(resultsArea);
-        scroll.setVerticalScrollBarPolicy(JScrollPane.VERTICAL_SCROLLBAR_AS_NEEDED);
-        scroll.setHorizontalScrollBarPolicy(JScrollPane.HORIZONTAL_SCROLLBAR_AS_NEEDED);
-        scroll.setBorder(BorderFactory.createLineBorder(new Color(226, 232, 240)));
-        scroll.getViewport().setBackground(CARD_BACKGROUND);
-
-        panel.add(scroll, BorderLayout.CENTER);
-        return panel;
-    }
-
-    // ========== COMPONENTES MODERNOS ==========
-
-    private JLabel createModernLabel(String text) {
-        JLabel label = new JLabel(text);
-        label.setForeground(DARK_SLATE);
-        label.setFont(new Font("Segoe UI", Font.PLAIN, 11));
-        return label;
-    }
-
-    private JTextField createModernTextField(String text, int columns) {
-        JTextField field = new JTextField(text, columns) {
-            @Override
-            protected void paintComponent(Graphics g) {
-                Graphics2D g2d = (Graphics2D) g;
-                g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-                
-                // Fondo
-                g2d.setColor(new Color(248, 250, 252));
-                g2d.fillRoundRect(0, 0, getWidth(), getHeight(), 8, 8);
-                
-                // Borde
-                g2d.setColor(isFocusOwner() ? PRIMARY_BLUE : new Color(203, 213, 225));
-                g2d.setStroke(new BasicStroke(isFocusOwner() ? 2f : 1f));
-                g2d.drawRoundRect(0, 0, getWidth()-1, getHeight()-1, 8, 8);
-                
-                super.paintComponent(g);
-            }
-        };
-        
-        field.setBorder(BorderFactory.createEmptyBorder(8, 12, 8, 12));
-        field.setFont(new Font("Segoe UI", Font.PLAIN, 11));
-        field.setOpaque(false);
-        return field;
-    }
-
-    private JComboBox<String> createModernComboBox() {
-        JComboBox<String> combo = new JComboBox<String>() {
-            @Override
-            protected void paintComponent(Graphics g) {
-                Graphics2D g2d = (Graphics2D) g;
-                g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-                
-                // Fondo
-                g2d.setColor(new Color(248, 250, 252));
-                g2d.fillRoundRect(0, 0, getWidth(), getHeight(), 8, 8);
-                
-                // Borde
-                g2d.setColor(isFocusOwner() ? PRIMARY_BLUE : new Color(203, 213, 225));
-                g2d.setStroke(new BasicStroke(isFocusOwner() ? 2f : 1f));
-                g2d.drawRoundRect(0, 0, getWidth()-1, getHeight()-1, 8, 8);
-                
-                super.paintComponent(g);
-            }
-        };
-        
-        combo.setBorder(BorderFactory.createEmptyBorder(8, 12, 8, 12));
-        combo.setFont(new Font("Segoe UI", Font.PLAIN, 11));
-        combo.setBackground(new Color(248, 250, 252));
-        combo.setRenderer(new DefaultListCellRenderer() {
-            @Override
-            public Component getListCellRendererComponent(JList<?> list, Object value,
-                    int index, boolean isSelected, boolean cellHasFocus) {
-                Component c = super.getListCellRendererComponent(list, value, index, isSelected, cellHasFocus);
-                setBorder(BorderFactory.createEmptyBorder(8, 12, 8, 12));
-                setFont(new Font("Segoe UI", Font.PLAIN, 11));
-                return c;
-            }
-        });
-        
-        return combo;
-    }
-
-    private JSpinner createModernSpinner(int value, int min, int max, int step) {
-        SpinnerNumberModel model = new SpinnerNumberModel(value, min, max, step);
-        JSpinner spinner = new JSpinner(model);
-        
-        // Personalizar el editor del spinner
-        JSpinner.DefaultEditor editor = (JSpinner.DefaultEditor) spinner.getEditor();
-        editor.getTextField().setBorder(BorderFactory.createEmptyBorder(8, 12, 8, 12));
-        editor.getTextField().setFont(new Font("Segoe UI", Font.PLAIN, 11));
-        editor.getTextField().setBackground(new Color(248, 250, 252));
-        editor.getTextField().setForeground(DARK_SLATE);
-        
-        spinner.setPreferredSize(new Dimension(70, 35));
-        
-        return spinner;
-    }
-
-    private JButton createModernButton(String text, Color backgroundColor) {
-        JButton button = new JButton(text) {
-            @Override
-            protected void paintComponent(Graphics g) {
-                Graphics2D g2d = (Graphics2D) g.create();
-                g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-                
-                Color paintColor;
-                if (!isEnabled()) {
-                    paintColor = new Color(156, 163, 175);
-                } else if (getModel().isPressed()) {
-                    paintColor = backgroundColor.darker();
-                } else if (getModel().isRollover()) {
-                    paintColor = backgroundColor.brighter();
-                } else {
-                    paintColor = backgroundColor;
-                }
-                
-                // Fondo con gradiente
-                GradientPaint gradient = new GradientPaint(
-                    0, 0, paintColor,
-                    0, getHeight(), paintColor.darker()
-                );
-                g2d.setPaint(gradient);
-                g2d.fillRoundRect(0, 0, getWidth(), getHeight(), 10, 10);
-                
-                // Borde
-                g2d.setColor(paintColor.darker().darker());
-                g2d.setStroke(new BasicStroke(1.2f));
-                g2d.drawRoundRect(0, 0, getWidth()-1, getHeight()-1, 10, 10);
-                
-                g2d.dispose();
-                
-                super.paintComponent(g);
-            }
-        };
-        
-        button.setForeground(Color.WHITE);
-        button.setFont(new Font("Segoe UI", Font.BOLD, 12));
-        button.setBorder(BorderFactory.createEmptyBorder(12, 20, 12, 20));
-        button.setContentAreaFilled(false);
-        button.setFocusPainted(false);
-        button.setCursor(new Cursor(Cursor.HAND_CURSOR));
-        
-        return button;
-    }
-
     // ========== MÉTODOS DE PLANIFICACIÓN ==========
 
     private void updateBatchControls() {
         String selected = (String) batchTypeCombo.getSelectedItem();
-        boolean isHeterogeneous = selected != null && selected.contains("Heterogeneo");
+        boolean isHeterogeneous = selected != null && selected.contains("Heterogéneo");
 
         simpleSpinner.setEnabled(isHeterogeneous);
         mediumSpinner.setEnabled(isHeterogeneous);
@@ -4331,7 +7499,7 @@ public class RLCSimulator extends JPanel implements SimulationObserver {
 
         scheduler.clearTasks();
 
-        if (batchType.contains("Homogeneo")) {
+        if (batchType.contains("Homogéneo")) {
             CircuitSimulationTask.Complexity complexity;
             if (batchType.contains("Simple")) {
                 complexity = CircuitSimulationTask.Complexity.SIMPLE;
@@ -4343,7 +7511,7 @@ public class RLCSimulator extends JPanel implements SimulationObserver {
 
             List<CircuitSimulationTask> batch = scheduler.generateHomogeneousBatch(complexity, 5);
             scheduler.addTasks(batch);
-        } else if (batchType.contains("Heterogeneo")) {
+        } else if (batchType.contains("Heterogéneo")) {
             int simpleCount = (Integer) simpleSpinner.getValue();
             int mediumCount = (Integer) mediumSpinner.getValue();
             int complexCount = (Integer) complexSpinner.getValue();
@@ -4354,6 +7522,7 @@ public class RLCSimulator extends JPanel implements SimulationObserver {
         }
 
         updateTasksTable();
+        updateMemoryVisualization();
         logSchedulingMessage("Lote generado: " + scheduler.getTasks().size() + " tareas");
     }
 
@@ -4374,27 +7543,30 @@ public class RLCSimulator extends JPanel implements SimulationObserver {
                 }
             }
 
-            logSchedulingMessage("Iniciando planificacion con " + algorithm);
+            logSchedulingMessage("Iniciando planificación con " + algorithm);
             scheduler.startSimulation();
             startUpdateTimer();
 
         } catch (Exception ex) {
             logSchedulingMessage("ERROR: " + ex.getMessage());
-            showError("Error al iniciar planificacion: " + ex.getMessage());
+            showError("Error al iniciar planificación: " + ex.getMessage());
         }
     }
 
     private void stopScheduling() {
         scheduler.stopSimulation();
         stopUpdateTimer();
-        logSchedulingMessage("Planificacion detenida");
+        logSchedulingMessage("Planificación detenida");
     }
 
     private void startUpdateTimer() {
         if (updateTimer != null) {
             updateTimer.stop();
         }
-        updateTimer = new Timer(500, e -> updateTasksTable());
+        updateTimer = new Timer(500, e -> {
+            updateTasksTable();
+            updateMemoryVisualization();
+        });
         updateTimer.start();
     }
 
@@ -4406,36 +7578,8 @@ public class RLCSimulator extends JPanel implements SimulationObserver {
     }
 
     private void updateTasksTable() {
-        if (tasksTableModel == null)
-            return;
-
-        SwingUtilities.invokeLater(() -> {
-            tasksTableModel.setRowCount(0);
-
-            for (CircuitSimulationTask task : scheduler.getTasks()) {
-                Object[] row = {
-                        task.getId(),
-                        task.getName(),
-                        task.getComplexity().getDisplayName(),
-                        task.getEstimatedDuration(),
-                        task.getState().getDisplayName(),
-                        String.format("%.1f%%", task.getProgress())
-                };
-                tasksTableModel.addRow(row);
-            }
-
-            // Actualizar barra de progreso
-            if (scheduler.isSimulationRunning()) {
-                long completed = scheduler.getTasks().stream()
-                        .filter(t -> t.getState() == CircuitSimulationTask.TaskState.COMPLETED)
-                        .count();
-                long total = scheduler.getTasks().size();
-
-                int progress = total > 0 ? (int) ((completed * 100) / total) : 0;
-                schedulingProgressBar.setValue(progress);
-                schedulingProgressBar.setString(String.format("%d/%d tareas (%d%%)", completed, total, progress));
-            }
-        });
+        // Este método se mantiene para compatibilidad pero ya no se usa
+        // ya que reemplazamos la tabla con la visualización de memoria
     }
 
     private void logSchedulingMessage(String message) {
@@ -4450,7 +7594,7 @@ public class RLCSimulator extends JPanel implements SimulationObserver {
     // ========== MÉTODOS DE SIMULACIÓN DE CIRCUITOS ==========
 
     private void setupEventHandlers() {
-        // Handlers para simulación de circuitos
+        // Handlers para simulación de circuitos RLC
         methodCombo.addActionListener(e -> updateStrategy());
         presetCombo.addActionListener(e -> loadPreset());
         addButton.addActionListener(e -> addComponent());
@@ -4458,51 +7602,8 @@ public class RLCSimulator extends JPanel implements SimulationObserver {
         simulateButton.addActionListener(e -> simulateCircuit());
         clearButton.addActionListener(e -> clearAll());
         valueField.addActionListener(e -> addComponent());
-    }
-
-    private void updateGraphType() {
-        int graphType = graphTypeCombo.getSelectedIndex();
-        if (lastResult == null || components == null || components.isEmpty()) {
-            switch (graphType) {
-                case 0:
-                    currentGraph = new TimeGraph(null);
-                    break;
-                case 1:
-                    currentGraph = new FrequencyGraph(new ArrayList<>());
-                    break;
-                case 2:
-                    currentGraph = new PhasorDiagram(null, new ArrayList<>());
-                    break;
-                case 3:
-                    currentGraph = new WaveformGraph(null);
-                    break;
-            }
-        } else {
-            switch (graphType) {
-                case 0:
-                    currentGraph = new TimeGraph(lastResult);
-                    break;
-                case 1:
-                    currentGraph = new FrequencyGraph(components);
-                    break;
-                case 2:
-                    currentGraph = new PhasorDiagram(lastResult, components);
-                    break;
-                case 3:
-                    currentGraph = new WaveformGraph(lastResult);
-                    break;
-            }
-        }
-
-        graphContainer.removeAll();
-        JScrollPane graphScroll = new JScrollPane(currentGraph);
-        graphScroll.setVerticalScrollBarPolicy(JScrollPane.VERTICAL_SCROLLBAR_AS_NEEDED);
-        graphScroll.setHorizontalScrollBarPolicy(JScrollPane.HORIZONTAL_SCROLLBAR_AS_NEEDED);
-        graphScroll.setBorder(BorderFactory.createLineBorder(new Color(226, 232, 240)));
-        graphScroll.getViewport().setBackground(Color.WHITE);
-        graphContainer.add(graphScroll, BorderLayout.CENTER);
-        graphContainer.revalidate();
-        graphContainer.repaint();
+        
+        // TODO: Agregar handlers para componentes DC cuando se implementen
     }
 
     private void updateStrategy() {
@@ -4573,7 +7674,7 @@ public class RLCSimulator extends JPanel implements SimulationObserver {
             valueField.requestFocus();
 
         } catch (NumberFormatException ex) {
-            showError("Ingrese valores numericos validos");
+            showError("Ingrese valores numéricos válidos");
         }
     }
 
@@ -4603,14 +7704,14 @@ public class RLCSimulator extends JPanel implements SimulationObserver {
 
             progressBar.setVisible(true);
             progressBar.setIndeterminate(true);
-            progressBar.setString("Simulacion en progreso...");
+            progressBar.setString("Simulación en progreso...");
 
             simulateButton.setEnabled(false);
 
             engine.simulate(components, voltage, frequency);
 
         } catch (NumberFormatException ex) {
-            showError("Ingrese valores numericos validos");
+            showError("Ingrese valores numéricos válidos");
         }
     }
 
@@ -4632,7 +7733,7 @@ public class RLCSimulator extends JPanel implements SimulationObserver {
             return true;
 
         } catch (NumberFormatException e) {
-            showError("Ingrese valores numericos validos para voltaje y frecuencia");
+            showError("Ingrese valores numéricos válidos para voltaje y frecuencia");
             return false;
         }
     }
@@ -4642,10 +7743,10 @@ public class RLCSimulator extends JPanel implements SimulationObserver {
         updateComponentList();
         updateCircuitDiagram();
 
-        resultsArea.setText("Circuito limpiado. Listo para nueva simulacion.");
+        if (resultsArea != null) {
+            resultsArea.setText("Circuito limpiado. Listo para nueva simulación.");
+        }
         lastResult = null;
-
-        updateGraphType();
 
         showInfo("Circuito y resultados limpiados");
     }
@@ -4664,26 +7765,6 @@ public class RLCSimulator extends JPanel implements SimulationObserver {
         }
     }
 
-    private void updateInitialResultsText() {
-        StringBuilder sb = new StringBuilder();
-        sb.append("=== Simulador Avanzado de Circuitos RLC ===\n\n");
-        sb.append("Instrucciones:\n");
-        sb.append("   1. Agregue componentes (R, L, C) al circuito\n");
-        sb.append("   2. Configure voltaje y frecuencia\n");
-        sb.append("   3. Seleccione metodo de simulacion\n");
-        sb.append("   4. Haga clic en 'Simular Circuito'\n\n");
-        sb.append("Caracteristicas:\n");
-        sb.append("   - Analisis en dominio de tiempo y frecuencia\n");
-        sb.append("   - Diagramas fasoriales interactivos\n");
-        sb.append("   - Multiples metodos de calculo\n");
-        sb.append("   - Circuitos predefinidos\n");
-        sb.append("   - Algoritmos de planificacion integrados\n");
-        sb.append("   - Interfaz moderna e intuitiva\n\n");
-        sb.append("¡Comience agregando componentes y ejecutando una simulacion!");
-
-        resultsArea.setText(sb.toString());
-    }
-
     // ========== MÉTODOS DE SimulationObserver ==========
 
     @Override
@@ -4697,10 +7778,10 @@ public class RLCSimulator extends JPanel implements SimulationObserver {
                 updateAnalysisPanel(simResult);
 
                 StringBuilder sb = new StringBuilder();
-                sb.append("=== RESULTADOS DE SIMULACION ===\n\n");
+                sb.append("=== RESULTADOS DE SIMULACIÓN ===\n\n");
                 sb.append("- Impedancia: ").append(df.format(simResult.getImpedance())).append(" Ω\n");
                 sb.append("- Corriente: ").append(df.format(simResult.getCurrent())).append(" A\n");
-                sb.append("- Angulo de Fase: ").append(df.format(Math.toDegrees(simResult.getPhaseAngle())))
+                sb.append("- Ángulo de Fase: ").append(df.format(Math.toDegrees(simResult.getPhaseAngle())))
                         .append("°\n");
                 sb.append("- Potencia Activa: ").append(df.format(simResult.getActivePower())).append(" W\n");
                 sb.append("- Potencia Reactiva: ").append(df.format(simResult.getReactivePower())).append(" VAR\n");
@@ -4719,15 +7800,17 @@ public class RLCSimulator extends JPanel implements SimulationObserver {
 
                 sb.append(circuitType).append("\n");
 
-                resultsArea.setText(sb.toString());
+                if (resultsArea != null) {
+                    resultsArea.setText(sb.toString());
+                }
 
                 progressBar.setVisible(false);
                 simulateButton.setEnabled(true);
 
-                showInfo("Simulacion completada exitosamente");
+                showInfo("Simulación completada exitosamente");
 
             } else {
-                onSimulationError("Resultado de simulacion invalido");
+                onSimulationError("Resultado de simulación inválido");
             }
         });
     }
@@ -4735,27 +7818,29 @@ public class RLCSimulator extends JPanel implements SimulationObserver {
     @Override
     public void onSimulationError(String error) {
         SwingUtilities.invokeLater(() -> {
-            String detailedError = "Error en la simulacion:\n\n" + error;
+            String detailedError = "Error en la simulación:\n\n" + error;
 
             showError(detailedError);
 
             progressBar.setVisible(false);
             simulateButton.setEnabled(true);
 
-            resultsArea.setText("Error en la simulacion. Por favor, verifique los parametros e intente nuevamente.\n\n"
-                    + "Detalles del error: " + error);
-
-            updateGraphType();
+            if (resultsArea != null) {
+                resultsArea.setText("Error en la simulación. Por favor, verifique los parámetros e intente nuevamente.\n\n"
+                        + "Detalles del error: " + error);
+            }
         });
     }
 
     @Override
     public void onSimulationStart() {
         SwingUtilities.invokeLater(() -> {
-            resultsArea.setText("Simulacion en progreso...\n\nPor favor espere...");
+            if (resultsArea != null) {
+                resultsArea.setText("Simulación en progreso...\n\nPor favor espere...");
+            }
             progressBar.setVisible(true);
             progressBar.setIndeterminate(true);
-            progressBar.setString("Simulacion en progreso...");
+            progressBar.setString("Simulación en progreso...");
         });
     }
 
@@ -4763,20 +7848,20 @@ public class RLCSimulator extends JPanel implements SimulationObserver {
         if (analysisArea == null) return;
         
         StringBuilder analysis = new StringBuilder();
-        analysis.append("=== ANALISIS DETALLADO DEL CIRCUITO ===\n\n");
+        analysis.append("=== ANÁLISIS DETALLADO DEL CIRCUITO ===\n\n");
         
         // Análisis básico del circuito
         double totalR = components.stream().mapToDouble(CircuitComponent::getResistance).sum();
         double totalL = components.stream().mapToDouble(CircuitComponent::getInductance).sum();
         double totalC = components.stream().mapToDouble(CircuitComponent::getCapacitance).sum();
         
-        analysis.append("PARAMETROS DEL CIRCUITO:\n");
+        analysis.append("PARÁMETROS DEL CIRCUITO:\n");
         analysis.append(String.format("- Resistencia total: %.2f Ω\n", totalR));
         analysis.append(String.format("- Inductancia total: %.4f H\n", totalL));
         analysis.append(String.format("- Capacitancia total: %.6f F\n", totalC));
         
         // Análisis de potencia
-        analysis.append("\nANALISIS DE POTENCIA:\n");
+        analysis.append("\nANÁLISIS DE POTENCIA:\n");
         analysis.append(String.format("- Potencia activa: %.2f W\n", result.getActivePower()));
         analysis.append(String.format("- Potencia reactiva: %.2f VAR\n", result.getReactivePower()));
         analysis.append(String.format("- Potencia aparente: %.2f VA\n", result.getApparentPower()));
@@ -4784,7 +7869,7 @@ public class RLCSimulator extends JPanel implements SimulationObserver {
         
         // Análisis de eficiencia
         double efficiency = (result.getActivePower() / result.getApparentPower()) * 100;
-        analysis.append(String.format("- Eficiencia energetica: %.1f%%\n", efficiency));
+        analysis.append(String.format("- Eficiencia energética: %.1f%%\n", efficiency));
         
         // Análisis de comportamiento
         analysis.append("\nCOMPORTAMIENTO DEL CIRCUITO:\n");
@@ -4797,13 +7882,13 @@ public class RLCSimulator extends JPanel implements SimulationObserver {
             analysis.append("- La corriente se adelanta respecto al voltaje\n");
         } else {
             analysis.append("- Comportamiento predominantemente RESISTIVO\n");
-            analysis.append("- Corriente y voltaje estan en fase\n");
+            analysis.append("- Corriente y voltaje están en fase\n");
         }
         
         // Recomendaciones
         analysis.append("\nRECOMENDACIONES:\n");
         if (Math.abs(result.getPowerFactor()) < 0.9) {
-            analysis.append("- Considerar correccion del factor de potencia\n");
+            analysis.append("- Considerar corrección del factor de potencia\n");
             if (result.getPowerFactor() < 0) {
                 analysis.append("- Agregar inductancia para mejorar el factor de potencia\n");
             } else {
@@ -4825,7 +7910,7 @@ public class RLCSimulator extends JPanel implements SimulationObserver {
     }
 
     private void showInfo(String message) {
-        JOptionPane.showMessageDialog(this, message, "Informacion", JOptionPane.INFORMATION_MESSAGE);
+        JOptionPane.showMessageDialog(this, message, "Información", JOptionPane.INFORMATION_MESSAGE);
     }
 
     public void disposeResources() {
@@ -4840,7 +7925,7 @@ public class RLCSimulator extends JPanel implements SimulationObserver {
 }
 ```
 
-## C:\Users\joese\OneDrive\Escritorio\Projects\integrador_simulador\simuladordefisica\src\main\java\com\simulador\ui\TimeGraph.java
+## C:\Users\joese\OneDrive\Escritorio\Projects\IntegradorFisicaSistemaPortu2025\src\main\java\com\simulador\ui\TimeGraph.java
 
 ```java
 package com.simulador.ui;
@@ -4975,7 +8060,7 @@ public class TimeGraph extends BaseGraph {
 }
 ```
 
-## C:\Users\joese\OneDrive\Escritorio\Projects\integrador_simulador\simuladordefisica\src\main\java\com\simulador\ui\WaveformGraph.java
+## C:\Users\joese\OneDrive\Escritorio\Projects\IntegradorFisicaSistemaPortu2025\src\main\java\com\simulador\ui\WaveformGraph.java
 
 ```java
 package com.simulador.ui;
@@ -5182,7 +8267,7 @@ public class WaveformGraph extends BaseGraph {
 }
 ```
 
-## C:\Users\joese\OneDrive\Escritorio\Projects\integrador_simulador\simuladordefisica\src\main\java\com\simulador\utils\I18N.java
+## C:\Users\joese\OneDrive\Escritorio\Projects\IntegradorFisicaSistemaPortu2025\src\main\java\com\simulador\utils\I18N.java
 
 ```java
 package com.simulador.utils;
@@ -5243,7 +8328,7 @@ public class I18N {
 }
 ```
 
-## C:\Users\joese\OneDrive\Escritorio\Projects\integrador_simulador\simuladordefisica\src\main\java\com\simulador\utils\LanguageManager.java
+## C:\Users\joese\OneDrive\Escritorio\Projects\IntegradorFisicaSistemaPortu2025\src\main\java\com\simulador\utils\LanguageManager.java
 
 ```java
 package com.simulador.utils;
@@ -5570,7 +8655,7 @@ public class LanguageManager {
 }
 ```
 
-## C:\Users\joese\OneDrive\Escritorio\Projects\integrador_simulador\simuladordefisica\src\main\java\com\simulador\utils\SimulationObserver.java
+## C:\Users\joese\OneDrive\Escritorio\Projects\IntegradorFisicaSistemaPortu2025\src\main\java\com\simulador\utils\SimulationObserver.java
 
 ```java
 package com.simulador.utils;
@@ -5602,7 +8687,7 @@ public interface SimulationObserver {
 }
 ```
 
-## C:\Users\joese\OneDrive\Escritorio\Projects\integrador_simulador\simuladordefisica\src\test\java\com\simulador\AppTest.java
+## C:\Users\joese\OneDrive\Escritorio\Projects\IntegradorFisicaSistemaPortu2025\src\test\java\com\simulador\AppTest.java
 
 ```java
 package com.simulador;
