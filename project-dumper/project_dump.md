@@ -2944,6 +2944,54 @@ public class SchedulerMetrics {
         }
         System.out.println("====================================\n");
     }
+
+
+ // --- INICIO DE MODIFICACIÓN ---
+
+    /**
+     * Obtiene la lista de tareas completadas de una complejidad específica
+     */
+    private List<CircuitSimulationTask> getTasksByComplexity(CircuitSimulationTask.Complexity complexity) {
+        return tasks.stream()
+                .filter(t -> t.getComplexity() == complexity && t.getState() == CircuitSimulationTask.TaskState.COMPLETED)
+                .collect(Collectors.toList());
+    }
+
+    /**
+     * Obtiene el tiempo de retorno promedio (Turnaround Time) para una complejidad específica
+     */
+    public double getAverageTurnaroundTime(CircuitSimulationTask.Complexity complexity) {
+        return getTasksByComplexity(complexity).stream()
+                .mapToLong(CircuitSimulationTask::getTurnaroundTime)
+                .average()
+                .orElse(0);
+    }
+
+    /**
+     * Obtiene el tiempo de espera promedio (Waiting Time) para una complejidad específica
+     */
+    public double getAverageWaitingTime(CircuitSimulationTask.Complexity complexity) {
+        return getTasksByComplexity(complexity).stream()
+                .mapToLong(CircuitSimulationTask::getWaitingTime)
+                .average()
+                .orElse(0);
+    }
+
+    /**
+     * Obtiene el conteo de tareas completadas para una complejidad específica
+     */
+    public long getTaskCount(CircuitSimulationTask.Complexity complexity) {
+        return getTasksByComplexity(complexity).stream().count();
+    }
+    
+    /**
+     * Obtiene la lista de todas las tareas (para la tabla de historial).
+     */
+    public List<CircuitSimulationTask> getTasks() {
+        return this.tasks;
+    }
+    
+    // --- FIN DE MODIFICACIÓN ---
 }
 ```
 
@@ -5271,6 +5319,7 @@ import com.simulador.model.CircuitSimulationTask;
 import com.simulador.scheduler.FirstComeFirstServedScheduler;
 import com.simulador.scheduler.ProcessScheduler;
 import com.simulador.scheduler.RoundRobinScheduler;
+import com.simulador.scheduler.SchedulerMetrics; // Asegúrate de que este import esté
 import com.simulador.scheduler.ShortestJobFirstScheduler;
 import com.simulador.utils.LanguageManager;
 import com.simulador.utils.SimulationObserver;
@@ -5296,6 +5345,14 @@ import java.awt.*;
 import java.text.DecimalFormat;
 import java.util.ArrayList;
 import java.util.List;
+
+// --- INICIO DE MODIFICACIÓN (Exportar Archivos) ---
+import java.io.File;
+import java.io.FileWriter;
+import java.io.BufferedWriter;
+import java.io.IOException;
+import javax.swing.JFileChooser;
+// --- FIN DE MODIFICACIÓN ---
 
 /**
  * Panel principal del simulador de circuitos RLC con algoritmos de
@@ -5377,6 +5434,12 @@ public class RLCSimulator extends JPanel implements SimulationObserver {
     private JPanel memoryVisualizationPanel;
     private JTextArea processQueueArea;
 
+    // --- INICIO DE MODIFICACIÓN (HISTORIAL DE PROCESOS) ---
+    private JTable historyTable;
+    private DefaultTableModel historyTableModel;
+    private final List<com.simulador.scheduler.SchedulerMetrics> simulationHistory = new ArrayList<>();
+    // --- FIN DE MODIFICACIÓN ---
+
     // Componentes para visualización de circuitos
     private BaseGraph currentGraph;
     private JPanel graphContainer;
@@ -5422,7 +5485,14 @@ public class RLCSimulator extends JPanel implements SimulationObserver {
                     schedulingProgressBar.setVisible(isRunning);
 
                     if (!isRunning && scheduler.getMetrics() != null) {
-                        scheduler.getMetrics().printMetrics(algorithmCombo.getSelectedItem().toString());
+                        com.simulador.scheduler.SchedulerMetrics metrics = scheduler.getMetrics(); // Obtener métricas
+                        metrics.printMetrics(algorithmCombo.getSelectedItem().toString());
+                        
+                        // --- INICIO DE MODIFICACIÓN (HISTORIAL DE PROCESOS) ---
+                        // Guardar y mostrar en la tabla de historial
+                        this.simulationHistory.add(metrics); 
+                        addMetricsToHistoryTable(metrics);
+                        // --- FIN DE MODIFICACIÓN ---
                     }
                 });
             } else if (ProcessScheduler.PROPERTY_TASKS_UPDATED.equals(evt.getPropertyName())) {
@@ -5936,9 +6006,9 @@ public class RLCSimulator extends JPanel implements SimulationObserver {
         // Crear un nuevo modelo para el spinner de rama destino
         SpinnerNumberModel model = new SpinnerNumberModel(
             Math.min(currentTarget, numBranches), // Valor actual (limitado por el max)
-            1,       // Mínimo
+            1,     // Mínimo
             numBranches, // Máximo
-            1        // Paso
+            1      // Paso
         );
         targetBranchSpinner.setModel(model);
     }
@@ -6273,8 +6343,8 @@ public class RLCSimulator extends JPanel implements SimulationObserver {
             
             @Override
             protected void paintText(Graphics g, int tabPlacement, Font font, 
-                                   FontMetrics metrics, int tabIndex, 
-                                   String title, Rectangle textRect, boolean isSelected) {
+                                    FontMetrics metrics, int tabIndex, 
+                                    String title, Rectangle textRect, boolean isSelected) {
                 g.setFont(font.deriveFont(isSelected ? Font.BOLD : Font.PLAIN, 12));
                 g.setColor(isSelected ? Color.WHITE : DARK_SLATE);
                 super.paintText(g, tabPlacement, font, metrics, tabIndex, title, textRect, isSelected);
@@ -6399,7 +6469,7 @@ public class RLCSimulator extends JPanel implements SimulationObserver {
         JPanel batchPanel = createModernCardPanel("Tipo de Lote", 
             createSimpleComboBoxPanel("Configuración del lote:",
                 new String[] { "Homogéneo - Simple", "Homogéneo - Medio", "Homogéneo - Complejo",
-                        "Heterogéneo - Mixto" }));
+                                "Heterogéneo - Mixto" }));
         batchTypeCombo = findComboBoxInPanel(batchPanel);
         if (batchTypeCombo == null) {
             batchTypeCombo = new JComboBox<>(new String[] {
@@ -6682,17 +6752,17 @@ public class RLCSimulator extends JPanel implements SimulationObserver {
         StringBuilder sb = new StringBuilder();
         sb.append("=== Simulador Avanzado de Circuitos RLC ===\n\n");
         sb.append("Instrucciones:\n");
-        sb.append("   1. Agregue componentes (R, L, C) al circuito\n");
-        sb.append("   2. Configure voltaje y frecuencia\n");
-        sb.append("   3. Seleccione método de simulación\n");
-        sb.append("   4. Haga clic en 'Simular Circuito'\n\n");
+        sb.append("    1. Agregue componentes (R, L, C) al circuito\n");
+        sb.append("    2. Configure voltaje y frecuencia\n");
+        sb.append("    3. Seleccione método de simulación\n");
+        sb.append("    4. Haga clic en 'Simular Circuito'\n\n");
         sb.append("Características:\n");
-        sb.append("   - Análisis en dominio de tiempo y frecuencia\n");
-        sb.append("   - Diagramas fasoriales interactivos\n");
-        sb.append("   - Múltiples métodos de cálculo\n");
-        sb.append("   - Circuitos predefinidos\n");
-        sb.append("   - Algoritmos de planificación integrados\n");
-        sb.append("   - Interfaz moderna e intuitiva\n\n");
+        sb.append("    - Análisis en dominio de tiempo y frecuencia\n");
+        sb.append("    - Diagramas fasoriales interactivos\n");
+        sb.append("    - Múltiples métodos de cálculo\n");
+        sb.append("    - Circuitos predefinidos\n");
+        sb.append("    - Algoritmos de planificación integrados\n");
+        sb.append("    - Interfaz moderna e intuitiva\n\n");
         sb.append("¡Comience agregando componentes y ejecutando una simulación!");
 
         if (resultsArea != null) {
@@ -6702,6 +6772,8 @@ public class RLCSimulator extends JPanel implements SimulationObserver {
 
     // ========== PANEL DE VISUALIZACIÓN DE MEMORIA VIRTUAL ==========
 
+    // --- INICIO DE MODIFICACIÓN (HISTORIAL DE PROCESOS) ---
+    // Este método ahora crea un JTabbedPane
     private JPanel createMemoryVisualizationPanel() {
         JPanel panel = new JPanel(new BorderLayout(10, 10));
         panel.setBackground(LIGHT_SLATE);
@@ -6714,10 +6786,16 @@ public class RLCSimulator extends JPanel implements SimulationObserver {
         titleLabel.setBorder(BorderFactory.createEmptyBorder(0, 0, 15, 0));
         panel.add(titleLabel, BorderLayout.NORTH);
 
+        // Crear un TabbedPane para Memoria e Historial
+        JTabbedPane processTabs = new JTabbedPane();
+        setupModernTabbedPane(processTabs);
+
+        // -- Pestaña 1: Memoria Virtual (Código existente) --
         // Panel principal dividido en información y visualización
         JSplitPane memorySplitPane = new JSplitPane(JSplitPane.VERTICAL_SPLIT);
         memorySplitPane.setDividerLocation(150);
         memorySplitPane.setResizeWeight(0.3);
+        memorySplitPane.setBorder(null);
 
         // Panel superior - Información de memoria
         JPanel infoPanel = createMemoryInfoPanel();
@@ -6726,11 +6804,18 @@ public class RLCSimulator extends JPanel implements SimulationObserver {
         // Panel inferior - Visualización gráfica y colas
         JPanel visualizationPanel = createMemoryVisualizationGraphics();
         memorySplitPane.setBottomComponent(visualizationPanel);
+        
+        processTabs.addTab("Memoria Virtual", memorySplitPane);
 
-        panel.add(memorySplitPane, BorderLayout.CENTER);
+        // -- Pestaña 2: Historial de Simulaciones (Nuevo Panel) --
+        JPanel historyPanel = createHistoryPanel(); // Nuevo método
+        processTabs.addTab("Historial de Simulaciones", historyPanel);
+
+        panel.add(processTabs, BorderLayout.CENTER);
 
         return panel;
     }
+    // --- FIN DE MODIFICACIÓN ---
 
     private JPanel createMemoryInfoPanel() {
         JPanel panel = new JPanel(new BorderLayout());
@@ -6821,6 +6906,7 @@ public class RLCSimulator extends JPanel implements SimulationObserver {
         vizSplitPane.setRightComponent(processPanel);
         vizSplitPane.setDividerLocation(400);
         vizSplitPane.setResizeWeight(0.6);
+        vizSplitPane.setBorder(null);
 
         panel.add(vizSplitPane, BorderLayout.CENTER);
 
@@ -6992,7 +7078,7 @@ public class RLCSimulator extends JPanel implements SimulationObserver {
 
         // Calcular fragmentación basada en el algoritmo
         String algorithm = algorithmCombo.getSelectedItem() != null ? 
-                          algorithmCombo.getSelectedItem().toString() : "FCFS";
+                                algorithmCombo.getSelectedItem().toString() : "FCFS";
         
         double fragmentation = 0.0;
         double externalFrag = 0.0;
@@ -7913,7 +7999,7 @@ public class RLCSimulator extends JPanel implements SimulationObserver {
 
             if (resultsArea != null) {
                 resultsArea.setText("Error en la simulación. Por favor, verifique los parámetros e intente nuevamente.\n\n"
-                        + "Detalles del error: " + error);
+                                + "Detalles del error: " + error);
             }
         });
     }
@@ -8008,6 +8094,281 @@ public class RLCSimulator extends JPanel implements SimulationObserver {
         }
         stopUpdateTimer();
     }
+
+    // --- INICIO DE MODIFICACIÓN (HISTORIAL DE PROCESOS) ---
+
+    /**
+     * Crea el panel que contiene la tabla del historial de simulaciones.
+     */
+    private JPanel createHistoryPanel() {
+        JPanel panel = new JPanel(new BorderLayout(10, 10));
+        panel.setBackground(CARD_BACKGROUND);
+        panel.setBorder(BorderFactory.createEmptyBorder(15, 15, 15, 15));
+
+        // Columnas para la tabla de historial (basado en el output de printMetrics)
+        String[] columnNames = {
+            "ID", "Algoritmo", "T. Total (ms)", "Tareas", 
+            "Avg. Turnaround (ms)", "Avg. Wait (ms)", "CPU Util (%)",
+            "T. Simple (ms)", "T. Medio (ms)", "T. Complejo (ms)"
+        };
+
+        historyTableModel = new DefaultTableModel(columnNames, 0);
+        historyTable = new JTable(historyTableModel);
+        
+        // Hacer la tabla no editable
+        historyTable.setDefaultEditor(Object.class, null);
+        historyTable.getTableHeader().setReorderingAllowed(false);
+        historyTable.setFont(new Font("Segoe UI", Font.PLAIN, 11));
+        historyTable.setRowHeight(20);
+
+        // Renderizador para centrar texto
+        DefaultTableCellRenderer centerRenderer = new DefaultTableCellRenderer();
+        centerRenderer.setHorizontalAlignment(JLabel.CENTER);
+        
+        // Aplicar renderizador a todas las columnas
+        for (int i = 0; i < historyTable.getColumnCount(); i++) {
+            historyTable.getColumnModel().getColumn(i).setCellRenderer(centerRenderer);
+        }
+
+        JScrollPane scrollPane = new JScrollPane(historyTable);
+        scrollPane.setBorder(BorderFactory.createLineBorder(new Color(226, 232, 240)));
+        panel.add(scrollPane, BorderLayout.CENTER);
+
+        // Panel de botones
+        JPanel buttonPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT));
+        buttonPanel.setBackground(CARD_BACKGROUND);
+        
+        JButton exportButton = createModernButton("Exportar Historial", SECONDARY_BLUE); // Renombrado
+        exportButton.setToolTipText("Guardar el historial como un archivo .csv o .txt");
+        exportButton.addActionListener(e -> exportHistory()); // Cambiado a nuevo método
+        buttonPanel.add(exportButton);
+        
+        JButton clearHistoryButton = createModernButton("Limpiar Historial", ERROR_ROSE);
+        clearHistoryButton.addActionListener(e -> clearSimulationHistory());
+        buttonPanel.add(clearHistoryButton);
+
+        panel.add(buttonPanel, BorderLayout.SOUTH);
+
+        return panel;
+    }
+
+    /**
+     * Limpia el historial de simulaciones y la tabla.
+     */
+    private void clearSimulationHistory() {
+        this.simulationHistory.clear();
+        if (historyTableModel != null) {
+            historyTableModel.setRowCount(0);
+        }
+        logSchedulingMessage("Historial de simulaciones limpiado.");
+    }
+
+    /**
+     * Añade una nueva fila a la tabla de historial con las métricas de la simulación.
+     */
+    private void addMetricsToHistoryTable(com.simulador.scheduler.SchedulerMetrics metrics) {
+        if (historyTableModel == null) return;
+
+        String algorithm = scheduler.getCurrentStrategy() != null ? scheduler.getCurrentStrategy().getName() : "N/A";
+        long totalTime = metrics.getTotalExecutionTime();
+        int taskCount = metrics.getTasks().size(); // Total de tareas en el lote
+        double avgTurnaround = metrics.getAverageTurnaroundTime();
+        double avgWait = metrics.getAverageWaitingTime();
+        double cpuUtil = metrics.getCPUUtilization();
+
+        // Obtener métricas por complejidad (asumiendo que SchedulerMetrics fue modificado)
+        double simpleTurnaround = metrics.getAverageTurnaroundTime(CircuitSimulationTask.Complexity.SIMPLE);
+        double mediumTurnaround = metrics.getAverageTurnaroundTime(CircuitSimulationTask.Complexity.MEDIUM);
+        double complexTurnaround = metrics.getAverageTurnaroundTime(CircuitSimulationTask.Complexity.COMPLEX);
+
+        // Formatear para mostrar "N/A" si no hay tareas de ese tipo
+        String sSimple = metrics.getTaskCount(CircuitSimulationTask.Complexity.SIMPLE) > 0 ? df.format(simpleTurnaround) : "N/A";
+        String sMedium = metrics.getTaskCount(CircuitSimulationTask.Complexity.MEDIUM) > 0 ? df.format(mediumTurnaround) : "N/A";
+        String sComplex = metrics.getTaskCount(CircuitSimulationTask.Complexity.COMPLEX) > 0 ? df.format(complexTurnaround) : "N/A";
+
+        // Añadir la fila a la tabla
+        historyTableModel.addRow(new Object[]{
+            historyTableModel.getRowCount() + 1, // ID (simple conteo)
+            algorithm,
+            totalTime,
+            taskCount,
+            df.format(avgTurnaround),
+            df.format(avgWait),
+            df.format(cpuUtil), // Añadida CPU Util
+            sSimple,
+            sMedium,
+            sComplex
+        });
+    }
+
+    /**
+     * Abre un JFileChooser para permitir al usuario guardar el historial como CSV o TXT.
+     */
+    private void exportHistory() {
+        if (historyTableModel.getRowCount() == 0) {
+            showError("No hay datos en el historial para exportar.");
+            return;
+        }
+
+        JFileChooser fileChooser = new JFileChooser();
+        fileChooser.setDialogTitle("Exportar Historial de Simulación");
+
+        // Filtro para TXT (Pretty Print)
+        javax.swing.filechooser.FileFilter txtFilter = new javax.swing.filechooser.FileFilter() {
+            @Override
+            public boolean accept(File f) {
+                return f.isDirectory() || f.getName().toLowerCase().endsWith(".txt");
+            }
+            @Override
+            public String getDescription() {
+                return "Archivo de Texto Formateado (*.txt)";
+            }
+        };
+        
+        // Filtro para CSV (Excel, Google Sheets)
+        javax.swing.filechooser.FileFilter csvFilter = new javax.swing.filechooser.FileFilter() {
+            @Override
+            public boolean accept(File f) {
+                return f.isDirectory() || f.getName().toLowerCase().endsWith(".csv");
+            }
+            @Override
+            public String getDescription() {
+                return "Archivo CSV (*.csv)";
+            }
+        };
+
+        fileChooser.addChoosableFileFilter(txtFilter);
+        fileChooser.addChoosableFileFilter(csvFilter);
+        fileChooser.setFileFilter(txtFilter); // TXT por defecto
+        fileChooser.setSelectedFile(new File("historial_simulacion.txt"));
+
+        int userSelection = fileChooser.showSaveDialog(this);
+
+        if (userSelection == JFileChooser.APPROVE_OPTION) {
+            File fileToSave = fileChooser.getSelectedFile();
+            String selectedExtension = "";
+            
+            // Determinar qué filtro se seleccionó
+            if (fileChooser.getFileFilter() == txtFilter) {
+                selectedExtension = ".txt";
+            } else if (fileChooser.getFileFilter() == csvFilter) {
+                selectedExtension = ".csv";
+            } else {
+                // Si el usuario no seleccionó un filtro específico (ej. "Todos los archivos")
+                // inferir del nombre del archivo, o usar txt por defecto.
+                if (fileToSave.getName().toLowerCase().endsWith(".csv")) {
+                    selectedExtension = ".csv";
+                } else {
+                    selectedExtension = ".txt"; // Default
+                }
+            }
+
+
+            // Asegurar la extensión correcta
+            String filePath = fileToSave.getAbsolutePath();
+            if (!filePath.toLowerCase().endsWith(selectedExtension)) {
+                fileToSave = new File(filePath + selectedExtension);
+            }
+
+            // Llamar al método de escritura apropiado
+            try {
+                if (selectedExtension.equals(".txt")) {
+                    writeHistoryAsTXT(fileToSave);
+                } else {
+                    writeHistoryAsCSV(fileToSave);
+                }
+                showInfo("Historial exportado exitosamente a:\n" + fileToSave.getAbsolutePath());
+            } catch (IOException e) {
+                showError("Error al exportar el archivo: " + e.getMessage());
+                e.printStackTrace();
+            }
+        }
+    }
+
+    /**
+     * Escribe el historial de la tabla a un archivo en formato CSV.
+     */
+    private void writeHistoryAsCSV(File fileToSave) throws IOException {
+        try (BufferedWriter bw = new BufferedWriter(new FileWriter(fileToSave))) {
+            // Escribir cabeceras
+            for (int i = 0; i < historyTableModel.getColumnCount(); i++) {
+                bw.write(escapeCSV(historyTableModel.getColumnName(i)));
+                if (i < historyTableModel.getColumnCount() - 1) {
+                    bw.write(",");
+                }
+            }
+            bw.newLine();
+
+            // Escribir datos
+            for (int row = 0; row < historyTableModel.getRowCount(); row++) {
+                for (int col = 0; col < historyTableModel.getColumnCount(); col++) {
+                    Object value = historyTableModel.getValueAt(row, col);
+                    bw.write(escapeCSV(value != null ? value.toString() : ""));
+                    if (col < historyTableModel.getColumnCount() - 1) {
+                        bw.write(",");
+                    }
+                }
+                bw.newLine();
+            }
+        }
+    }
+
+    /**
+     * Escribe el historial de la tabla a un archivo en formato de texto
+     * alineado (pretty-print).
+     */
+    private void writeHistoryAsTXT(File fileToSave) throws IOException {
+        try (BufferedWriter bw = new BufferedWriter(new FileWriter(fileToSave))) {
+            // Definir formatos de alineación
+            // ID, Algoritmo, T. Total, Tareas, Avg. Turn, Avg. Wait, CPU, T. Simple, T. Medio, T. Complejo
+            String headerFormat = "%-5s | %-30s | %-12s | %-8s | %-20s | %-18s | %-12s | %-15s | %-15s | %-15s%n";
+            String rowFormat      = "%-5s | %-30s | %-12s | %-8s | %-20s | %-18s | %-12s | %-15s | %-15s | %-15s%n";
+
+            // Escribir cabeceras
+            bw.write(String.format(headerFormat, 
+                "ID", "Algoritmo", "T. Total(ms)", "Tareas", 
+                "Avg. Turnaround(ms)", "Avg. Wait(ms)", "CPU Util(%)",
+                "T. Simple(ms)", "T. Medio(ms)", "T. Complejo(ms)"
+            ));
+            
+            // Escribir línea separadora
+            for(int i = 0; i < 165; i++) bw.write("-");
+            bw.newLine();
+
+            // Escribir datos
+            for (int row = 0; row < historyTableModel.getRowCount(); row++) {
+                bw.write(String.format(rowFormat,
+                    historyTableModel.getValueAt(row, 0).toString(),
+                    historyTableModel.getValueAt(row, 1).toString(),
+                    historyTableModel.getValueAt(row, 2).toString(),
+                    historyTableModel.getValueAt(row, 3).toString(),
+                    historyTableModel.getValueAt(row, 4).toString(),
+                    historyTableModel.getValueAt(row, 5).toString(),
+                    historyTableModel.getValueAt(row, 6).toString(),
+                    historyTableModel.getValueAt(row, 7).toString(),
+                    historyTableModel.getValueAt(row, 8).toString(),
+                    historyTableModel.getValueAt(row, 9).toString()
+                ));
+            }
+        }
+    }
+
+    /**
+     * Helper para formatear texto para CSV (maneja comas y comillas).
+     */
+    private String escapeCSV(String value) {
+        if (value == null) {
+            return "";
+        }
+        // Si el valor contiene comas, saltos de línea o comillas, lo envolvemos
+        if (value.contains(",") || value.contains("\"") || value.contains("\n")) {
+            // Escapamos las comillas dobles existentes duplicándolas
+            value = value.replace("\"", "\"\"");
+            return "\"" + value + "\"";
+        }
+        return value;
+    }
+    // --- FIN DE MODIFICACIÓN ---
 }
 ```
 
@@ -8426,6 +8787,7 @@ import javax.swing.*;
 /**
  * Gestor especializado de idiomas para el simulador RLC
  * Maneja español y portugués con JSON interno
+ * MODIFICADO: Incluye todas las claves para la UI completa del RLCSimulator.
  */
 public class LanguageManager {
 
@@ -8433,25 +8795,43 @@ public class LanguageManager {
     private Map<String, Map<String, String>> translations;
     private String currentLanguage;
 
+    // JSON INTERNO ACTUALIZADO CON TODAS LAS CLAVES
     private static final Map<String, Object> LANGUAGE_JSON = Map.ofEntries(
         Map.entry("es", Map.ofEntries(
-            Map.entry("title", "Simulador de Circuitos RLC"),
-            Map.entry("controls", "Controles de Entrada"),
-            Map.entry("language", "Idioma:"),
-            Map.entry("voltage", "Voltaje (V):"),
-            Map.entry("frequency", "Frecuencia (Hz):"),
-            Map.entry("method", "Método:"),
-            Map.entry("preset", "Circuito Predefinido:"),
-            Map.entry("component_type", "Tipo:"),
-            Map.entry("value", "Valor:"),
-            Map.entry("add_component", "Agregar Componente"),
-            Map.entry("component_list", "Lista de Componentes:"),
-            Map.entry("remove_selected", "Eliminar Seleccionado"),
-            Map.entry("circuit_diagram", "Diagrama del Circuito"),
-            Map.entry("results", "Resultados"),
-            Map.entry("simulate", "Simular Circuito"),
-            Map.entry("view_graphs", "Ver Gráficos"),
-            Map.entry("clear_all", "Limpiar Todo"),
+            // --- Menú ---
+            Map.entry("menu_options", "Opciones"),
+            Map.entry("menu_language", "Idioma"),
+            Map.entry("menu_font_size", "Tamaño de Letra"),
+            Map.entry("font_small", "Pequeño"),
+            Map.entry("font_medium", "Mediano"),
+            Map.entry("font_large", "Grande"),
+            Map.entry("lang_es", "Español"),
+            Map.entry("lang_pt", "Português"),
+            
+            // --- Header ---
+            Map.entry("header_title", "Simulador Avanzado de Circuitos RLC y DC"),
+            Map.entry("header_subtitle", "Con Algoritmos de Planificación y Gestión de Memoria Virtual"),
+            
+            // --- Pestañas Principales (Izquierda) ---
+            Map.entry("tab_rlc", "Circuito RLC"),
+            Map.entry("tab_dc", "Circuito DC"),
+            Map.entry("tab_process", "Procesos"),
+            
+            // --- Pestaña RLC ---
+            Map.entry("rlc_power_supply", "Fuente de Alimentación"),
+            Map.entry("rlc_voltage", "Voltaje (V):"),
+            Map.entry("rlc_frequency", "Frecuencia (Hz):"),
+            Map.entry("rlc_simulation_method", "Método de Simulación"),
+            Map.entry("rlc_presets", "Circuitos Predefinidos"),
+            Map.entry("rlc_add_components", "Agregar Componentes"),
+            Map.entry("rlc_type", "Tipo:"),
+            Map.entry("rlc_value", "Valor:"),
+            Map.entry("rlc_add_button", "Agregar Componente"),
+            Map.entry("rlc_component_list", "Componentes en el Circuito"),
+            Map.entry("rlc_remove_button", "Eliminar Seleccionado"),
+            Map.entry("rlc_actions", "Acciones"),
+            Map.entry("rlc_simulate_button", "Simular Circuito"),
+            Map.entry("rlc_clear_button", "Limpiar Todo"),
             Map.entry("resistance", "Resistencia"),
             Map.entry("inductor", "Inductor"),
             Map.entry("capacitor", "Capacitor"),
@@ -8465,85 +8845,163 @@ public class LanguageManager {
             Map.entry("analytical", "Analítico"),
             Map.entry("euler", "Euler"),
             Map.entry("runge_kutta", "Runge-Kutta4"),
-            Map.entry("simulation_results", "=== RESULTADOS DE SIMULACIÓN ==="),
-            Map.entry("impedance", "• Impedancia:"),
-            Map.entry("current", "• Corriente:"),
-            Map.entry("phase_angle", "• Ángulo de Fase:"),
-            Map.entry("active_power", "• Potencia Activa:"),
-            Map.entry("reactive_power", "• Potencia Reactiva:"),
-            Map.entry("apparent_power", "• Potencia Aparente:"),
-            Map.entry("power_factor", "• Factor de Potencia:"),
-            Map.entry("inductive_circuit", "→ Circuito INDUCTIVO (corriente atrasada)"),
-            Map.entry("capacitive_circuit", "→ Circuito CAPACITIVO (corriente adelantada)"),
-            Map.entry("resistive_circuit", "→ Circuito RESISTIVO (corriente en fase)"),
-            Map.entry("simulation_in_progress", "Simulación en progreso..."),
-            Map.entry("please_wait", "Por favor espere..."),
-            Map.entry("empty_circuit", "Circuito Vacío"),
-            Map.entry("add_components_start", "Agregue componentes para comenzar"),
-            Map.entry("instructions", "Instrucciones:"),
-            Map.entry("instruction1", "1. Agregue componentes (R, L, C) al circuito"),
-            Map.entry("instruction2", "2. Configure voltaje y frecuencia"),
-            Map.entry("instruction3", "3. Seleccione método de simulación"),
-            Map.entry("instruction4", "4. Haga clic en 'Simular Circuito'"),
-            Map.entry("features", "Características:"),
-            Map.entry("feature1", "• Análisis en dominio de tiempo y frecuencia"),
-            Map.entry("feature2", "• Diagramas fasoriales interactivos"),
-            Map.entry("feature3", "• Múltiples métodos de cálculo"),
-            Map.entry("feature4", "• Circuitos predefinidos"),
-            Map.entry("feature5", "• Soporte multiidioma"),
+
+            // --- Pestaña DC ---
+            Map.entry("dc_config_circuit", "Configuración del Circuito"),
+            Map.entry("dc_num_branches", "Número de Ramas:"),
+            Map.entry("dc_config", "Configuración:"),
+            Map.entry("dc_config_series", "Serie"),
+            Map.entry("dc_config_parallel", "Paralelo"),
+            Map.entry("dc_config_mixed", "Mixto"),
+            Map.entry("dc_add_components", "Agregar Componentes DC"),
+            Map.entry("dc_type", "Tipo:"),
+            Map.entry("dc_value", "Valor:"),
+            Map.entry("dc_polarity", "Polaridad:"),
+            Map.entry("dc_polarity_up", "Positivo Hacia Arriba"),
+            Map.entry("dc_polarity_down", "Negativo Hacia Arriba"),
+            Map.entry("dc_in_branch", "En Rama #:"),
+            Map.entry("dc_add_button", "Agregar Componente DC"),
+            Map.entry("dc_analysis_method", "Método de Análisis"),
+            Map.entry("dc_actions", "Acciones DC"),
+            Map.entry("dc_simulate_button", "Simular Circuito DC"),
+            Map.entry("dc_clear_button", "Limpiar Circuito DC"),
+            Map.entry("dc_type_battery", "Batería"),
+            Map.entry("dc_type_resistor", "Resistencia"),
+            Map.entry("dc_type_source", "Fuente DC"),
+            Map.entry("dc_method_ohm", "Ley de Ohm"),
+            Map.entry("dc_method_kirchhoff", "Leyes de Kirchhoff"),
+            Map.entry("dc_method_mesh", "Análisis de Mallas"),
+            Map.entry("dc_method_nodal", "Análisis Nodal"),
+            Map.entry("dc_method_thevenin", "Teorema de Thevenin"),
+            Map.entry("dc_method_norton", "Teorema de Norton"),
+            Map.entry("dc_method_source", "Transformación de Fuentes"),
+
+            // --- Pestaña Procesos ---
+            Map.entry("proc_algorithm", "Algoritmo de Planificación"),
+            Map.entry("proc_batch_type", "Tipo de Lote"),
+            Map.entry("proc_batch_config", "Configuración del Lote"),
+            Map.entry("proc_execution_control", "Control de Ejecución"),
+            Map.entry("proc_select_algorithm", "Seleccione algoritmo:"),
+            Map.entry("proc_algo_fcfs", "First-Come, First-Served (FCFS)"),
+            Map.entry("proc_algo_rr", "Round Robin (RR)"),
+            Map.entry("proc_algo_sjf", "Shortest Job First (SJF)"),
+            Map.entry("proc_batch_config_label", "Configuración del lote:"),
+            Map.entry("proc_batch_simple", "Homogéneo - Simple"),
+            Map.entry("proc_batch_medium", "Homogéneo - Medio"),
+            Map.entry("proc_batch_complex", "Homogéneo - Complejo"),
+            Map.entry("proc_batch_mixed", "Heterogéneo - Mixto"),
+            Map.entry("proc_simple", "Simples:"),
+            Map.entry("proc_medium", "Medios:"),
+            Map.entry("proc_complex", "Complejos:"),
+            Map.entry("proc_generate_batch", "Generar Lote de Simulaciones"),
+            Map.entry("proc_start_button", "Iniciar Planificación"),
+            Map.entry("proc_stop_button", "Detener"),
+
+            // --- Panel RLC (Derecha) ---
+            Map.entry("rlc_diagram_title", "Diagrama del Circuito"),
+            Map.entry("rlc_tab_visualization", "Visualización"),
+            Map.entry("rlc_tab_results", "Resultados"),
+            Map.entry("rlc_tab_analysis", "Análisis"),
+            Map.entry("rlc_graph_type", "Tipo de Gráfico:"),
+            Map.entry("rlc_graph_time", "Dominio de Tiempo"),
+            Map.entry("rlc_graph_frequency", "Respuesta en Frecuencia"),
+            Map.entry("rlc_graph_phasor", "Diagrama Fasorial"),
+            Map.entry("rlc_graph_waveforms", "Formas de Onda"),
+            Map.entry("rlc_results_placeholder_title", "=== Simulador Avanzado de Circuitos RLC ==="),
+            Map.entry("rlc_results_placeholder_inst", "Instrucciones:"),
+            Map.entry("rlc_analysis_placeholder_title", "=== ANÁLISIS DETALLADO DEL CIRCUITO ==="),
+
+            // --- Panel DC (Derecha) ---
+            Map.entry("dc_panel_title", "Simulador de Circuitos DC - Análisis Resistivo"),
+            Map.entry("dc_diagram_title", "Diagrama del Circuito DC"),
+            Map.entry("dc_tab_main_results", "Resultados Principales"),
+            Map.entry("dc_tab_equivalents", "Circuitos Equivalentes"),
+            Map.entry("dc_tab_detailed_analysis", "Análisis Detallado"),
+            Map.entry("dc_analysis_placeholder_title", "=== ANÁLISIS DETALLADO DC ==="),
+
+            // --- Panel Memoria (Derecha) ---
+            Map.entry("mem_panel_title", "Memoria Virtual - Simulación de Procesos"),
+            Map.entry("mem_system_status", "Estado del Sistema"),
+            Map.entry("mem_total_frag", "Fragmentación Total:"),
+            Map.entry("mem_current_usage", "Uso actual de Memoria:"),
+            Map.entry("mem_avg_usage", "Uso promedio:"),
+            Map.entry("mem_ext_frag", "Fragmentación Externa:"),
+            Map.entry("mem_int_frag", "Fragmentación Interna:"),
+            Map.entry("mem_semaphore", "Semáforo 'Recurso Compartido':"),
+            Map.entry("mem_map_title", "Mapa de Memoria"),
+            Map.entry("mem_current_process", "Proceso en Ejecución"),
+            Map.entry("mem_queues_title", "Colas de Procesos"),
+            Map.entry("mem_none", "Ninguno"),
+            Map.entry("mem_empty", "Vacía"),
+            Map.entry("mem_queue_ready", "=== COLA DE LISTOS ==="),
+            Map.entry("mem_queue_running", "=== EN EJECUCIÓN ==="),
+            Map.entry("mem_queue_completed", "=== COMPLETADOS ==="),
+
+            // --- Mensajes y Errores ---
+            Map.entry("info", "Información"),
             Map.entry("error", "Error"),
-            Map.entry("information", "Información"),
-            Map.entry("component_value_positive", "El valor del componente debe ser positivo"),
-            Map.entry("select_component_remove", "Seleccione un componente para eliminar"),
-            Map.entry("add_least_one_component", "Agregue al menos un componente al circuito"),
-            Map.entry("voltage_range", "El voltaje debe estar entre 0.1 y 1000 V"),
-            Map.entry("frequency_range", "La frecuencia debe estar entre 0.1 y 10000 Hz"),
-            Map.entry("enter_numeric_values", "Ingrese valores numéricos válidos para voltaje y frecuencia"),
-            Map.entry("circuit_cleared", "Circuito limpiado. Listo para nueva simulación."),
-            Map.entry("circuit_results_cleared", "Circuito y resultados limpiados"),
-            Map.entry("preset_loaded", "Circuito predefinido '%s' cargado"),
-            Map.entry("simulation_error", "Error en simulación: %s"),
-            // Nuevas traducciones para GraphWindow
-            Map.entry("graph_window_title", "Gráficos del Circuito RLC - Simulador"),
-            Map.entry("time_tab", "Tiempo"),
-            Map.entry("frequency_tab", "Frecuencia"), 
-            Map.entry("phasor_tab", "Fasorial"),
-            Map.entry("waveforms_tab", "Ondas"),
-            Map.entry("time_domain", "Dominio del Tiempo"),
-            Map.entry("frequency_response", "Respuesta en Frecuencia"),
-            Map.entry("phasor_diagram", "Diagrama Fasorial"),
-            Map.entry("waveforms", "Formas de Onda"),
-            Map.entry("refresh_graphs", "Actualizar Gráficos"),
-            Map.entry("save_as_image", "Guardar como Imagen"),
-            Map.entry("close", "Cerrar"),
-            Map.entry("save_image_not_implemented", "Funcionalidad de guardar imagen no implementada en esta versión.\nUse la función de captura de pantalla de su sistema."),
-            // Nuevas traducciones para el diseño de dos columnas
-            Map.entry("configuration", "Configuración del Circuito"),
-            Map.entry("power_supply", "Fuente de Alimentación"),
-            Map.entry("simulation_method", "Método de Simulación"),
-            Map.entry("circuit_presets", "Circuitos Predefinidos"),
-            Map.entry("components", "Componentes"),
-            Map.entry("actions", "Acciones"),
-            Map.entry("simulation_graph", "Gráfica de Simulación")
+            Map.entry("dc_value_positive", "El valor de la resistencia debe ser positivo"),
+            Map.entry("dc_branch_error", "La rama de destino no existe. Ajuste el 'Número de Ramas' primero."),
+            Map.entry("dc_numeric_error", "Ingrese valores numéricos válidos para el componente DC"),
+            Map.entry("dc_add_error", "Error al agregar componente DC: %s"),
+            Map.entry("dc_add_success", "Componente DC agregado a la Rama %d"),
+            Map.entry("dc_invalid_circuit", "Circuito DC no válido. Agregue componentes y configure el circuito."),
+            Map.entry("dc_sim_error", "Error en simulación DC: %s"),
+            Map.entry("dc_sim_success", "Simulación DC completada usando %s"),
+            Map.entry("dc_cleared", "Circuito DC limpiado"),
+            Map.entry("rlc_value_positive", "El valor del componente debe ser positivo"),
+            Map.entry("rlc_select_to_remove", "Seleccione un componente para eliminar"),
+            Map.entry("rlc_add_one_component", "Agregue al menos un componente al circuito"),
+            Map.entry("rlc_voltage_range", "El voltaje debe estar entre 0.1 y 1000 V"),
+            Map.entry("rlc_frequency_range", "La frecuencia debe estar entre 0.1 y 10000 Hz"),
+            Map.entry("rlc_numeric_error", "Ingrese valores numéricos válidos para voltaje y frecuencia"),
+            Map.entry("rlc_cleared", "Circuito limpiado. Listo para nueva simulación."),
+            Map.entry("rlc_cleared_all", "Circuito y resultados limpiados"),
+            Map.entry("rlc_preset_loaded", "Circuito predefinido '%s' cargado"),
+            Map.entry("proc_batch_generated", "Lote generado: %d tareas"),
+            Map.entry("proc_start_log", "Iniciando planificación con %s"),
+            Map.entry("proc_stop_log", "Planificación detenida"),
+            Map.entry("proc_start_error", "Error al iniciar planificación: %s"),
+            Map.entry("sim_in_progress", "Simulación en progreso..."),
+            Map.entry("sim_complete", "Simulación completada exitosamente"),
+            Map.entry("sim_error_generic", "Error en la simulación: %s"),
+            Map.entry("sim_error_details", "Error en simulación. Por favor, verifique los parámetros e intente nuevamente.\n\nDetalles del error: %s")
         )),
         Map.entry("pt", Map.ofEntries(
-            Map.entry("title", "Simulador de Circuitos RLC"),
-            Map.entry("controls", "Controles de Entrada"),
-            Map.entry("language", "Idioma:"),
-            Map.entry("voltage", "Tensão (V):"),
-            Map.entry("frequency", "Frequência (Hz):"),
-            Map.entry("method", "Método:"),
-            Map.entry("preset", "Circuito Predefinido:"),
-            Map.entry("component_type", "Tipo:"),
-            Map.entry("value", "Valor:"),
-            Map.entry("add_component", "Adicionar Componente"),
-            Map.entry("component_list", "Lista de Componentes:"),
-            Map.entry("remove_selected", "Remover Selecionado"),
-            Map.entry("circuit_diagram", "Diagrama do Circuito"),
-            Map.entry("results", "Resultados"),
-            Map.entry("simulate", "Simular Circuito"),
-            Map.entry("view_graphs", "Ver Gráficos"),
-            Map.entry("clear_all", "Limpar Tudo"),
+            // --- Menú ---
+            Map.entry("menu_options", "Opções"),
+            Map.entry("menu_language", "Idioma"),
+            Map.entry("menu_font_size", "Tamanho da Fonte"),
+            Map.entry("font_small", "Pequeno"),
+            Map.entry("font_medium", "Médio"),
+            Map.entry("font_large", "Grande"),
+            Map.entry("lang_es", "Espanhol"),
+            Map.entry("lang_pt", "Português"),
+
+            // --- Header ---
+            Map.entry("header_title", "Simulador Avançado de Circuitos RLC e DC"),
+            Map.entry("header_subtitle", "Com Algoritmos de Agendamento e Gerenciamento de Memória Virtual"),
+
+            // --- Pestañas Principales (Izquierda) ---
+            Map.entry("tab_rlc", "Circuito RLC"),
+            Map.entry("tab_dc", "Circuito DC"),
+            Map.entry("tab_process", "Processos"),
+
+            // --- Pestaña RLC ---
+            Map.entry("rlc_power_supply", "Fonte de Alimentação"),
+            Map.entry("rlc_voltage", "Tensão (V):"),
+            Map.entry("rlc_frequency", "Frequência (Hz):"),
+            Map.entry("rlc_simulation_method", "Método de Simulação"),
+            Map.entry("rlc_presets", "Circuitos Predefinidos"),
+            Map.entry("rlc_add_components", "Adicionar Componentes"),
+            Map.entry("rlc_type", "Tipo:"),
+            Map.entry("rlc_value", "Valor:"),
+            Map.entry("rlc_add_button", "Adicionar Componente"),
+            Map.entry("rlc_component_list", "Componentes no Circuito"),
+            Map.entry("rlc_remove_button", "Remover Selecionado"),
+            Map.entry("rlc_actions", "Ações"),
+            Map.entry("rlc_simulate_button", "Simular Circuito"),
+            Map.entry("rlc_clear_button", "Limpar Tudo"),
             Map.entry("resistance", "Resistência"),
             Map.entry("inductor", "Indutor"),
             Map.entry("capacitor", "Capacitor"),
@@ -8552,71 +9010,132 @@ public class LanguageManager {
             Map.entry("critical", "Crítico"),
             Map.entry("overdamped", "Superamortecido"),
             Map.entry("series_rlc", "RLC Série"),
-            Map.entry("high_pass", "Filtro Passa Altas"),
-            Map.entry("low_pass", "Filtro Passa Baixas"),
+            Map.entry("high_pass", "Filtro Passa-Altas"),
+            Map.entry("low_pass", "Filtro Passa-Baixas"),
             Map.entry("analytical", "Analítico"),
             Map.entry("euler", "Euler"),
             Map.entry("runge_kutta", "Runge-Kutta4"),
-            Map.entry("simulation_results", "=== RESULTADOS DA SIMULAÇÃO ==="),
-            Map.entry("impedance", "• Impedância:"),
-            Map.entry("current", "• Corrente:"),
-            Map.entry("phase_angle", "• Ângulo de Fase:"),
-            Map.entry("active_power", "• Potência Ativa:"),
-            Map.entry("reactive_power", "• Potência Reativa:"),
-            Map.entry("apparent_power", "• Potência Aparente:"),
-            Map.entry("power_factor", "• Fator de Potência:"),
-            Map.entry("inductive_circuit", "→ Circuito INDUTIVO (corrente atrasada)"),
-            Map.entry("capacitive_circuit", "→ Circuito CAPACITIVO (corrente adiantada)"),
-            Map.entry("resistive_circuit", "→ Circuito RESISTIVO (corrente em fase)"),
-            Map.entry("simulation_in_progress", "Simulação em andamento..."),
-            Map.entry("please_wait", "Por favor aguarde..."),
-            Map.entry("empty_circuit", "Circuito Vazio"),
-            Map.entry("add_components_start", "Adicione componentes para começar"),
-            Map.entry("instructions", "Instruções:"),
-            Map.entry("instruction1", "1. Adicione componentes (R, L, C) ao circuito"),
-            Map.entry("instruction2", "2. Configure tensão e frequência"),
-            Map.entry("instruction3", "3. Selecione o método de simulação"),
-            Map.entry("instruction4", "4. Clique em 'Simular Circuito'"),
-            Map.entry("features", "Características:"),
-            Map.entry("feature1", "• Análise no domínio do tempo e frequência"),
-            Map.entry("feature2", "• Diagramas fasoriais interativos"),
-            Map.entry("feature3", "• Múltiplos métodos de cálculo"),
-            Map.entry("feature4", "• Circuitos predefinidos"),
-            Map.entry("feature5", "• Suporte multilíngue"),
+
+            // --- Pestaña DC ---
+            Map.entry("dc_config_circuit", "Configuração do Circuito"),
+            Map.entry("dc_num_branches", "Número de Ramos:"),
+            Map.entry("dc_config", "Configuração:"),
+            Map.entry("dc_config_series", "Série"),
+            Map.entry("dc_config_parallel", "Paralelo"),
+            Map.entry("dc_config_mixed", "Misto"),
+            Map.entry("dc_add_components", "Adicionar Componentes DC"),
+            Map.entry("dc_type", "Tipo:"),
+            Map.entry("dc_value", "Valor:"),
+            Map.entry("dc_polarity", "Polaridade:"),
+            Map.entry("dc_polarity_up", "Positivo Para Cima"),
+            Map.entry("dc_polarity_down", "Negativo Para Cima"),
+            Map.entry("dc_in_branch", "No Ramo #:"),
+            Map.entry("dc_add_button", "Adicionar Componente DC"),
+            Map.entry("dc_analysis_method", "Método de Análise"),
+            Map.entry("dc_actions", "Ações DC"),
+            Map.entry("dc_simulate_button", "Simular Circuito DC"),
+            Map.entry("dc_clear_button", "Limpar Circuito DC"),
+            Map.entry("dc_type_battery", "Bateria"),
+            Map.entry("dc_type_resistor", "Resistência"),
+            Map.entry("dc_type_source", "Fonte DC"),
+            Map.entry("dc_method_ohm", "Lei de Ohm"),
+            Map.entry("dc_method_kirchhoff", "Leis de Kirchhoff"),
+            Map.entry("dc_method_mesh", "Análise de Malhas"),
+            Map.entry("dc_method_nodal", "Análise Nodal"),
+            Map.entry("dc_method_thevenin", "Teorema de Thevenin"),
+            Map.entry("dc_method_norton", "Teorema de Norton"),
+            Map.entry("dc_method_source", "Transformação de Fontes"),
+
+            // --- Pestaña Procesos ---
+            Map.entry("proc_algorithm", "Algoritmo de Agendamento"),
+            Map.entry("proc_batch_type", "Tipo de Lote"),
+            Map.entry("proc_batch_config", "Configuração do Lote"),
+            Map.entry("proc_execution_control", "Controle de Execução"),
+            Map.entry("proc_select_algorithm", "Selecione o algoritmo:"),
+            Map.entry("proc_algo_fcfs", "First-Come, First-Served (FCFS)"),
+            Map.entry("proc_algo_rr", "Round Robin (RR)"),
+            Map.entry("proc_algo_sjf", "Shortest Job First (SJF)"),
+            Map.entry("proc_batch_config_label", "Configuração do lote:"),
+            Map.entry("proc_batch_simple", "Homogêneo - Simples"),
+            Map.entry("proc_batch_medium", "Homogêneo - Médio"),
+            Map.entry("proc_batch_complex", "Homogêneo - Complexo"),
+            Map.entry("proc_batch_mixed", "Heterogêneo - Misto"),
+            Map.entry("proc_simple", "Simples:"),
+            Map.entry("proc_medium", "Médios:"),
+            Map.entry("proc_complex", "Complexos:"),
+            Map.entry("proc_generate_batch", "Gerar Lote de Simulações"),
+            Map.entry("proc_start_button", "Iniciar Agendamento"),
+            Map.entry("proc_stop_button", "Parar"),
+
+            // --- Panel RLC (Derecha) ---
+            Map.entry("rlc_diagram_title", "Diagrama do Circuito"),
+            Map.entry("rlc_tab_visualization", "Visualização"),
+            Map.entry("rlc_tab_results", "Resultados"),
+            Map.entry("rlc_tab_analysis", "Análise"),
+            Map.entry("rlc_graph_type", "Tipo de Gráfico:"),
+            Map.entry("rlc_graph_time", "Domínio do Tempo"),
+            Map.entry("rlc_graph_frequency", "Resposta em Frequência"),
+            Map.entry("rlc_graph_phasor", "Diagrama Fasorial"),
+            Map.entry("rlc_graph_waveforms", "Formas de Onda"),
+            Map.entry("rlc_results_placeholder_title", "=== Simulador Avançado de Circuitos RLC ==="),
+            Map.entry("rlc_results_placeholder_inst", "Instruções:"),
+            Map.entry("rlc_analysis_placeholder_title", "=== ANÁLISE DETALHADA DO CIRCUITO ==="),
+
+            // --- Panel DC (Derecha) ---
+            Map.entry("dc_panel_title", "Simulador de Circuitos DC - Análise Resistiva"),
+            Map.entry("dc_diagram_title", "Diagrama do Circuito DC"),
+            Map.entry("dc_tab_main_results", "Resultados Principais"),
+            Map.entry("dc_tab_equivalents", "Circuitos Equivalentes"),
+            Map.entry("dc_tab_detailed_analysis", "Análise Detalhada"),
+            Map.entry("dc_analysis_placeholder_title", "=== ANÁLISE DETALHADA DC ==="),
+
+            // --- Panel Memoria (Derecha) ---
+            Map.entry("mem_panel_title", "Memória Virtual - Simulação de Processos"),
+            Map.entry("mem_system_status", "Estado do Sistema"),
+            Map.entry("mem_total_frag", "Fragmentação Total:"),
+            Map.entry("mem_current_usage", "Uso atual de Memória:"),
+            Map.entry("mem_avg_usage", "Uso médio:"),
+            Map.entry("mem_ext_frag", "Fragmentação Externa:"),
+            Map.entry("mem_int_frag", "Fragmentação Interna:"),
+            Map.entry("mem_semaphore", "Semáforo 'Recurso Compartilhado':"),
+            Map.entry("mem_map_title", "Mapa de Memória"),
+            Map.entry("mem_current_process", "Processo em Execução"),
+            Map.entry("mem_queues_title", "Filas de Processos"),
+            Map.entry("mem_none", "Nenhum"),
+            Map.entry("mem_empty", "Vazia"),
+            Map.entry("mem_queue_ready", "=== FILA DE PRONTOS ==="),
+            Map.entry("mem_queue_running", "=== EM EXECUÇÃO ==="),
+            Map.entry("mem_queue_completed", "=== CONCLUÍDOS ==="),
+
+            // --- Mensajes y Errores ---
+            Map.entry("info", "Informação"),
             Map.entry("error", "Erro"),
-            Map.entry("information", "Informação"),
-            Map.entry("component_value_positive", "O valor do componente deve ser positivo"),
-            Map.entry("select_component_remove", "Selecione um componente para remover"),
-            Map.entry("add_least_one_component", "Adicione pelo menos um componente ao circuito"),
-            Map.entry("voltage_range", "A tensão deve estar entre 0.1 e 1000 V"),
-            Map.entry("frequency_range", "A frequência deve estar entre 0.1 e 10000 Hz"),
-            Map.entry("enter_numeric_values", "Insira valores numéricos válidos para tensão e frequência"),
-            Map.entry("circuit_cleared", "Circuito limpo. Pronto para nova simulação."),
-            Map.entry("circuit_results_cleared", "Circuito e resultados limpos"),
-            Map.entry("preset_loaded", "Circuito predefinido '%s' carregado"),
-            Map.entry("simulation_error", "Erro na simulação: %s"),
-            // Nuevas traducciones para GraphWindow
-            Map.entry("graph_window_title", "Gráficos do Circuito RLC - Simulador"),
-            Map.entry("time_tab", "Tempo"),
-            Map.entry("frequency_tab", "Frequência"),
-            Map.entry("phasor_tab", "Fasorial"), 
-            Map.entry("waveforms_tab", "Ondas"),
-            Map.entry("time_domain", "Domínio do Tempo"),
-            Map.entry("frequency_response", "Resposta em Frequência"),
-            Map.entry("phasor_diagram", "Diagrama Fasorial"),
-            Map.entry("waveforms", "Formas de Onda"),
-            Map.entry("refresh_graphs", "Atualizar Gráficos"),
-            Map.entry("save_as_image", "Salvar como Imagem"),
-            Map.entry("close", "Fechar"),
-            Map.entry("save_image_not_implemented", "Funcionalidade de salvar imagem não implementada nesta versão.\nUse a função de captura de tela do seu sistema."),
-            // Nuevas traducciones para el diseño de dos columnas
-            Map.entry("configuration", "Configuração do Circuito"),
-            Map.entry("power_supply", "Fonte de Alimentação"),
-            Map.entry("simulation_method", "Método de Simulação"),
-            Map.entry("circuit_presets", "Circuitos Predefinidos"),
-            Map.entry("components", "Componentes"),
-            Map.entry("actions", "Ações"),
-            Map.entry("simulation_graph", "Gráfico de Simulação")
+            Map.entry("dc_value_positive", "O valor da resistência deve ser positivo"),
+            Map.entry("dc_branch_error", "O ramo de destino não existe. Ajuste o 'Número de Ramos' primeiro."),
+            Map.entry("dc_numeric_error", "Insira valores numéricos válidos para o componente DC"),
+            Map.entry("dc_add_error", "Erro ao adicionar componente DC: %s"),
+            Map.entry("dc_add_success", "Componente DC adicionado ao Ramo %d"),
+            Map.entry("dc_invalid_circuit", "Circuito DC inválido. Adicione componentes e configure o circuito."),
+            Map.entry("dc_sim_error", "Erro na simulação DC: %s"),
+            Map.entry("dc_sim_success", "Simulação DC concluída usando %s"),
+            Map.entry("dc_cleared", "Circuito DC limpo"),
+            Map.entry("rlc_value_positive", "O valor do componente deve ser positivo"),
+            Map.entry("rlc_select_to_remove", "Selecione um componente para remover"),
+            Map.entry("rlc_add_one_component", "Adicione pelo menos um componente ao circuito"),
+            Map.entry("rlc_voltage_range", "A tensão deve estar entre 0.1 e 1000 V"),
+            Map.entry("rlc_frequency_range", "A frequência deve estar entre 0.1 e 10000 Hz"),
+            Map.entry("rlc_numeric_error", "Insira valores numéricos válidos para tensão e frequência"),
+            Map.entry("rlc_cleared", "Circuito limpo. Pronto para nova simulação."),
+            Map.entry("rlc_cleared_all", "Circuito e resultados limpos"),
+            Map.entry("rlc_preset_loaded", "Circuito predefinido '%s' carregado"),
+            Map.entry("proc_batch_generated", "Lote gerado: %d tarefas"),
+            Map.entry("proc_start_log", "Iniciando agendamento com %s"),
+            Map.entry("proc_stop_log", "Agendamento parado"),
+            Map.entry("proc_start_error", "Erro ao iniciar agendamento: %s"),
+            Map.entry("sim_in_progress", "Simulação em andamento..."),
+            Map.entry("sim_complete", "Simulação concluída com sucesso"),
+            Map.entry("sim_error_generic", "Erro na simulação: %s"),
+            Map.entry("sim_error_details", "Erro na simulação. Por favor, verifique os parâmetros e tente novamente.\n\nDetalhes do erro: %s")
         ))
     );
 
@@ -8708,9 +9227,13 @@ public class LanguageManager {
      * Actualiza todos los textos de un combo box según el idioma actual
      */
     public void updateComboBox(JComboBox<String> comboBox, String[] keys) {
+        int selectedIndex = comboBox.getSelectedIndex(); // Guardar selección
         comboBox.removeAllItems();
         for (String key : keys) {
             comboBox.addItem(getTranslation(key));
+        }
+        if (selectedIndex != -1 && selectedIndex < comboBox.getItemCount()) {
+            comboBox.setSelectedIndex(selectedIndex); // Restaurar selección
         }
     }
     

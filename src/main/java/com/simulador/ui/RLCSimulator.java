@@ -10,6 +10,7 @@ import com.simulador.model.CircuitSimulationTask;
 import com.simulador.scheduler.FirstComeFirstServedScheduler;
 import com.simulador.scheduler.ProcessScheduler;
 import com.simulador.scheduler.RoundRobinScheduler;
+import com.simulador.scheduler.SchedulerMetrics; // Asegúrate de que este import esté
 import com.simulador.scheduler.ShortestJobFirstScheduler;
 import com.simulador.utils.LanguageManager;
 import com.simulador.utils.SimulationObserver;
@@ -35,6 +36,14 @@ import java.awt.*;
 import java.text.DecimalFormat;
 import java.util.ArrayList;
 import java.util.List;
+
+// --- INICIO DE MODIFICACIÓN (Exportar Archivos) ---
+import java.io.File;
+import java.io.FileWriter;
+import java.io.BufferedWriter;
+import java.io.IOException;
+import javax.swing.JFileChooser;
+// --- FIN DE MODIFICACIÓN ---
 
 /**
  * Panel principal del simulador de circuitos RLC con algoritmos de
@@ -116,6 +125,12 @@ public class RLCSimulator extends JPanel implements SimulationObserver {
     private JPanel memoryVisualizationPanel;
     private JTextArea processQueueArea;
 
+    // --- INICIO DE MODIFICACIÓN (HISTORIAL DE PROCESOS) ---
+    private JTable historyTable;
+    private DefaultTableModel historyTableModel;
+    private final List<com.simulador.scheduler.SchedulerMetrics> simulationHistory = new ArrayList<>();
+    // --- FIN DE MODIFICACIÓN ---
+
     // Componentes para visualización de circuitos
     private BaseGraph currentGraph;
     private JPanel graphContainer;
@@ -161,7 +176,14 @@ public class RLCSimulator extends JPanel implements SimulationObserver {
                     schedulingProgressBar.setVisible(isRunning);
 
                     if (!isRunning && scheduler.getMetrics() != null) {
-                        scheduler.getMetrics().printMetrics(algorithmCombo.getSelectedItem().toString());
+                        com.simulador.scheduler.SchedulerMetrics metrics = scheduler.getMetrics(); // Obtener métricas
+                        metrics.printMetrics(algorithmCombo.getSelectedItem().toString());
+                        
+                        // --- INICIO DE MODIFICACIÓN (HISTORIAL DE PROCESOS) ---
+                        // Guardar y mostrar en la tabla de historial
+                        this.simulationHistory.add(metrics); 
+                        addMetricsToHistoryTable(metrics);
+                        // --- FIN DE MODIFICACIÓN ---
                     }
                 });
             } else if (ProcessScheduler.PROPERTY_TASKS_UPDATED.equals(evt.getPropertyName())) {
@@ -675,9 +697,9 @@ public class RLCSimulator extends JPanel implements SimulationObserver {
         // Crear un nuevo modelo para el spinner de rama destino
         SpinnerNumberModel model = new SpinnerNumberModel(
             Math.min(currentTarget, numBranches), // Valor actual (limitado por el max)
-            1,       // Mínimo
+            1,     // Mínimo
             numBranches, // Máximo
-            1        // Paso
+            1      // Paso
         );
         targetBranchSpinner.setModel(model);
     }
@@ -1012,8 +1034,8 @@ public class RLCSimulator extends JPanel implements SimulationObserver {
             
             @Override
             protected void paintText(Graphics g, int tabPlacement, Font font, 
-                                   FontMetrics metrics, int tabIndex, 
-                                   String title, Rectangle textRect, boolean isSelected) {
+                                    FontMetrics metrics, int tabIndex, 
+                                    String title, Rectangle textRect, boolean isSelected) {
                 g.setFont(font.deriveFont(isSelected ? Font.BOLD : Font.PLAIN, 12));
                 g.setColor(isSelected ? Color.WHITE : DARK_SLATE);
                 super.paintText(g, tabPlacement, font, metrics, tabIndex, title, textRect, isSelected);
@@ -1138,7 +1160,7 @@ public class RLCSimulator extends JPanel implements SimulationObserver {
         JPanel batchPanel = createModernCardPanel("Tipo de Lote", 
             createSimpleComboBoxPanel("Configuración del lote:",
                 new String[] { "Homogéneo - Simple", "Homogéneo - Medio", "Homogéneo - Complejo",
-                        "Heterogéneo - Mixto" }));
+                                "Heterogéneo - Mixto" }));
         batchTypeCombo = findComboBoxInPanel(batchPanel);
         if (batchTypeCombo == null) {
             batchTypeCombo = new JComboBox<>(new String[] {
@@ -1421,17 +1443,17 @@ public class RLCSimulator extends JPanel implements SimulationObserver {
         StringBuilder sb = new StringBuilder();
         sb.append("=== Simulador Avanzado de Circuitos RLC ===\n\n");
         sb.append("Instrucciones:\n");
-        sb.append("   1. Agregue componentes (R, L, C) al circuito\n");
-        sb.append("   2. Configure voltaje y frecuencia\n");
-        sb.append("   3. Seleccione método de simulación\n");
-        sb.append("   4. Haga clic en 'Simular Circuito'\n\n");
+        sb.append("    1. Agregue componentes (R, L, C) al circuito\n");
+        sb.append("    2. Configure voltaje y frecuencia\n");
+        sb.append("    3. Seleccione método de simulación\n");
+        sb.append("    4. Haga clic en 'Simular Circuito'\n\n");
         sb.append("Características:\n");
-        sb.append("   - Análisis en dominio de tiempo y frecuencia\n");
-        sb.append("   - Diagramas fasoriales interactivos\n");
-        sb.append("   - Múltiples métodos de cálculo\n");
-        sb.append("   - Circuitos predefinidos\n");
-        sb.append("   - Algoritmos de planificación integrados\n");
-        sb.append("   - Interfaz moderna e intuitiva\n\n");
+        sb.append("    - Análisis en dominio de tiempo y frecuencia\n");
+        sb.append("    - Diagramas fasoriales interactivos\n");
+        sb.append("    - Múltiples métodos de cálculo\n");
+        sb.append("    - Circuitos predefinidos\n");
+        sb.append("    - Algoritmos de planificación integrados\n");
+        sb.append("    - Interfaz moderna e intuitiva\n\n");
         sb.append("¡Comience agregando componentes y ejecutando una simulación!");
 
         if (resultsArea != null) {
@@ -1441,6 +1463,8 @@ public class RLCSimulator extends JPanel implements SimulationObserver {
 
     // ========== PANEL DE VISUALIZACIÓN DE MEMORIA VIRTUAL ==========
 
+    // --- INICIO DE MODIFICACIÓN (HISTORIAL DE PROCESOS) ---
+    // Este método ahora crea un JTabbedPane
     private JPanel createMemoryVisualizationPanel() {
         JPanel panel = new JPanel(new BorderLayout(10, 10));
         panel.setBackground(LIGHT_SLATE);
@@ -1453,10 +1477,16 @@ public class RLCSimulator extends JPanel implements SimulationObserver {
         titleLabel.setBorder(BorderFactory.createEmptyBorder(0, 0, 15, 0));
         panel.add(titleLabel, BorderLayout.NORTH);
 
+        // Crear un TabbedPane para Memoria e Historial
+        JTabbedPane processTabs = new JTabbedPane();
+        setupModernTabbedPane(processTabs);
+
+        // -- Pestaña 1: Memoria Virtual (Código existente) --
         // Panel principal dividido en información y visualización
         JSplitPane memorySplitPane = new JSplitPane(JSplitPane.VERTICAL_SPLIT);
         memorySplitPane.setDividerLocation(150);
         memorySplitPane.setResizeWeight(0.3);
+        memorySplitPane.setBorder(null);
 
         // Panel superior - Información de memoria
         JPanel infoPanel = createMemoryInfoPanel();
@@ -1465,11 +1495,18 @@ public class RLCSimulator extends JPanel implements SimulationObserver {
         // Panel inferior - Visualización gráfica y colas
         JPanel visualizationPanel = createMemoryVisualizationGraphics();
         memorySplitPane.setBottomComponent(visualizationPanel);
+        
+        processTabs.addTab("Memoria Virtual", memorySplitPane);
 
-        panel.add(memorySplitPane, BorderLayout.CENTER);
+        // -- Pestaña 2: Historial de Simulaciones (Nuevo Panel) --
+        JPanel historyPanel = createHistoryPanel(); // Nuevo método
+        processTabs.addTab("Historial de Simulaciones", historyPanel);
+
+        panel.add(processTabs, BorderLayout.CENTER);
 
         return panel;
     }
+    // --- FIN DE MODIFICACIÓN ---
 
     private JPanel createMemoryInfoPanel() {
         JPanel panel = new JPanel(new BorderLayout());
@@ -1560,6 +1597,7 @@ public class RLCSimulator extends JPanel implements SimulationObserver {
         vizSplitPane.setRightComponent(processPanel);
         vizSplitPane.setDividerLocation(400);
         vizSplitPane.setResizeWeight(0.6);
+        vizSplitPane.setBorder(null);
 
         panel.add(vizSplitPane, BorderLayout.CENTER);
 
@@ -1731,7 +1769,7 @@ public class RLCSimulator extends JPanel implements SimulationObserver {
 
         // Calcular fragmentación basada en el algoritmo
         String algorithm = algorithmCombo.getSelectedItem() != null ? 
-                          algorithmCombo.getSelectedItem().toString() : "FCFS";
+                                algorithmCombo.getSelectedItem().toString() : "FCFS";
         
         double fragmentation = 0.0;
         double externalFrag = 0.0;
@@ -2652,7 +2690,7 @@ public class RLCSimulator extends JPanel implements SimulationObserver {
 
             if (resultsArea != null) {
                 resultsArea.setText("Error en la simulación. Por favor, verifique los parámetros e intente nuevamente.\n\n"
-                        + "Detalles del error: " + error);
+                                + "Detalles del error: " + error);
             }
         });
     }
@@ -2747,4 +2785,279 @@ public class RLCSimulator extends JPanel implements SimulationObserver {
         }
         stopUpdateTimer();
     }
+
+    // --- INICIO DE MODIFICACIÓN (HISTORIAL DE PROCESOS) ---
+
+    /**
+     * Crea el panel que contiene la tabla del historial de simulaciones.
+     */
+    private JPanel createHistoryPanel() {
+        JPanel panel = new JPanel(new BorderLayout(10, 10));
+        panel.setBackground(CARD_BACKGROUND);
+        panel.setBorder(BorderFactory.createEmptyBorder(15, 15, 15, 15));
+
+        // Columnas para la tabla de historial (basado en el output de printMetrics)
+        String[] columnNames = {
+            "ID", "Algoritmo", "T. Total (ms)", "Tareas", 
+            "Avg. Turnaround (ms)", "Avg. Wait (ms)", "CPU Util (%)",
+            "T. Simple (ms)", "T. Medio (ms)", "T. Complejo (ms)"
+        };
+
+        historyTableModel = new DefaultTableModel(columnNames, 0);
+        historyTable = new JTable(historyTableModel);
+        
+        // Hacer la tabla no editable
+        historyTable.setDefaultEditor(Object.class, null);
+        historyTable.getTableHeader().setReorderingAllowed(false);
+        historyTable.setFont(new Font("Segoe UI", Font.PLAIN, 11));
+        historyTable.setRowHeight(20);
+
+        // Renderizador para centrar texto
+        DefaultTableCellRenderer centerRenderer = new DefaultTableCellRenderer();
+        centerRenderer.setHorizontalAlignment(JLabel.CENTER);
+        
+        // Aplicar renderizador a todas las columnas
+        for (int i = 0; i < historyTable.getColumnCount(); i++) {
+            historyTable.getColumnModel().getColumn(i).setCellRenderer(centerRenderer);
+        }
+
+        JScrollPane scrollPane = new JScrollPane(historyTable);
+        scrollPane.setBorder(BorderFactory.createLineBorder(new Color(226, 232, 240)));
+        panel.add(scrollPane, BorderLayout.CENTER);
+
+        // Panel de botones
+        JPanel buttonPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT));
+        buttonPanel.setBackground(CARD_BACKGROUND);
+        
+        JButton exportButton = createModernButton("Exportar Historial", SECONDARY_BLUE); // Renombrado
+        exportButton.setToolTipText("Guardar el historial como un archivo .csv o .txt");
+        exportButton.addActionListener(e -> exportHistory()); // Cambiado a nuevo método
+        buttonPanel.add(exportButton);
+        
+        JButton clearHistoryButton = createModernButton("Limpiar Historial", ERROR_ROSE);
+        clearHistoryButton.addActionListener(e -> clearSimulationHistory());
+        buttonPanel.add(clearHistoryButton);
+
+        panel.add(buttonPanel, BorderLayout.SOUTH);
+
+        return panel;
+    }
+
+    /**
+     * Limpia el historial de simulaciones y la tabla.
+     */
+    private void clearSimulationHistory() {
+        this.simulationHistory.clear();
+        if (historyTableModel != null) {
+            historyTableModel.setRowCount(0);
+        }
+        logSchedulingMessage("Historial de simulaciones limpiado.");
+    }
+
+    /**
+     * Añade una nueva fila a la tabla de historial con las métricas de la simulación.
+     */
+    private void addMetricsToHistoryTable(com.simulador.scheduler.SchedulerMetrics metrics) {
+        if (historyTableModel == null) return;
+
+        String algorithm = scheduler.getCurrentStrategy() != null ? scheduler.getCurrentStrategy().getName() : "N/A";
+        long totalTime = metrics.getTotalExecutionTime();
+        int taskCount = metrics.getTasks().size(); // Total de tareas en el lote
+        double avgTurnaround = metrics.getAverageTurnaroundTime();
+        double avgWait = metrics.getAverageWaitingTime();
+        double cpuUtil = metrics.getCPUUtilization();
+
+        // Obtener métricas por complejidad (asumiendo que SchedulerMetrics fue modificado)
+        double simpleTurnaround = metrics.getAverageTurnaroundTime(CircuitSimulationTask.Complexity.SIMPLE);
+        double mediumTurnaround = metrics.getAverageTurnaroundTime(CircuitSimulationTask.Complexity.MEDIUM);
+        double complexTurnaround = metrics.getAverageTurnaroundTime(CircuitSimulationTask.Complexity.COMPLEX);
+
+        // Formatear para mostrar "N/A" si no hay tareas de ese tipo
+        String sSimple = metrics.getTaskCount(CircuitSimulationTask.Complexity.SIMPLE) > 0 ? df.format(simpleTurnaround) : "N/A";
+        String sMedium = metrics.getTaskCount(CircuitSimulationTask.Complexity.MEDIUM) > 0 ? df.format(mediumTurnaround) : "N/A";
+        String sComplex = metrics.getTaskCount(CircuitSimulationTask.Complexity.COMPLEX) > 0 ? df.format(complexTurnaround) : "N/A";
+
+        // Añadir la fila a la tabla
+        historyTableModel.addRow(new Object[]{
+            historyTableModel.getRowCount() + 1, // ID (simple conteo)
+            algorithm,
+            totalTime,
+            taskCount,
+            df.format(avgTurnaround),
+            df.format(avgWait),
+            df.format(cpuUtil), // Añadida CPU Util
+            sSimple,
+            sMedium,
+            sComplex
+        });
+    }
+
+    /**
+     * Abre un JFileChooser para permitir al usuario guardar el historial como CSV o TXT.
+     */
+    private void exportHistory() {
+        if (historyTableModel.getRowCount() == 0) {
+            showError("No hay datos en el historial para exportar.");
+            return;
+        }
+
+        JFileChooser fileChooser = new JFileChooser();
+        fileChooser.setDialogTitle("Exportar Historial de Simulación");
+
+        // Filtro para TXT (Pretty Print)
+        javax.swing.filechooser.FileFilter txtFilter = new javax.swing.filechooser.FileFilter() {
+            @Override
+            public boolean accept(File f) {
+                return f.isDirectory() || f.getName().toLowerCase().endsWith(".txt");
+            }
+            @Override
+            public String getDescription() {
+                return "Archivo de Texto Formateado (*.txt)";
+            }
+        };
+        
+        // Filtro para CSV (Excel, Google Sheets)
+        javax.swing.filechooser.FileFilter csvFilter = new javax.swing.filechooser.FileFilter() {
+            @Override
+            public boolean accept(File f) {
+                return f.isDirectory() || f.getName().toLowerCase().endsWith(".csv");
+            }
+            @Override
+            public String getDescription() {
+                return "Archivo CSV (*.csv)";
+            }
+        };
+
+        fileChooser.addChoosableFileFilter(txtFilter);
+        fileChooser.addChoosableFileFilter(csvFilter);
+        fileChooser.setFileFilter(txtFilter); // TXT por defecto
+        fileChooser.setSelectedFile(new File("historial_simulacion.txt"));
+
+        int userSelection = fileChooser.showSaveDialog(this);
+
+        if (userSelection == JFileChooser.APPROVE_OPTION) {
+            File fileToSave = fileChooser.getSelectedFile();
+            String selectedExtension = "";
+            
+            // Determinar qué filtro se seleccionó
+            if (fileChooser.getFileFilter() == txtFilter) {
+                selectedExtension = ".txt";
+            } else if (fileChooser.getFileFilter() == csvFilter) {
+                selectedExtension = ".csv";
+            } else {
+                // Si el usuario no seleccionó un filtro específico (ej. "Todos los archivos")
+                // inferir del nombre del archivo, o usar txt por defecto.
+                if (fileToSave.getName().toLowerCase().endsWith(".csv")) {
+                    selectedExtension = ".csv";
+                } else {
+                    selectedExtension = ".txt"; // Default
+                }
+            }
+
+
+            // Asegurar la extensión correcta
+            String filePath = fileToSave.getAbsolutePath();
+            if (!filePath.toLowerCase().endsWith(selectedExtension)) {
+                fileToSave = new File(filePath + selectedExtension);
+            }
+
+            // Llamar al método de escritura apropiado
+            try {
+                if (selectedExtension.equals(".txt")) {
+                    writeHistoryAsTXT(fileToSave);
+                } else {
+                    writeHistoryAsCSV(fileToSave);
+                }
+                showInfo("Historial exportado exitosamente a:\n" + fileToSave.getAbsolutePath());
+            } catch (IOException e) {
+                showError("Error al exportar el archivo: " + e.getMessage());
+                e.printStackTrace();
+            }
+        }
+    }
+
+    /**
+     * Escribe el historial de la tabla a un archivo en formato CSV.
+     */
+    private void writeHistoryAsCSV(File fileToSave) throws IOException {
+        try (BufferedWriter bw = new BufferedWriter(new FileWriter(fileToSave))) {
+            // Escribir cabeceras
+            for (int i = 0; i < historyTableModel.getColumnCount(); i++) {
+                bw.write(escapeCSV(historyTableModel.getColumnName(i)));
+                if (i < historyTableModel.getColumnCount() - 1) {
+                    bw.write(",");
+                }
+            }
+            bw.newLine();
+
+            // Escribir datos
+            for (int row = 0; row < historyTableModel.getRowCount(); row++) {
+                for (int col = 0; col < historyTableModel.getColumnCount(); col++) {
+                    Object value = historyTableModel.getValueAt(row, col);
+                    bw.write(escapeCSV(value != null ? value.toString() : ""));
+                    if (col < historyTableModel.getColumnCount() - 1) {
+                        bw.write(",");
+                    }
+                }
+                bw.newLine();
+            }
+        }
+    }
+
+    /**
+     * Escribe el historial de la tabla a un archivo en formato de texto
+     * alineado (pretty-print).
+     */
+    private void writeHistoryAsTXT(File fileToSave) throws IOException {
+        try (BufferedWriter bw = new BufferedWriter(new FileWriter(fileToSave))) {
+            // Definir formatos de alineación
+            // ID, Algoritmo, T. Total, Tareas, Avg. Turn, Avg. Wait, CPU, T. Simple, T. Medio, T. Complejo
+            String headerFormat = "%-5s | %-30s | %-12s | %-8s | %-20s | %-18s | %-12s | %-15s | %-15s | %-15s%n";
+            String rowFormat      = "%-5s | %-30s | %-12s | %-8s | %-20s | %-18s | %-12s | %-15s | %-15s | %-15s%n";
+
+            // Escribir cabeceras
+            bw.write(String.format(headerFormat, 
+                "ID", "Algoritmo", "T. Total(ms)", "Tareas", 
+                "Avg. Turnaround(ms)", "Avg. Wait(ms)", "CPU Util(%)",
+                "T. Simple(ms)", "T. Medio(ms)", "T. Complejo(ms)"
+            ));
+            
+            // Escribir línea separadora
+            for(int i = 0; i < 165; i++) bw.write("-");
+            bw.newLine();
+
+            // Escribir datos
+            for (int row = 0; row < historyTableModel.getRowCount(); row++) {
+                bw.write(String.format(rowFormat,
+                    historyTableModel.getValueAt(row, 0).toString(),
+                    historyTableModel.getValueAt(row, 1).toString(),
+                    historyTableModel.getValueAt(row, 2).toString(),
+                    historyTableModel.getValueAt(row, 3).toString(),
+                    historyTableModel.getValueAt(row, 4).toString(),
+                    historyTableModel.getValueAt(row, 5).toString(),
+                    historyTableModel.getValueAt(row, 6).toString(),
+                    historyTableModel.getValueAt(row, 7).toString(),
+                    historyTableModel.getValueAt(row, 8).toString(),
+                    historyTableModel.getValueAt(row, 9).toString()
+                ));
+            }
+        }
+    }
+
+    /**
+     * Helper para formatear texto para CSV (maneja comas y comillas).
+     */
+    private String escapeCSV(String value) {
+        if (value == null) {
+            return "";
+        }
+        // Si el valor contiene comas, saltos de línea o comillas, lo envolvemos
+        if (value.contains(",") || value.contains("\"") || value.contains("\n")) {
+            // Escapamos las comillas dobles existentes duplicándolas
+            value = value.replace("\"", "\"\"");
+            return "\"" + value + "\"";
+        }
+        return value;
+    }
+    // --- FIN DE MODIFICACIÓN ---
 }

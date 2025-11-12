@@ -99,4 +99,52 @@ public class SchedulerMetrics {
         }
         System.out.println("====================================\n");
     }
+
+
+ // --- INICIO DE MODIFICACIÓN ---
+
+    /**
+     * Obtiene la lista de tareas completadas de una complejidad específica
+     */
+    private List<CircuitSimulationTask> getTasksByComplexity(CircuitSimulationTask.Complexity complexity) {
+        return tasks.stream()
+                .filter(t -> t.getComplexity() == complexity && t.getState() == CircuitSimulationTask.TaskState.COMPLETED)
+                .collect(Collectors.toList());
+    }
+
+    /**
+     * Obtiene el tiempo de retorno promedio (Turnaround Time) para una complejidad específica
+     */
+    public double getAverageTurnaroundTime(CircuitSimulationTask.Complexity complexity) {
+        return getTasksByComplexity(complexity).stream()
+                .mapToLong(CircuitSimulationTask::getTurnaroundTime)
+                .average()
+                .orElse(0);
+    }
+
+    /**
+     * Obtiene el tiempo de espera promedio (Waiting Time) para una complejidad específica
+     */
+    public double getAverageWaitingTime(CircuitSimulationTask.Complexity complexity) {
+        return getTasksByComplexity(complexity).stream()
+                .mapToLong(CircuitSimulationTask::getWaitingTime)
+                .average()
+                .orElse(0);
+    }
+
+    /**
+     * Obtiene el conteo de tareas completadas para una complejidad específica
+     */
+    public long getTaskCount(CircuitSimulationTask.Complexity complexity) {
+        return getTasksByComplexity(complexity).stream().count();
+    }
+    
+    /**
+     * Obtiene la lista de todas las tareas (para la tabla de historial).
+     */
+    public List<CircuitSimulationTask> getTasks() {
+        return this.tasks;
+    }
+    
+    // --- FIN DE MODIFICACIÓN ---
 }
