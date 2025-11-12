@@ -5,6 +5,8 @@ import java.util.*;
 
 /**
  * Estrategia para análisis usando Leyes de Kirchhoff
+ * MODIFICADO: Obtiene el voltaje de las ramas.
+ * ADVERTENCIA: La lógica interna sigue siendo un prototipo simplificado.
  */
 public class DCKirchhoffStrategy implements DCAnalysisStrategy {
     
@@ -14,12 +16,20 @@ public class DCKirchhoffStrategy implements DCAnalysisStrategy {
             throw new IllegalArgumentException("Circuito no válido para análisis con Leyes de Kirchhoff");
         }
         
+        // --- MODIFICACIÓN ---
+        // Obtener el voltaje de la(s) fuente(s) DENTRO de las ramas
+        double sourceVoltage = circuit.getTotalSourceVoltage();
+        // --- FIN MODIFICACIÓN ---
+
         // Implementación simplificada de análisis por mallas
-        double[][] system = buildEquationSystem(circuit);
+        double[][] system = buildEquationSystem(circuit, sourceVoltage);
         double[] solutions = solveLinearSystem(system);
         
-        double totalResistance = calculateEquivalentResistance(circuit, solutions);
-        double sourceVoltage = circuit.getSourceVoltage();
+        double totalResistance = 0.0;
+        if (solutions[0] != 0) {
+             totalResistance = sourceVoltage / solutions[0];
+        }
+        
         double totalCurrent = solutions[0]; // Corriente de la malla principal
         double totalPower = sourceVoltage * totalCurrent;
         
@@ -46,30 +56,29 @@ public class DCKirchhoffStrategy implements DCAnalysisStrategy {
     @Override
     public boolean validateCircuit(DCCircuit circuit) {
         return circuit != null && 
-               circuit.getSourceVoltage() > 0 &&
+               circuit.getTotalSourceVoltage() > 0 &&
                circuit.getBranches().size() >= 1;
     }
     
-    private double[][] buildEquationSystem(DCCircuit circuit) {
+    private double[][] buildEquationSystem(DCCircuit circuit, double sourceVoltage) {
         // Implementación simplificada para circuito con 2 mallas
         int meshCount = Math.min(circuit.getBranches().size(), 2);
         double[][] system = new double[meshCount][meshCount + 1];
         
         // Para demostración, creamos un sistema simple
         if (meshCount == 1) {
-            double totalR = circuit.getBranches().get(0).getComponents().stream()
-                .filter(comp -> comp.getType() == DCComponentType.RESISTOR)
-                .mapToDouble(DCComponent::getValue)
-                .sum();
-            system[0][0] = totalR;
-            system[0][1] = circuit.getSourceVoltage();
+            double totalR = circuit.getBranches().get(0).getTotalResistance();
+            system[0][0] = (totalR > 0) ? totalR : 1.0;
+            system[0][1] = sourceVoltage;
         } else {
             // Sistema para 2 mallas
             double r1 = getBranchResistance(circuit.getBranches().get(0));
-            double r2 = getBranchResistance(circuit.getBranches().get(1));
+            double r2 = (circuit.getBranches().size() > 1) ? getBranchResistance(circuit.getBranches().get(1)) : 1.0;
+            if (r2 == 0) r2 = 1.0;
+            
             system[0][0] = r1 + r2;  // R1 + R2 para I1
             system[0][1] = -r2;      // -R2 para I2
-            system[0][2] = circuit.getSourceVoltage();
+            system[0][2] = sourceVoltage;
             
             system[1][0] = -r2;      // -R2 para I1
             system[1][1] = r2;       // R2 para I2
@@ -80,13 +89,14 @@ public class DCKirchhoffStrategy implements DCAnalysisStrategy {
     }
     
     private double[] solveLinearSystem(double[][] system) {
-        // Implementación simplificada usando eliminación gaussiana
+        // Implementación simplificada
         int n = system.length;
         double[] solutions = new double[n];
         
-        // Para demostración, retornamos soluciones aproximadas
         for (int i = 0; i < n; i++) {
-            solutions[i] = system[i][n] / system[i][i];
+            if(system[i][i] != 0) {
+                 solutions[i] = system[i][n] / system[i][i];
+            }
         }
         
         return solutions;
@@ -97,10 +107,6 @@ public class DCKirchhoffStrategy implements DCAnalysisStrategy {
             .filter(comp -> comp.getType() == DCComponentType.RESISTOR)
             .mapToDouble(DCComponent::getValue)
             .sum();
-    }
-    
-    private double calculateEquivalentResistance(DCCircuit circuit, double[] solutions) {
-        return circuit.getSourceVoltage() / solutions[0];
     }
     
     private double[] extractBranchCurrents(double[] solutions, DCCircuit circuit) {

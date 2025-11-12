@@ -40,6 +40,8 @@ import java.util.List;
  * Panel principal del simulador de circuitos RLC con algoritmos de
  * planificación integrados - Versión Mejorada Visualmente
  * AHORA INCLUYE SIMULACIÓN DE CIRCUITOS DC
+ * * MODIFICADO: Se eliminó el panel "Fuente de Alimentación DC"
+ * para dar control total al usuario sobre la adición de componentes.
  */
 public class RLCSimulator extends JPanel implements SimulationObserver {
     private CircuitEngine engine;
@@ -59,12 +61,14 @@ public class RLCSimulator extends JPanel implements SimulationObserver {
     private JTextArea dcDetailedAnalysisArea; // NUEVO: Área de texto para análisis detallado DC
 
     // Componentes de UI DC
-    private JTextField dcVoltageField;
-    private JSpinner batterySpinner;
+    // --- ELIMINADOS ---
+    // private JTextField dcVoltageField;
+    // private JSpinner batterySpinner;
+    // --- FIN ELIMINADOS ---
     private JComboBox<String> dcComponentTypeCombo;
     private JTextField dcValueField;
-    private JSpinner quantitySpinner;
     private JSpinner branchSpinner;
+    private JSpinner targetBranchSpinner; // <-- AÑADIDO
     private JComboBox<String> configCombo;
     private JComboBox<String> dcMethodCombo;
     private JButton addDCButton;
@@ -131,7 +135,7 @@ public class RLCSimulator extends JPanel implements SimulationObserver {
         
         // INICIALIZACIÓN DC
         this.dcEngine = new DCCircuitEngine();
-        this.currentDCCircuit = new DCCircuit();
+        this.currentDCCircuit = new DCCircuit(); // Llama al constructor por defecto
         this.lastDCResult = null;
 
         initializeEngines();
@@ -302,6 +306,9 @@ public class RLCSimulator extends JPanel implements SimulationObserver {
 
     // ========== NUEVO: PANEL DE CONTROLES PARA CIRCUITOS DC ==========
 
+    // ---
+    // --- MÉTODO MODIFICADO ---
+    // ---
     private JPanel createDCControlsPanel() {
         JPanel panel = new JPanel();
         panel.setLayout(new BoxLayout(panel, BoxLayout.Y_AXIS));
@@ -309,19 +316,18 @@ public class RLCSimulator extends JPanel implements SimulationObserver {
         panel.setBackground(LIGHT_SLATE);
         panel.setAlignmentX(Component.LEFT_ALIGNMENT);
 
-        // Fuente de alimentación DC
-        JPanel dcInputPanel = createModernCardPanel("Fuente de Alimentación DC", createDCInputPanel());
-        panel.add(dcInputPanel);
-        panel.add(Box.createVerticalStrut(15));
-
-        // Componentes DC
-        JPanel dcComponentPanel = createModernCardPanel("Componentes DC", createDCComponentPanel());
-        panel.add(dcComponentPanel);
-        panel.add(Box.createVerticalStrut(15));
+        // --- INICIO DE MODIFICACIÓN ---
+        // Se elimina el panel dcInputPanel
+        // --- FIN DE MODIFICACIÓN ---
 
         // Configuración de ramas
         JPanel branchPanel = createModernCardPanel("Configuración del Circuito", createBranchPanel());
         panel.add(branchPanel);
+        panel.add(Box.createVerticalStrut(15));
+
+        // Componentes DC
+        JPanel dcComponentPanel = createModernCardPanel("Agregar Componentes DC", createDCComponentPanel());
+        panel.add(dcComponentPanel);
         panel.add(Box.createVerticalStrut(15));
 
         // Métodos de análisis DC
@@ -336,35 +342,14 @@ public class RLCSimulator extends JPanel implements SimulationObserver {
         return panel;
     }
 
-    private JPanel createDCInputPanel() {
-        JPanel panel = new JPanel();
-        panel.setLayout(new BoxLayout(panel, BoxLayout.Y_AXIS));
-        panel.setBackground(CARD_BACKGROUND);
-        panel.setAlignmentX(Component.LEFT_ALIGNMENT);
+    // ---
+    // --- MÉTODO ELIMINADO ---
+    // ---
+    // private JPanel createDCInputPanel() { ... }
 
-        JPanel voltagePanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
-        voltagePanel.setBackground(CARD_BACKGROUND);
-        voltagePanel.add(createModernLabel("Voltaje DC (V):"));
-        dcVoltageField = createModernTextField("12", 10);
-        dcVoltageField.setToolTipText("Voltaje DC entre 1 y 100 V");
-        voltagePanel.add(dcVoltageField);
-        voltagePanel.add(createModernLabel("V"));
-        voltagePanel.setAlignmentX(Component.LEFT_ALIGNMENT);
-        panel.add(voltagePanel);
-
-        panel.add(Box.createVerticalStrut(8));
-
-        JPanel batteryPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
-        batteryPanel.setBackground(CARD_BACKGROUND);
-        batteryPanel.add(createModernLabel("Número de Baterías:"));
-        batterySpinner = createModernSpinner(1, 1, 10, 1);
-        batteryPanel.add(batterySpinner);
-        batteryPanel.setAlignmentX(Component.LEFT_ALIGNMENT);
-        panel.add(batteryPanel);
-
-        return panel;
-    }
-
+    // ---
+    // --- MÉTODO MODIFICADO ---
+    // ---
     private JPanel createDCComponentPanel() {
         JPanel panel = new JPanel();
         panel.setLayout(new BoxLayout(panel, BoxLayout.Y_AXIS));
@@ -397,13 +382,16 @@ public class RLCSimulator extends JPanel implements SimulationObserver {
 
         panel.add(Box.createVerticalStrut(8));
 
-        JPanel quantityPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
-        quantityPanel.setBackground(CARD_BACKGROUND);
-        quantityPanel.add(createModernLabel("Cantidad:"));
-        quantitySpinner = createModernSpinner(1, 1, 10, 1);
-        quantityPanel.add(quantitySpinner);
-        quantityPanel.setAlignmentX(Component.LEFT_ALIGNMENT);
-        panel.add(quantityPanel);
+        // Panel para seleccionar la rama de destino
+        JPanel targetPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
+        targetPanel.setBackground(CARD_BACKGROUND);
+        targetPanel.add(createModernLabel("En Rama #:"));
+        targetBranchSpinner = createModernSpinner(1, 1, 10, 1); // Inicia con max 10
+        targetBranchSpinner.setToolTipText("A cuál rama se agregará este componente");
+        targetPanel.add(targetBranchSpinner);
+        
+        targetPanel.setAlignmentX(Component.LEFT_ALIGNMENT);
+        panel.add(targetPanel);
 
         panel.add(Box.createVerticalStrut(12));
 
@@ -416,6 +404,9 @@ public class RLCSimulator extends JPanel implements SimulationObserver {
         return panel;
     }
 
+    // ---
+    // --- MÉTODO MODIFICADO ---
+    // ---
     private JPanel createBranchPanel() {
         JPanel panel = new JPanel();
         panel.setLayout(new BoxLayout(panel, BoxLayout.Y_AXIS));
@@ -426,7 +417,11 @@ public class RLCSimulator extends JPanel implements SimulationObserver {
         branchCountPanel.setBackground(CARD_BACKGROUND);
         branchCountPanel.add(createModernLabel("Número de Ramas:"));
         branchSpinner = createModernSpinner(2, 1, 10, 1);
-        branchSpinner.setToolTipText("Número de ramas paralelas en el circuito");
+        branchSpinner.setToolTipText("Número de ramas en el circuito (Serie o Paralelo)");
+        
+        // Añadir listener para actualizar el spinner de rama destino
+        branchSpinner.addChangeListener(e -> updateTargetBranchSpinnerMax());
+        
         branchCountPanel.add(branchSpinner);
         branchCountPanel.setAlignmentX(Component.LEFT_ALIGNMENT);
         panel.add(branchCountPanel);
@@ -445,6 +440,9 @@ public class RLCSimulator extends JPanel implements SimulationObserver {
         configPanel.add(configCombo);
         configPanel.setAlignmentX(Component.LEFT_ALIGNMENT);
         panel.add(configPanel);
+        
+        // Inicializar el spinner de rama destino
+        updateTargetBranchSpinnerMax();
 
         return panel;
     }
@@ -643,6 +641,28 @@ public class RLCSimulator extends JPanel implements SimulationObserver {
 
     // ========== MÉTODOS DC ==========
 
+    /**
+     * Sincroniza el valor máximo del spinner de rama destino
+     * con el número total de ramas seleccionadas.
+     */
+    private void updateTargetBranchSpinnerMax() {
+        if (branchSpinner == null || targetBranchSpinner == null) {
+            return; // Ocurre durante la inicialización
+        }
+        
+        int numBranches = (Integer) branchSpinner.getValue();
+        int currentTarget = (Integer) targetBranchSpinner.getValue();
+        
+        // Crear un nuevo modelo para el spinner de rama destino
+        SpinnerNumberModel model = new SpinnerNumberModel(
+            Math.min(currentTarget, numBranches), // Valor actual (limitado por el max)
+            1,       // Mínimo
+            numBranches, // Máximo
+            1        // Paso
+        );
+        targetBranchSpinner.setModel(model);
+    }
+    
     private void setupDCEventHandlers() {
         // Configurar handlers para los botones DC
         addDCButton.addActionListener(e -> addDCComponent());
@@ -654,34 +674,9 @@ public class RLCSimulator extends JPanel implements SimulationObserver {
     }
 
     private void setupDCValueListeners() {
-        // Configurar listeners para campos de entrada DC
-        if (dcVoltageField != null) {
-            dcVoltageField.getDocument().addDocumentListener(new javax.swing.event.DocumentListener() {
-                @Override
-                public void insertUpdate(javax.swing.event.DocumentEvent e) { onDCValueChanged(); }
-                @Override
-                public void removeUpdate(javax.swing.event.DocumentEvent e) { onDCValueChanged(); }
-                @Override
-                public void changedUpdate(javax.swing.event.DocumentEvent e) { onDCValueChanged(); }
-            });
-        }
-        
         // Configurar listener para el combo box de métodos DC
         if (dcMethodCombo != null) {
             dcMethodCombo.addActionListener(e -> onDCMethodChanged());
-        }
-    }
-
-    private void onDCValueChanged() {
-        // Actualizar vista previa o validaciones cuando cambian los valores DC
-        try {
-            double voltage = getDCVoltage();
-            currentDCCircuit.setSourceVoltage(voltage);
-            if (dcDiagramPanel != null) {
-                dcDiagramPanel.repaint();
-            }
-        } catch (Exception e) {
-            // Ignorar errores durante la entrada de datos
         }
     }
 
@@ -691,40 +686,51 @@ public class RLCSimulator extends JPanel implements SimulationObserver {
         // showInfo("Método de análisis cambiado a: " + method);
     }
 
+    // ---
+    // --- MÉTODO MODIFICADO ---
+    // ---
     private void addDCComponent() {
         try {
             DCComponentType type = getSelectedDCComponentType();
             double value = Double.parseDouble(dcValueField.getText().trim());
-            int quantity = (Integer) quantitySpinner.getValue();
             String name = dcComponentTypeCombo.getSelectedItem().toString() + " " + value;
             
-            if (value <= 0) {
-                showError("El valor del componente debe ser positivo");
+            if (value <= 0 && type == DCComponentType.RESISTOR) {
+                showError("El valor de la resistencia debe ser positivo");
                 return;
             }
 
-            DCComponent comp = new DCComponent(type, value, name, quantity);
+            // Se asume quantity = 1
+            DCComponent comp = new DCComponent(type, value, name, 1);
             
-            // Agregar a la rama actual
-            int branchCount = (Integer) branchSpinner.getValue();
-            ensureBranchesExist(branchCount);
-            
-            // Agregar a la primera rama por simplicidad
-            if (!currentDCCircuit.getBranches().isEmpty()) {
-                currentDCCircuit.getBranches().get(0).addComponent(comp);
+            // 1. Asegurarse de que el número de ramas en el modelo coincida con la UI
+            int totalBranchesInUI = (Integer) branchSpinner.getValue();
+            ensureBranchesExist(totalBranchesInUI);
+
+            // 2. Obtener la rama de destino seleccionada por el usuario
+            int targetBranchIndex = (Integer) targetBranchSpinner.getValue() - 1; // -1 porque los spinners son 1-based
+
+            // 3. Validar que la rama de destino exista
+            if (targetBranchIndex < 0 || targetBranchIndex >= currentDCCircuit.getBranches().size()) {
+                showError("La rama de destino no existe. Ajuste el 'Número de Ramas' primero.");
+                return;
             }
+
+            // 4. Agregar el componente a la rama correcta
+            currentDCCircuit.getBranches().get(targetBranchIndex).addComponent(comp);
             
             // Actualizar configuración
             String config = (String) configCombo.getSelectedItem();
             currentDCCircuit.setConfiguration(config != null ? config : "Serie");
-            currentDCCircuit.setBatteryCount((Integer) batterySpinner.getValue());
+            // 5. Eliminar la dependencia del 'batterySpinner'
+            // currentDCCircuit.setBatteryCount((Integer) batterySpinner.getValue()); // <-- LÍNEA ELIMINADA
             
             // Actualizar UI
             dcDiagramPanel.setCircuit(currentDCCircuit);
             dcDiagramPanel.repaint();
             
             dcValueField.setText("");
-            showInfo("Componente DC agregado: " + comp.toString());
+            showInfo("Componente DC agregado a la Rama " + (targetBranchIndex + 1));
             
         } catch (NumberFormatException ex) {
             showError("Ingrese valores numéricos válidos para el componente DC");
@@ -757,11 +763,19 @@ public class RLCSimulator extends JPanel implements SimulationObserver {
         }
     }
 
+    // ---
+    // --- MÉTODO MODIFICADO ---
+    // ---
     private void simulateDCCircuit() {
         try {
             // Actualizar parámetros del circuito
-            currentDCCircuit.setSourceVoltage(getDCVoltage());
-            currentDCCircuit.setBatteryCount((Integer) batterySpinner.getValue());
+            // 1. Eliminar dependencias de UI viejas
+            // currentDCCircuit.setSourceVoltage(getDCVoltage()); // <-- LÍNEA ELIMINADA
+            // currentDCCircuit.setBatteryCount((Integer) batterySpinner.getValue()); // <-- LÍNEA ELIMINADA
+            
+            // 2. Asegurarse de que las ramas y config estén sincronizadas
+            int totalBranchesInUI = (Integer) branchSpinner.getValue();
+            ensureBranchesExist(totalBranchesInUI);
             currentDCCircuit.setConfiguration((String) configCombo.getSelectedItem());
 
             if (currentDCCircuit == null || !currentDCCircuit.isValid()) {
@@ -808,9 +822,19 @@ public class RLCSimulator extends JPanel implements SimulationObserver {
         }
     }
 
+    // ---
+    // --- MÉTODO MODIFICADO ---
+    // ---
     private void clearDCCircuit() {
-        currentDCCircuit = new DCCircuit(getDCVoltage(), "Serie", 1);
+        // 1. Crear circuito vacío sin depender de getDCVoltage()
+        currentDCCircuit = new DCCircuit(); // Llama al constructor por defecto
         lastDCResult = null;
+        
+        // 2. Resetear los spinners de la UI
+        branchSpinner.setValue(2); // Valor por defecto
+        updateTargetBranchSpinnerMax(); // Sincronizar
+        targetBranchSpinner.setValue(1); // Valor por defecto
+        configCombo.setSelectedItem("Serie");
         
         // Actualizar UI
         dcDiagramPanel.setCircuit(currentDCCircuit);
@@ -827,20 +851,13 @@ public class RLCSimulator extends JPanel implements SimulationObserver {
         showInfo("Circuito DC limpiado");
     }
 
+    // ---
+    // --- MÉTODO ELIMINADO (LÓGICA) ---
+    // ---
     private double getDCVoltage() {
-        try {
-            if (dcVoltageField != null && !dcVoltageField.getText().trim().isEmpty()) {
-                double voltage = Double.parseDouble(dcVoltageField.getText().trim());
-                if (voltage > 0 && voltage <= 1000) {
-                    return voltage;
-                } else {
-                    throw new IllegalArgumentException("El voltaje debe estar entre 0.1 y 1000 V");
-                }
-            }
-            return 12.0; // Valor por defecto
-        } catch (NumberFormatException e) {
-            throw new IllegalArgumentException("Voltaje DC no válido");
-        }
+        // Este método ya no es llamado por la lógica de simulación,
+        // pero lo dejamos en 0.0 por seguridad.
+        return 0.0;
     }
 
     private String getDCMethod() {
@@ -865,6 +882,9 @@ public class RLCSimulator extends JPanel implements SimulationObserver {
         }
     }
     
+    // ---
+    // --- MÉTODO MODIFICADO ---
+    // ---
     private void updateDCResults(DCSimulationResult result) {
         if (dcDetailedAnalysisArea == null) return;
         
@@ -874,11 +894,13 @@ public class RLCSimulator extends JPanel implements SimulationObserver {
         sb.append("Configuración: ").append(result.getCircuitConfiguration()).append("\n\n");
         
         sb.append("--- VERIFICACIÓN DE LEYES ---\n");
-        sb.append("Voltaje Total: ").append(df.format(result.getSourceVoltage())).append(" V\n");
-        sb.append("Corriente Total: ").append(df.format(result.getTotalCurrent())).append(" A\n");
-        sb.append("Resistencia Eq.: ").append(df.format(result.getTotalResistance())).append(" Ω\n");
+        sb.append("Voltaje Nodal (Va): ").append(df.format(result.getCalculatedVoltage())).append(" V\n");
+        sb.append("Corriente Eq. (I_eq): ").append(df.format(result.getTotalCurrent())).append(" A\n");
+        sb.append("Resistencia Eq. (R_eq): ").append(df.format(result.getTotalResistance())).append(" Ω\n");
+        
+        // Verificación V = I * R
         double calculatedVoltage = result.getTotalCurrent() * result.getTotalResistance();
-        sb.append("Ley de Ohm (V=I*R): ").append(df.format(calculatedVoltage)).append(" V (Verificado)\n\n");
+        sb.append("Ley de Ohm (Va = I_eq * R_eq): ").append(df.format(calculatedVoltage)).append(" V (Verificado)\n\n");
         
         sb.append("--- ANÁLISIS DE POTENCIA ---\n");
         sb.append("Potencia (Fuente): ").append(df.format(result.getTotalPower())).append(" W\n");
@@ -887,14 +909,25 @@ public class RLCSimulator extends JPanel implements SimulationObserver {
 
         sb.append("--- CORRIENTES POR RAMA ---\n");
         double[] branchCurrents = result.getBranchCurrents();
+        double kclCheck = 0.0;
         for (int i = 0; i < branchCurrents.length; i++) {
-            sb.append(String.format("• Rama %d: %s A\n", i + 1, df.format(branchCurrents[i])));
+            kclCheck += branchCurrents[i];
+            // Lógica de Sentido:
+            // Positivo (+) = Fluye "hacia abajo" (de Va a Tierra)
+            // Negativo (-) = Fluye "hacia arriba" (de Tierra a Va)
+            String sentido = (branchCurrents[i] >= 0) ? "↓ (Hacia abajo)" : "↑ (Hacia arriba)";
+            sb.append(String.format("• Rama %d: %s A  [%s]\n", 
+                i + 1, 
+                df.format(branchCurrents[i]),
+                sentido));
         }
+        sb.append(String.format("Verificación KCL (ΣI en Nodo Va): %.6f A (debería ser 0)\n", kclCheck));
         
         sb.append("\n--- TENSIONES EN COMPONENTES ---\n");
         double[] componentVoltages = result.getComponentVoltages();
         for (int i = 0; i < componentVoltages.length; i++) {
-            sb.append(String.format("• Componente %d: %.2f V\n", i + 1, componentVoltages[i]));
+            // Esta es una simplificación, muestra la caída de V en R o el V de la fuente
+            sb.append(String.format("• Componente %d (Valor): %.2f V\n", i + 1, componentVoltages[i]));
         }
         
         dcDetailedAnalysisArea.setText(sb.toString());
@@ -2351,8 +2384,6 @@ public class RLCSimulator extends JPanel implements SimulationObserver {
         simulateButton.addActionListener(e -> simulateCircuit());
         clearButton.addActionListener(e -> clearAll());
         valueField.addActionListener(e -> addComponent());
-        
-        // TODO: Agregar handlers para componentes DC cuando se implementen
     }
 
     private void updateStrategy() {

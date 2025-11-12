@@ -7,6 +7,8 @@ import java.util.Map;
 
 /**
  * Motor principal para simulación de circuitos DC (Principio Abierto/Cerrado)
+ * ACTUALIZADO: El método initializeStrategies() ahora registra todas
+ * las estrategias disponibles en el paquete.
  */
 public class DCCircuitEngine {
     private final Map<DCAnalysisMethod, DCAnalysisStrategy> strategies;
@@ -23,7 +25,14 @@ public class DCCircuitEngine {
         // Registro de todas las estrategias disponibles
         strategies.put(DCAnalysisMethod.OHM_LAW, new DCOhmLawStrategy());
         strategies.put(DCAnalysisMethod.KIRCHHOFF_LAWS, new DCKirchhoffStrategy());
-        // Pueden agregarse más estrategias aquí sin modificar la clase
+        
+        // --- INICIO DE MODIFICACIÓN ---
+        // Agregar las estrategias faltantes que ya existen en el proyecto
+        strategies.put(DCAnalysisMethod.MESH_ANALYSIS, new DCMeshAnalysisStrategy());
+        strategies.put(DCAnalysisMethod.NODE_ANALYSIS, new DCNodeAnalysisStrategy());
+        strategies.put(DCAnalysisMethod.THEVENIN_THEOREM, new DCTheveninStrategy());
+        // (Nota: Norton y Source Transformation no tienen clases de estrategia en tu dump)
+        // --- FIN DE MODIFICACIÓN ---
     }
     
     public void setAnalysisMethod(DCAnalysisMethod method) {
@@ -31,7 +40,10 @@ public class DCCircuitEngine {
         if (strategy != null) {
             this.currentStrategy = strategy;
         } else {
-            throw new IllegalArgumentException("Método de análisis no soportado: " + method);
+            // Si la estrategia no está registrada (ej. Norton), usa Ohm como fallback
+            System.err.println("Advertencia: Método " + method + " no implementado. Usando Ley de Ohm.");
+            this.currentStrategy = strategies.get(DCAnalysisMethod.OHM_LAW);
+            // throw new IllegalArgumentException("Método de análisis no soportado: " + method);
         }
     }
     
@@ -43,7 +55,11 @@ public class DCCircuitEngine {
         if (!currentStrategy.validateCircuit(circuit)) {
             // Fallback a Ley de Ohm si la estrategia actual no es compatible
             DCAnalysisStrategy fallback = strategies.get(DCAnalysisMethod.OHM_LAW);
-            return fallback.analyze(circuit);
+            if(fallback.validateCircuit(circuit)) {
+                 return fallback.analyze(circuit);
+            } else {
+                throw new IllegalArgumentException("El circuito no es válido para la estrategia seleccionada ni para la Ley de Ohm.");
+            }
         }
         
         return currentStrategy.analyze(circuit);
@@ -59,6 +75,7 @@ public class DCCircuitEngine {
     }
     
     public DCAnalysisMethod[] getAvailableMethods() {
+        // Retorna solo los métodos que han sido registrados
         return strategies.keySet().toArray(new DCAnalysisMethod[0]);
     }
     

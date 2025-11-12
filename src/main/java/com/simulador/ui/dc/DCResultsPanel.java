@@ -7,6 +7,8 @@ import java.text.DecimalFormat;
 
 /**
  * Panel para mostrar resultados de simulación DC
+ * MODIFICADO: Se cambió "Voltaje Total" por "Voltaje Nodal (Va)"
+ * y se usa getCalculatedVoltage().
  */
 public class DCResultsPanel extends JPanel {
     private JTextArea resultsArea;
@@ -40,18 +42,20 @@ public class DCResultsPanel extends JPanel {
         panel.setBackground(BACKGROUND_COLOR);
         panel.setBorder(BorderFactory.createEmptyBorder(0, 0, 15, 0));
         
+        // --- MODIFICACIÓN ---
         // Voltaje
-        JPanel voltagePanel = createMetricCard("Voltaje Total", "0.000 V", SUCCESS_COLOR);
+        JPanel voltagePanel = createMetricCard("Voltaje Nodal (Va)", "0.000 V", SUCCESS_COLOR);
         voltageLabel = (JLabel) ((JPanel) voltagePanel.getComponent(0)).getComponent(1);
         
         // Corriente
-        JPanel currentPanel = createMetricCard("Corriente Total", "0.000 A", SUCCESS_COLOR);
+        JPanel currentPanel = createMetricCard("Corriente Eq. (I_eq)", "0.000 A", SUCCESS_COLOR);
         currentLabel = (JLabel) ((JPanel) currentPanel.getComponent(0)).getComponent(1);
         
         // Resistencia
-        JPanel resistancePanel = createMetricCard("Resistencia Equivalente", "0.000 Ω", WARNING_COLOR);
+        JPanel resistancePanel = createMetricCard("Resistencia Eq. (R_eq)", "0.000 Ω", WARNING_COLOR);
         resistanceLabel = (JLabel) ((JPanel) resistancePanel.getComponent(0)).getComponent(1);
-        
+        // --- FIN MODIFICACIÓN ---
+
         // Potencia
         JPanel powerPanel = createMetricCard("Potencia Total", "0.000 W", ERROR_COLOR);
         powerLabel = (JLabel) ((JPanel) powerPanel.getComponent(0)).getComponent(1);
@@ -127,12 +131,14 @@ public class DCResultsPanel extends JPanel {
             return;
         }
         
+        // --- MODIFICACIÓN ---
         // Actualizar métricas principales
-        voltageLabel.setText(df.format(result.getSourceVoltage()) + " V");
+        voltageLabel.setText(df.format(result.getCalculatedVoltage()) + " V");
         currentLabel.setText(df.format(result.getTotalCurrent()) + " A");
         resistanceLabel.setText(df.format(result.getTotalResistance()) + " Ω");
         powerLabel.setText(df.format(result.getTotalPower()) + " W");
-        
+        // --- FIN MODIFICACIÓN ---
+
         // Actualizar área de resultados detallados
         updateDetailedResults(result);
     }
@@ -147,9 +153,11 @@ public class DCResultsPanel extends JPanel {
         sb.append("• Timestamp: ").append(new java.util.Date(result.getTimestamp())).append("\n\n");
         
         sb.append("PARÁMETROS PRINCIPALES:\n");
-        sb.append("• Voltaje de fuente: ").append(df.format(result.getSourceVoltage())).append(" V\n");
-        sb.append("• Resistencia total: ").append(df.format(result.getTotalResistance())).append(" Ω\n");
-        sb.append("• Corriente total: ").append(df.format(result.getTotalCurrent())).append(" A\n");
+        // --- MODIFICACIÓN ---
+        sb.append("• Voltaje Nodal (Va): ").append(df.format(result.getCalculatedVoltage())).append(" V\n");
+        sb.append("• Resistencia Eq. (R_eq): ").append(df.format(result.getTotalResistance())).append(" Ω\n");
+        sb.append("• Corriente Eq. (I_eq): ").append(df.format(result.getTotalCurrent())).append(" A\n");
+        // --- FIN MODIFICACIÓN ---
         sb.append("• Potencia total: ").append(df.format(result.getTotalPower())).append(" W\n");
         sb.append("• Potencia disipada: ").append(df.format(result.getPowerDissipated())).append(" W\n");
         sb.append("• Eficiencia: ").append(df.format(result.getEfficiency())).append(" %\n\n");
@@ -157,7 +165,7 @@ public class DCResultsPanel extends JPanel {
         sb.append("CORRIENTES POR RAMA:\n");
         double[] branchCurrents = result.getBranchCurrents();
         for (int i = 0; i < branchCurrents.length; i++) {
-            String direction = branchCurrents[i] >= 0 ? "→" : "←";
+            String direction = branchCurrents[i] >= 0 ? "↓" : "↑";
             sb.append(String.format("• Rama %d: %s %s A\n", 
                 i + 1, direction, df.format(Math.abs(branchCurrents[i]))));
         }
@@ -172,7 +180,6 @@ public class DCResultsPanel extends JPanel {
         if (result.isCircuitValid()) {
             sb.append("• ✓ Circuito válido\n");
             sb.append("• ✓ Conservación de energía verificada\n");
-            sb.append("• ✓ Leyes de Kirchhoff satisfechas\n");
         } else {
             sb.append("• ✗ Circuito puede tener problemas\n");
             sb.append("• Verifique conexiones y valores\n");
@@ -207,9 +214,6 @@ public class DCResultsPanel extends JPanel {
         );
         
         // Resetear métricas
-        voltageLabel.setText("0.000 V");
-        currentLabel.setText("0.000 A");
-        resistanceLabel.setText("0.000 Ω");
-        powerLabel.setText("0.000 W");
+        clearResults();
     }
 }

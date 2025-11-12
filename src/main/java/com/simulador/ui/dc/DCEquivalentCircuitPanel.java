@@ -6,6 +6,7 @@ import java.awt.*;
 
 /**
  * Panel para mostrar circuitos equivalentes (Thevenin/Norton)
+ * MODIFICADO: Usa getCalculatedVoltage() como Vth.
  */
 public class DCEquivalentCircuitPanel extends JPanel {
     private JTextArea equivalentArea;
@@ -273,25 +274,32 @@ public class DCEquivalentCircuitPanel extends JPanel {
     }
     
     public void updateEquivalents(DCSimulationResult result) {
-        if (result == null || !result.getMethodUsed().contains("Thevenin")) {
+        if (result == null || 
+            !(result.getMethodUsed().contains("Thevenin") || result.getMethodUsed().contains("Nodal")) ) {
             equivalentArea.setText(
                 "=== CIRCUITOS EQUIVALENTES ===\n\n" +
                 "Para ver los circuitos equivalentes de Thevenin y Norton,\n" +
-                "ejecute una simulación usando el Teorema de Thevenin.\n\n" +
+                "ejecute una simulación usando el Teorema de Thevenin o Análisis Nodal.\n\n" +
                 "Características:\n" +
                 "• Thevenin: Fuente de voltaje + resistencia en serie\n" +
                 "• Norton: Fuente de corriente + resistencia en paralelo\n" +
-                "• Ambos son equivalentes entre sí\n" +
-                "• Comportamiento idéntico en los terminales de salida"
+                "• Ambos son equivalentes entre sí\n"
             );
             return;
         }
         
         // Calcular equivalentes
-        double vth = result.getSourceVoltage();
+        // --- MODIFICACIÓN ---
+        // Vth es el Voltaje Nodal (Va) calculado.
+        double vth = result.getCalculatedVoltage(); 
+        // --- FIN MODIFICACIÓN ---
         double rth = result.getTotalResistance();
-        double in = vth / rth;  // Corriente de Norton
-        double rn = rth;        // Resistencia de Norton
+        
+        double in = 0.0; // Corriente de Norton
+        if (rth > 1e-9) {
+            in = vth / rth;
+        }
+        double rn = rth; // Resistencia de Norton
         
         StringBuilder sb = new StringBuilder();
         sb.append("=== CIRCUITOS EQUIVALENTES ===\n\n");
@@ -315,9 +323,6 @@ public class DCEquivalentCircuitPanel extends JPanel {
         
         sb.append("VERIFICACIÓN:\n");
         sb.append("• Los circuitos son eléctricamente equivalentes\n");
-        sb.append("• Misma tensión en circuito abierto\n");
-        sb.append("• Misma corriente en cortocircuito\n");
-        sb.append("• Misma resistencia equivalente\n");
         
         equivalentArea.setText(sb.toString());
         
@@ -333,8 +338,7 @@ public class DCEquivalentCircuitPanel extends JPanel {
             "Los circuitos equivalentes permiten:\n" +
             "• Simplificar análisis de circuitos complejos\n" +
             "• Facilitar el cálculo de transferencia de potencia\n" +
-            "• Comprender mejor el comportamiento del circuito\n" +
-            "• Diseñar interfaces entre etapas de circuitos"
+            "• Comprender mejor el comportamiento del circuito\n"
         );
         
         theveninDiagram.repaint();

@@ -4,9 +4,10 @@ import java.util.Arrays;
 
 /**
  * Resultados de una simulación de circuito DC (Principio de Responsabilidad Única)
+ * MODIFICADO: Se reemplazó sourceVoltage (entrada) por calculatedVoltage (salida).
  */
 public class DCSimulationResult {
-    private final double sourceVoltage;
+    private final double calculatedVoltage;
     private final double totalResistance;
     private final double totalCurrent;
     private final double totalPower;
@@ -16,11 +17,11 @@ public class DCSimulationResult {
     private final String circuitConfiguration;
     private final long timestamp;
     
-    public DCSimulationResult(double sourceVoltage, double totalResistance, 
+    public DCSimulationResult(double calculatedVoltage, double totalResistance, 
                              double totalCurrent, double totalPower,
                              double[] branchCurrents, double[] componentVoltages,
                              String methodUsed, String circuitConfiguration) {
-        this.sourceVoltage = sourceVoltage;
+        this.calculatedVoltage = calculatedVoltage;
         this.totalResistance = totalResistance;
         this.totalCurrent = totalCurrent;
         this.totalPower = totalPower;
@@ -32,7 +33,7 @@ public class DCSimulationResult {
     }
     
     // Getters
-    public double getSourceVoltage() { return sourceVoltage; }
+    public double getCalculatedVoltage() { return calculatedVoltage; }
     public double getTotalResistance() { return totalResistance; }
     public double getTotalCurrent() { return totalCurrent; }
     public double getTotalPower() { return totalPower; }
@@ -43,22 +44,34 @@ public class DCSimulationResult {
     public long getTimestamp() { return timestamp; }
     
     public double getPowerDissipated() {
+        // En un circuito resistivo, la potencia total suministrada
+        // por las fuentes es igual a la potencia total disipada.
+        // P_total = P_disipada
+        if (totalPower > 0) {
+            return totalPower;
+        }
+        // Fallback si la potencia total es 0 o negativa
         return totalCurrent * totalCurrent * totalResistance;
     }
     
     public double getEfficiency() {
+        // Asumiendo un circuito puramente resistivo, la eficiencia
+        // de la "transmisión" (fuentes a resistencias) es 100%.
+        if (totalPower <= 0) {
+            return 0;
+        }
         return (getPowerDissipated() / totalPower) * 100;
     }
     
     public boolean isCircuitValid() {
-        return totalResistance > 0 && totalCurrent >= 0 && totalPower >= 0;
+        return totalResistance > 0;
     }
     
     @Override
     public String toString() {
         return String.format(
-            "Resultado DC [V=%.2fV, R=%.2fΩ, I=%.3fA, P=%.3fW, Método=%s]",
-            sourceVoltage, totalResistance, totalCurrent, totalPower, methodUsed
+            "Resultado DC [V_calc=%.2fV, R_eq=%.2fΩ, I_eq=%.3fA, P_total=%.3fW, Método=%s]",
+            calculatedVoltage, totalResistance, totalCurrent, totalPower, methodUsed
         );
     }
 }

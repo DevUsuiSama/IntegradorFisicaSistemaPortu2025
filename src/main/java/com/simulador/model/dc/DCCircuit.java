@@ -5,24 +5,22 @@ import java.util.List;
 
 /**
  * Representa un circuito DC completo (Principio de Responsabilidad Única)
+ * MODIFICADO: Se eliminó sourceVoltage y batteryCount. El circuito
+ * es ahora un contenedor de ramas cuya topología se define por 'configuration'.
  */
 public class DCCircuit {
     private final String id;
     private final List<DCBranch> branches;
-    private double sourceVoltage;
     private String configuration;
-    private int batteryCount;
     
-    public DCCircuit(double sourceVoltage, String configuration, int batteryCount) {
+    public DCCircuit(String configuration) {
         this.id = "DCCircuit_" + System.currentTimeMillis();
         this.branches = new ArrayList<>();
-        this.sourceVoltage = sourceVoltage;
         this.configuration = configuration;
-        this.batteryCount = batteryCount;
     }
     
     public DCCircuit() {
-        this(12.0, "Serie", 1);
+        this("Serie"); // Configuración por defecto
     }
     
     public void addBranch(DCBranch branch) {
@@ -50,37 +48,52 @@ public class DCCircuit {
     public String getId() { return id; }
     public List<DCBranch> getBranches() { return new ArrayList<>(branches); }
     public int getBranchCount() { return branches.size(); }
-    public double getSourceVoltage() { return sourceVoltage; }
-    public void setSourceVoltage(double sourceVoltage) { this.sourceVoltage = sourceVoltage; }
     public String getConfiguration() { return configuration; }
     public void setConfiguration(String configuration) { this.configuration = configuration; }
-    public int getBatteryCount() { return batteryCount; }
-    public void setBatteryCount(int batteryCount) { this.batteryCount = batteryCount; }
     
+    /**
+     * Calcula la resistencia total basado en la configuración.
+     * ADVERTENCIA: Esta es una simplificación y solo funciona para
+     * circuitos serie/paralelo puros.
+     */
     public double getTotalResistance() {
+        if (branches.isEmpty()) {
+            return 0;
+        }
+        
         if (configuration.contains("Serie")) {
-            // Serie: R_total = suma de todas las resistencias
+            // Serie: R_total = suma de todas las resistencias en todas las ramas
             return branches.stream()
-                .flatMap(branch -> branch.getComponents().stream())
-                .mapToDouble(DCComponent::getResistance)
+                .mapToDouble(DCBranch::getTotalResistance)
                 .sum();
         } else {
             // Paralelo: 1/R_total = suma de 1/R de cada rama
-            return 1.0 / branches.stream()
+            double totalInverseResistance = branches.stream()
                 .mapToDouble(branch -> 1.0 / branch.getTotalResistance())
                 .sum();
+            return 1.0 / totalInverseResistance;
         }
     }
     
+    /**
+     * Calcula el voltaje total de las fuentes (solo para serie simple).
+     * ADVERTENCIA: Esta es una simplificación.
+     */
+    public double getTotalSourceVoltage() {
+        return branches.stream()
+            .mapToDouble(DCBranch::getTotalVoltage)
+            .sum();
+    }
+    
     public boolean isValid() {
-        return sourceVoltage > 0 && 
-               !branches.isEmpty() &&
+        // Un circuito es válido si tiene al menos una rama con componentes.
+        return !branches.isEmpty() &&
                branches.stream().anyMatch(DCBranch::hasComponents);
     }
     
     @Override
     public String toString() {
-        return String.format("Circuito DC: %dV, %s, %d ramas", 
-            sourceVoltage, configuration, branches.size());
+        return String.format("Circuito DC: %s, %d ramas", 
+            configuration, branches.size());
     }
 }

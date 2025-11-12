@@ -5,6 +5,8 @@ import java.util.*;
 
 /**
  * Estrategia para análisis usando Teorema de Thevenin
+ * MODIFICADO: Obtiene el voltaje de las ramas.
+ * ADVERTENCIA: La lógica interna sigue siendo un prototipo simplificado.
  */
 public class DCTheveninStrategy implements DCAnalysisStrategy {
     
@@ -19,7 +21,10 @@ public class DCTheveninStrategy implements DCAnalysisStrategy {
         double rth = calculateTheveninResistance(circuit);
         
         // Usar el equivalente para calcular corrientes
-        double totalCurrent = vth / (rth + getLoadResistance(circuit));
+        double totalCurrent = 0;
+        if (rth + getLoadResistance(circuit) > 1e-9) {
+             totalCurrent = vth / (rth + getLoadResistance(circuit));
+        }
         double totalPower = vth * totalCurrent;
         
         double[] branchCurrents = calculateBranchCurrentsFromThevenin(circuit, totalCurrent);
@@ -45,44 +50,40 @@ public class DCTheveninStrategy implements DCAnalysisStrategy {
     @Override
     public boolean validateCircuit(DCCircuit circuit) {
         return circuit != null && 
-               circuit.getSourceVoltage() > 0 &&
+               circuit.getTotalSourceVoltage() > 0 &&
                circuit.getBranches().size() >= 1;
     }
     
     private double calculateTheveninVoltage(DCCircuit circuit) {
         // Vth = Voltaje en circuito abierto
         // Simplificación: voltaje en la primera rama
+        // --- MODIFICACIÓN ---
+        double sourceVoltage = circuit.getTotalSourceVoltage();
+        // --- FIN MODIFICACIÓN ---
+
         if (!circuit.getBranches().isEmpty()) {
             DCBranch firstBranch = circuit.getBranches().get(0);
             double branchResistance = firstBranch.getTotalResistance();
             double totalResistance = circuit.getTotalResistance();
             
             if (totalResistance > 0) {
-                return circuit.getSourceVoltage() * (branchResistance / totalResistance);
+                return sourceVoltage * (branchResistance / totalResistance);
             }
         }
         
-        return circuit.getSourceVoltage();
+        return sourceVoltage;
     }
     
     private double calculateTheveninResistance(DCCircuit circuit) {
         // Rth = Resistencia equivalente con fuentes anuladas
-        // Anular fuentes = cortocircuitar fuentes de voltaje
-        
         if (circuit.getConfiguration().contains("Serie")) {
-            // En serie: Rth = suma de resistencias (excepto rama de carga)
             return circuit.getBranches().stream()
                 .limit(Math.max(1, circuit.getBranches().size() - 1))
-                .flatMap(branch -> branch.getComponents().stream())
-                .filter(comp -> comp.getType() == DCComponentType.RESISTOR)
-                .mapToDouble(DCComponent::getValue)
+                .mapToDouble(DCBranch::getTotalResistance)
                 .sum();
         } else {
-            // En paralelo: Rth = resistencia equivalente de todas las ramas en paralelo
             return 1.0 / circuit.getBranches().stream()
-                .flatMap(branch -> branch.getComponents().stream())
-                .filter(comp -> comp.getType() == DCComponentType.RESISTOR)
-                .mapToDouble(comp -> 1.0 / comp.getValue())
+                .mapToDouble(branch -> 1.0 / branch.getTotalResistance())
                 .sum();
         }
     }
@@ -100,15 +101,14 @@ public class DCTheveninStrategy implements DCAnalysisStrategy {
         double[] branchCurrents = new double[circuit.getBranches().size()];
         
         if (circuit.getConfiguration().contains("Serie")) {
-            // En serie, misma corriente en todas las ramas
             Arrays.fill(branchCurrents, totalCurrent);
         } else {
-            // En paralelo, corriente se divide según resistencia
+            double sourceVoltage = circuit.getTotalSourceVoltage();
             for (int i = 0; i < branchCurrents.length; i++) {
                 DCBranch branch = circuit.getBranches().get(i);
                 double branchResistance = branch.getTotalResistance();
                 if (branchResistance > 0) {
-                    branchCurrents[i] = circuit.getSourceVoltage() / branchResistance;
+                    branchCurrents[i] = sourceVoltage / branchResistance;
                 } else {
                     branchCurrents[i] = 0;
                 }
@@ -143,12 +143,11 @@ public class DCTheveninStrategy implements DCAnalysisStrategy {
         return voltages.stream().mapToDouble(Double::doubleValue).toArray();
     }
     
-    // Método adicional para obtener el circuito equivalente de Thevenin
     public DCCircuit getTheveninEquivalent(DCCircuit originalCircuit) {
         double vth = calculateTheveninVoltage(originalCircuit);
         double rth = calculateTheveninResistance(originalCircuit);
         
-        DCCircuit equivalent = new DCCircuit(vth, "Serie", 1);
+        DCCircuit equivalent = new DCCircuit("Serie");
         DCBranch branch = new DCBranch(1);
         branch.addComponent(new DCComponent(DCComponentType.DC_SOURCE, vth, "Vth", 1));
         branch.addComponent(new DCComponent(DCComponentType.RESISTOR, rth, "Rth", 1));

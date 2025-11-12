@@ -526,6 +526,8 @@ import java.util.Map;
 
 /**
  * Motor principal para simulación de circuitos DC (Principio Abierto/Cerrado)
+ * ACTUALIZADO: El método initializeStrategies() ahora registra todas
+ * las estrategias disponibles en el paquete.
  */
 public class DCCircuitEngine {
     private final Map<DCAnalysisMethod, DCAnalysisStrategy> strategies;
@@ -542,7 +544,14 @@ public class DCCircuitEngine {
         // Registro de todas las estrategias disponibles
         strategies.put(DCAnalysisMethod.OHM_LAW, new DCOhmLawStrategy());
         strategies.put(DCAnalysisMethod.KIRCHHOFF_LAWS, new DCKirchhoffStrategy());
-        // Pueden agregarse más estrategias aquí sin modificar la clase
+        
+        // --- INICIO DE MODIFICACIÓN ---
+        // Agregar las estrategias faltantes que ya existen en el proyecto
+        strategies.put(DCAnalysisMethod.MESH_ANALYSIS, new DCMeshAnalysisStrategy());
+        strategies.put(DCAnalysisMethod.NODE_ANALYSIS, new DCNodeAnalysisStrategy());
+        strategies.put(DCAnalysisMethod.THEVENIN_THEOREM, new DCTheveninStrategy());
+        // (Nota: Norton y Source Transformation no tienen clases de estrategia en tu dump)
+        // --- FIN DE MODIFICACIÓN ---
     }
     
     public void setAnalysisMethod(DCAnalysisMethod method) {
@@ -550,7 +559,10 @@ public class DCCircuitEngine {
         if (strategy != null) {
             this.currentStrategy = strategy;
         } else {
-            throw new IllegalArgumentException("Método de análisis no soportado: " + method);
+            // Si la estrategia no está registrada (ej. Norton), usa Ohm como fallback
+            System.err.println("Advertencia: Método " + method + " no implementado. Usando Ley de Ohm.");
+            this.currentStrategy = strategies.get(DCAnalysisMethod.OHM_LAW);
+            // throw new IllegalArgumentException("Método de análisis no soportado: " + method);
         }
     }
     
@@ -562,7 +574,11 @@ public class DCCircuitEngine {
         if (!currentStrategy.validateCircuit(circuit)) {
             // Fallback a Ley de Ohm si la estrategia actual no es compatible
             DCAnalysisStrategy fallback = strategies.get(DCAnalysisMethod.OHM_LAW);
-            return fallback.analyze(circuit);
+            if(fallback.validateCircuit(circuit)) {
+                 return fallback.analyze(circuit);
+            } else {
+                throw new IllegalArgumentException("El circuito no es válido para la estrategia seleccionada ni para la Ley de Ohm.");
+            }
         }
         
         return currentStrategy.analyze(circuit);
@@ -578,6 +594,7 @@ public class DCCircuitEngine {
     }
     
     public DCAnalysisMethod[] getAvailableMethods() {
+        // Retorna solo los métodos que han sido registrados
         return strategies.keySet().toArray(new DCAnalysisMethod[0]);
     }
     
@@ -929,30 +946,95 @@ public class DCMeshAnalysisStrategy implements DCAnalysisStrategy {
 package com.simulador.engine.dc;
 
 import com.simulador.model.dc.*;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * Estrategia para análisis nodal en circuitos DC
+ * * ACTUALIZADA: Esta implementación ahora resuelve circuitos paralelos
+ * de N ramas (como el problema P28.23) encontrando el voltaje nodal 'Va'
+ * y luego calculando las corrientes de cada rama.
  */
 public class DCNodeAnalysisStrategy implements DCAnalysisStrategy {
     
     @Override
     public DCSimulationResult analyze(DCCircuit circuit) {
         if (!validateCircuit(circuit)) {
-            throw new IllegalArgumentException("Circuito no válido para análisis nodal");
+            throw new IllegalArgumentException("Circuito no válido para análisis nodal simple. Se requieren ramas con resistencia.");
         }
         
-        double[][] equationSystem = buildNodeEquationSystem(circuit);
-        double[] nodeVoltages = solveLinearSystem(equationSystem);
-        double[] branchCurrents = calculateBranchCurrents(circuit, nodeVoltages);
-        double[] componentVoltages = calculateComponentVoltages(circuit, branchCurrents, nodeVoltages);
+        // --- Implementación de Análisis Nodal para 1 Nodo (Problema P28.23) ---
+        // Asume que todas las ramas están en paralelo entre un nodo 'Va' (superior)
+        // y un nodo de referencia (tierra, 0V, inferior).
         
-        double totalResistance = calculateTotalResistance(circuit, branchCurrents);
-        double totalCurrent = calculateTotalCurrent(branchCurrents);
-        double totalPower = circuit.getSourceVoltage() * totalCurrent;
+        // Ecuación KCL en 'Va': Σ( (Va - V_fuente_rama) / R_rama ) = 0
+        // Reordenando: Va * Σ(1/R_rama) = Σ(V_fuente_rama / R_rama)
+        // O: Va * G_total = I_total_fuentes_equivalentes
         
+        double totalConductance = 0.0; // G_total (Σ(1/R))
+        double totalCurrentSource = 0.0; // I_total (Σ(V/R))
+
+        for (DCBranch branch : circuit.getBranches()) {
+            double R_branch = branch.getTotalResistance();
+            double V_branch = branch.getTotalVoltage(); // Voltaje de la fuente en la rama
+
+            // Solo consideramos ramas que tienen resistencia.
+            if (R_branch > 1e-9) { // Evitar división por cero
+                double G_branch = 1.0 / R_branch;
+                totalConductance += G_branch;
+                
+                // V_branch / R_branch es el término de la fuente de corriente equivalente
+                totalCurrentSource += (V_branch / R_branch);
+            } else if (V_branch != 0) {
+                // Si una rama tiene una fuente de voltaje ideal (sin R),
+                // el voltaje nodal 'Va' está fijado por esa fuente.
+                // Esta es una implementación más simple y asume que no ocurre.
+                throw new IllegalArgumentException("Análisis nodal simple no soporta fuentes de voltaje ideales en paralelo.");
+            }
+            // Si R=0 y V=0 (cortocircuito), Va sería 0.
+        }
+
+        // 1. Resolver para el Voltaje Nodal (Va)
+        if (totalConductance < 1e-9) {
+            throw new ArithmeticException("Circuito abierto o sin conductancia. No se puede resolver.");
+        }
+        double Va = totalCurrentSource / totalConductance;
+
+        // 2. Calcular corrientes de rama (I_rama) usando el Va encontrado
+        double[] branchCurrents = new double[circuit.getBranches().size()];
+        for (int i = 0; i < circuit.getBranches().size(); i++) {
+            DCBranch branch = circuit.getBranches().get(i);
+            double R_branch = branch.getTotalResistance();
+            double V_branch = branch.getTotalVoltage();
+
+            if (R_branch > 1e-9) {
+                // I_rama = (Va - V_rama) / R_rama
+                // Esta es la corriente que fluye *desde* Va *hacia* la rama.
+                // Positivo = fluye "hacia abajo" (hacia tierra).
+                // Negativo = fluye "hacia arriba" (hacia Va).
+                branchCurrents[i] = (Va - V_branch) / R_branch;
+            } else {
+                branchCurrents[i] = 0.0; // Rama sin resistencia (o supernodo, no manejado aquí)
+            }
+        }
+
+        // 3. Calcular voltajes de componentes (caída de tensión en R)
+        double[] componentVoltages = calculateComponentVoltages(circuit, branchCurrents, Va);
+
+        // 4. Calcular totales para el 'DCSimulationResult'
+        
+        // Resistencia total equivalente (combinación paralela de todas las R)
+        double totalResistance = 1.0 / totalConductance; 
+        
+        // Corriente total = Corriente total de las fuentes equivalentes
+        double totalCurrent = totalCurrentSource; 
+        
+        // Potencia total disipada por las resistencias = Va * I_total_fuentes
+        // También P = Va^2 / R_equivalente
+        double totalPower = Va * totalCurrentSource; 
+
         return new DCSimulationResult(
-            circuit.getSourceVoltage(),
+            Va, // Usamos Va (voltaje nodal) como el "SourceVoltage" del resultado
             totalResistance,
             totalCurrent,
             totalPower,
@@ -970,158 +1052,43 @@ public class DCNodeAnalysisStrategy implements DCAnalysisStrategy {
     
     @Override
     public boolean validateCircuit(DCCircuit circuit) {
+        // Esta estrategia ahora es válida si hay al menos una rama
+        // con resistencia para evitar la división por cero.
         return circuit != null && 
-               circuit.getSourceVoltage() > 0 &&
-               circuit.getBranches().size() >= 2; // Mínimo 2 nodos para análisis interesante
+               circuit.getBranches().size() >= 1 &&
+               circuit.getBranches().stream().anyMatch(b -> b.getTotalResistance() > 1e-9);
     }
     
-    private double[][] buildNodeEquationSystem(DCCircuit circuit) {
-        int nodeCount = Math.min(circuit.getBranches().size() + 1, 4); // n ramas -> n+1 nodos
-        double[][] system = new double[nodeCount - 1][nodeCount]; // Ignoramos el nodo de referencia
-        
-        // Para cada nodo (excepto referencia)
-        for (int i = 0; i < nodeCount - 1; i++) {
-            double selfConductance = calculateSelfConductance(circuit, i);
-            system[i][i] = selfConductance;
-            
-            // Conductancias mutuas
-            for (int j = 0; j < nodeCount - 1; j++) {
-                if (i != j) {
-                    double mutualConductance = calculateMutualConductance(circuit, i, j);
-                    system[i][j] = -mutualConductance;
-                }
-            }
-            
-            // Fuentes de corriente equivalentes
-            system[i][nodeCount - 1] = calculateNodeCurrentSource(circuit, i);
-        }
-        
-        return system;
-    }
-    
-    private double calculateSelfConductance(DCCircuit circuit, int nodeIndex) {
-        double conductance = 0;
-        
-        // Sumar conductancias de todas las ramas conectadas al nodo
-        for (DCBranch branch : circuit.getBranches()) {
-            if (isBranchConnectedToNode(branch, nodeIndex)) {
-                conductance += 1.0 / branch.getTotalResistance();
-            }
-        }
-        
-        return conductance;
-    }
-    
-    private double calculateMutualConductance(DCCircuit circuit, int node1, int node2) {
-        // Conductancia entre nodos adyacentes
-        if (Math.abs(node1 - node2) == 1) {
-            // Buscar rama que conecte estos nodos
-            for (DCBranch branch : circuit.getBranches()) {
-                if (isBranchConnectingNodes(branch, node1, node2)) {
-                    return 1.0 / branch.getTotalResistance();
-                }
-            }
-        }
-        return 0;
-    }
-    
-    private double calculateNodeCurrentSource(DCCircuit circuit, int nodeIndex) {
-        // Fuentes de voltaje convertidas a fuentes de corriente equivalentes
-        if (nodeIndex == 0) {
-            return circuit.getSourceVoltage() / getReferenceResistance(circuit);
-        }
-        return 0;
-    }
-    
-    private boolean isBranchConnectedToNode(DCBranch branch, int nodeIndex) {
-        // Simplificación: cada rama está conectada a dos nodos consecutivos
-        return branch.getBranchNumber() == nodeIndex || 
-               branch.getBranchNumber() == nodeIndex + 1;
-    }
-    
-    private boolean isBranchConnectingNodes(DCBranch branch, int node1, int node2) {
-        return (branch.getBranchNumber() == node1 && branch.getBranchNumber() + 1 == node2) ||
-               (branch.getBranchNumber() == node2 && branch.getBranchNumber() + 1 == node1);
-    }
-    
-    private double getReferenceResistance(DCCircuit circuit) {
-        // Resistencia de referencia para conversión de fuente
-        return circuit.getBranches().stream()
-            .mapToDouble(DCBranch::getTotalResistance)
-            .findFirst()
-            .orElse(10.0);
-    }
-    
-    private double[] solveLinearSystem(double[][] system) {
-        int n = system.length;
-        int m = system[0].length;
-        double[] solutions = new double[n];
-        
-        // Resolución simplificada
-        for (int i = 0; i < n; i++) {
-            if (system[i][i] != 0) {
-                solutions[i] = system[i][m - 1] / system[i][i];
-            }
-        }
-        
-        return solutions;
-    }
-    
-    private double[] calculateBranchCurrents(DCCircuit circuit, double[] nodeVoltages) {
-        double[] branchCurrents = new double[circuit.getBranches().size()];
-        
-        for (int i = 0; i < branchCurrents.length; i++) {
-            if (i < nodeVoltages.length) {
-                // I = (V1 - V2) / R
-                double v1 = i > 0 ? nodeVoltages[i - 1] : circuit.getSourceVoltage();
-                double v2 = i < nodeVoltages.length ? nodeVoltages[i] : 0;
-                double resistance = circuit.getBranches().get(i).getTotalResistance();
-                
-                branchCurrents[i] = (v1 - v2) / resistance;
-            } else {
-                branchCurrents[i] = 0;
-            }
-        }
-        
-        return branchCurrents;
-    }
-    
-    private double[] calculateComponentVoltages(DCCircuit circuit, double[] branchCurrents, double[] nodeVoltages) {
+    /**
+     * Calcula los voltajes de los componentes individuales.
+     * Para resistores, calcula la caída de tensión (V = I * R).
+     * Para fuentes, simplemente reporta su valor nominal.
+     */
+    private double[] calculateComponentVoltages(DCCircuit circuit, double[] branchCurrents, double Va) {
         List<Double> voltages = new ArrayList<>();
         int branchIndex = 0;
         
         for (DCBranch branch : circuit.getBranches()) {
-            double branchCurrent = branchIndex < branchCurrents.length ? 
-                branchCurrents[branchIndex] : 0;
-                
+            double branchCurrent = branchCurrents[branchIndex];
+            
             for (DCComponent comp : branch.getComponents()) {
                 if (comp.getType() == DCComponentType.RESISTOR) {
-                    double voltage = comp.getValue() * branchCurrent;
-                    voltages.add(voltage);
+                    // La caída de tensión en el resistor es V = I * R
+                    // El 'branchCurrent' es la corriente que fluye a través de toda la rama.
+                    double voltageDrop = branchCurrent * comp.getValue();
+                    voltages.add(voltageDrop);
                 } else if (comp.getType() == DCComponentType.BATTERY || 
-                          comp.getType() == DCComponentType.DC_SOURCE) {
+                           comp.getType() == DCComponentType.DC_SOURCE) {
+                    // Simplemente reportamos el valor de la fuente
                     voltages.add(comp.getValue());
                 } else {
-                    voltages.add(0.0);
+                    voltages.add(0.0); // Amperímetros, etc.
                 }
             }
             branchIndex++;
         }
         
-        // Agregar voltajes de nodo
-        for (double nodeVoltage : nodeVoltages) {
-            voltages.add(nodeVoltage);
-        }
-        
         return voltages.stream().mapToDouble(Double::doubleValue).toArray();
-    }
-    
-    private double calculateTotalResistance(DCCircuit circuit, double[] branchCurrents) {
-        return circuit.getSourceVoltage() / Arrays.stream(branchCurrents).sum();
-    }
-    
-    private double calculateTotalCurrent(double[] branchCurrents) {
-        return Arrays.stream(branchCurrents).sum();
     }
 }
 ```
@@ -5291,6 +5258,8 @@ import java.util.List;
  * Panel principal del simulador de circuitos RLC con algoritmos de
  * planificación integrados - Versión Mejorada Visualmente
  * AHORA INCLUYE SIMULACIÓN DE CIRCUITOS DC
+ * * MODIFICADO: Se eliminó el panel "Fuente de Alimentación DC"
+ * para dar control total al usuario sobre la adición de componentes.
  */
 public class RLCSimulator extends JPanel implements SimulationObserver {
     private CircuitEngine engine;
@@ -5310,12 +5279,14 @@ public class RLCSimulator extends JPanel implements SimulationObserver {
     private JTextArea dcDetailedAnalysisArea; // NUEVO: Área de texto para análisis detallado DC
 
     // Componentes de UI DC
-    private JTextField dcVoltageField;
-    private JSpinner batterySpinner;
+    // --- ELIMINADOS ---
+    // private JTextField dcVoltageField;
+    // private JSpinner batterySpinner;
+    // --- FIN ELIMINADOS ---
     private JComboBox<String> dcComponentTypeCombo;
     private JTextField dcValueField;
-    private JSpinner quantitySpinner;
     private JSpinner branchSpinner;
+    private JSpinner targetBranchSpinner; // <-- AÑADIDO
     private JComboBox<String> configCombo;
     private JComboBox<String> dcMethodCombo;
     private JButton addDCButton;
@@ -5382,7 +5353,7 @@ public class RLCSimulator extends JPanel implements SimulationObserver {
         
         // INICIALIZACIÓN DC
         this.dcEngine = new DCCircuitEngine();
-        this.currentDCCircuit = new DCCircuit();
+        this.currentDCCircuit = new DCCircuit(); // Llama al constructor por defecto
         this.lastDCResult = null;
 
         initializeEngines();
@@ -5553,6 +5524,9 @@ public class RLCSimulator extends JPanel implements SimulationObserver {
 
     // ========== NUEVO: PANEL DE CONTROLES PARA CIRCUITOS DC ==========
 
+    // ---
+    // --- MÉTODO MODIFICADO ---
+    // ---
     private JPanel createDCControlsPanel() {
         JPanel panel = new JPanel();
         panel.setLayout(new BoxLayout(panel, BoxLayout.Y_AXIS));
@@ -5560,19 +5534,21 @@ public class RLCSimulator extends JPanel implements SimulationObserver {
         panel.setBackground(LIGHT_SLATE);
         panel.setAlignmentX(Component.LEFT_ALIGNMENT);
 
-        // Fuente de alimentación DC
-        JPanel dcInputPanel = createModernCardPanel("Fuente de Alimentación DC", createDCInputPanel());
-        panel.add(dcInputPanel);
-        panel.add(Box.createVerticalStrut(15));
-
-        // Componentes DC
-        JPanel dcComponentPanel = createModernCardPanel("Componentes DC", createDCComponentPanel());
-        panel.add(dcComponentPanel);
-        panel.add(Box.createVerticalStrut(15));
+        // --- INICIO DE MODIFICACIÓN ---
+        // Se elimina el panel dcInputPanel
+        // JPanel dcInputPanel = createModernCardPanel("Fuente de Alimentación DC", createDCInputPanel());
+        // panel.add(dcInputPanel);
+        // panel.add(Box.createVerticalStrut(15));
+        // --- FIN DE MODIFICACIÓN ---
 
         // Configuración de ramas
         JPanel branchPanel = createModernCardPanel("Configuración del Circuito", createBranchPanel());
         panel.add(branchPanel);
+        panel.add(Box.createVerticalStrut(15));
+
+        // Componentes DC
+        JPanel dcComponentPanel = createModernCardPanel("Agregar Componentes DC", createDCComponentPanel());
+        panel.add(dcComponentPanel);
         panel.add(Box.createVerticalStrut(15));
 
         // Métodos de análisis DC
@@ -5587,35 +5563,14 @@ public class RLCSimulator extends JPanel implements SimulationObserver {
         return panel;
     }
 
-    private JPanel createDCInputPanel() {
-        JPanel panel = new JPanel();
-        panel.setLayout(new BoxLayout(panel, BoxLayout.Y_AXIS));
-        panel.setBackground(CARD_BACKGROUND);
-        panel.setAlignmentX(Component.LEFT_ALIGNMENT);
+    // ---
+    // --- MÉTODO ELIMINADO ---
+    // ---
+    // private JPanel createDCInputPanel() { ... }
 
-        JPanel voltagePanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
-        voltagePanel.setBackground(CARD_BACKGROUND);
-        voltagePanel.add(createModernLabel("Voltaje DC (V):"));
-        dcVoltageField = createModernTextField("12", 10);
-        dcVoltageField.setToolTipText("Voltaje DC entre 1 y 100 V");
-        voltagePanel.add(dcVoltageField);
-        voltagePanel.add(createModernLabel("V"));
-        voltagePanel.setAlignmentX(Component.LEFT_ALIGNMENT);
-        panel.add(voltagePanel);
-
-        panel.add(Box.createVerticalStrut(8));
-
-        JPanel batteryPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
-        batteryPanel.setBackground(CARD_BACKGROUND);
-        batteryPanel.add(createModernLabel("Número de Baterías:"));
-        batterySpinner = createModernSpinner(1, 1, 10, 1);
-        batteryPanel.add(batterySpinner);
-        batteryPanel.setAlignmentX(Component.LEFT_ALIGNMENT);
-        panel.add(batteryPanel);
-
-        return panel;
-    }
-
+    // ---
+    // --- MÉTODO MODIFICADO ---
+    // ---
     private JPanel createDCComponentPanel() {
         JPanel panel = new JPanel();
         panel.setLayout(new BoxLayout(panel, BoxLayout.Y_AXIS));
@@ -5648,13 +5603,16 @@ public class RLCSimulator extends JPanel implements SimulationObserver {
 
         panel.add(Box.createVerticalStrut(8));
 
-        JPanel quantityPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
-        quantityPanel.setBackground(CARD_BACKGROUND);
-        quantityPanel.add(createModernLabel("Cantidad:"));
-        quantitySpinner = createModernSpinner(1, 1, 10, 1);
-        quantityPanel.add(quantitySpinner);
-        quantityPanel.setAlignmentX(Component.LEFT_ALIGNMENT);
-        panel.add(quantityPanel);
+        // Panel para seleccionar la rama de destino
+        JPanel targetPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
+        targetPanel.setBackground(CARD_BACKGROUND);
+        targetPanel.add(createModernLabel("En Rama #:"));
+        targetBranchSpinner = createModernSpinner(1, 1, 10, 1); // Inicia con max 10
+        targetBranchSpinner.setToolTipText("A cuál rama se agregará este componente");
+        targetPanel.add(targetBranchSpinner);
+        
+        targetPanel.setAlignmentX(Component.LEFT_ALIGNMENT);
+        panel.add(targetPanel);
 
         panel.add(Box.createVerticalStrut(12));
 
@@ -5667,6 +5625,9 @@ public class RLCSimulator extends JPanel implements SimulationObserver {
         return panel;
     }
 
+    // ---
+    // --- MÉTODO MODIFICADO ---
+    // ---
     private JPanel createBranchPanel() {
         JPanel panel = new JPanel();
         panel.setLayout(new BoxLayout(panel, BoxLayout.Y_AXIS));
@@ -5677,7 +5638,11 @@ public class RLCSimulator extends JPanel implements SimulationObserver {
         branchCountPanel.setBackground(CARD_BACKGROUND);
         branchCountPanel.add(createModernLabel("Número de Ramas:"));
         branchSpinner = createModernSpinner(2, 1, 10, 1);
-        branchSpinner.setToolTipText("Número de ramas paralelas en el circuito");
+        branchSpinner.setToolTipText("Número de ramas en el circuito (Serie o Paralelo)");
+        
+        // Añadir listener para actualizar el spinner de rama destino
+        branchSpinner.addChangeListener(e -> updateTargetBranchSpinnerMax());
+        
         branchCountPanel.add(branchSpinner);
         branchCountPanel.setAlignmentX(Component.LEFT_ALIGNMENT);
         panel.add(branchCountPanel);
@@ -5696,6 +5661,9 @@ public class RLCSimulator extends JPanel implements SimulationObserver {
         configPanel.add(configCombo);
         configPanel.setAlignmentX(Component.LEFT_ALIGNMENT);
         panel.add(configPanel);
+        
+        // Inicializar el spinner de rama destino
+        updateTargetBranchSpinnerMax();
 
         return panel;
     }
@@ -5894,6 +5862,28 @@ public class RLCSimulator extends JPanel implements SimulationObserver {
 
     // ========== MÉTODOS DC ==========
 
+    /**
+     * Sincroniza el valor máximo del spinner de rama destino
+     * con el número total de ramas seleccionadas.
+     */
+    private void updateTargetBranchSpinnerMax() {
+        if (branchSpinner == null || targetBranchSpinner == null) {
+            return; // Ocurre durante la inicialización
+        }
+        
+        int numBranches = (Integer) branchSpinner.getValue();
+        int currentTarget = (Integer) targetBranchSpinner.getValue();
+        
+        // Crear un nuevo modelo para el spinner de rama destino
+        SpinnerNumberModel model = new SpinnerNumberModel(
+            Math.min(currentTarget, numBranches), // Valor actual (limitado por el max)
+            1,       // Mínimo
+            numBranches, // Máximo
+            1        // Paso
+        );
+        targetBranchSpinner.setModel(model);
+    }
+    
     private void setupDCEventHandlers() {
         // Configurar handlers para los botones DC
         addDCButton.addActionListener(e -> addDCComponent());
@@ -5905,34 +5895,9 @@ public class RLCSimulator extends JPanel implements SimulationObserver {
     }
 
     private void setupDCValueListeners() {
-        // Configurar listeners para campos de entrada DC
-        if (dcVoltageField != null) {
-            dcVoltageField.getDocument().addDocumentListener(new javax.swing.event.DocumentListener() {
-                @Override
-                public void insertUpdate(javax.swing.event.DocumentEvent e) { onDCValueChanged(); }
-                @Override
-                public void removeUpdate(javax.swing.event.DocumentEvent e) { onDCValueChanged(); }
-                @Override
-                public void changedUpdate(javax.swing.event.DocumentEvent e) { onDCValueChanged(); }
-            });
-        }
-        
         // Configurar listener para el combo box de métodos DC
         if (dcMethodCombo != null) {
             dcMethodCombo.addActionListener(e -> onDCMethodChanged());
-        }
-    }
-
-    private void onDCValueChanged() {
-        // Actualizar vista previa o validaciones cuando cambian los valores DC
-        try {
-            double voltage = getDCVoltage();
-            currentDCCircuit.setSourceVoltage(voltage);
-            if (dcDiagramPanel != null) {
-                dcDiagramPanel.repaint();
-            }
-        } catch (Exception e) {
-            // Ignorar errores durante la entrada de datos
         }
     }
 
@@ -5942,40 +5907,51 @@ public class RLCSimulator extends JPanel implements SimulationObserver {
         // showInfo("Método de análisis cambiado a: " + method);
     }
 
+    // ---
+    // --- MÉTODO MODIFICADO ---
+    // ---
     private void addDCComponent() {
         try {
             DCComponentType type = getSelectedDCComponentType();
             double value = Double.parseDouble(dcValueField.getText().trim());
-            int quantity = (Integer) quantitySpinner.getValue();
             String name = dcComponentTypeCombo.getSelectedItem().toString() + " " + value;
             
-            if (value <= 0) {
-                showError("El valor del componente debe ser positivo");
+            if (value <= 0 && type == DCComponentType.RESISTOR) {
+                showError("El valor de la resistencia debe ser positivo");
                 return;
             }
 
-            DCComponent comp = new DCComponent(type, value, name, quantity);
+            // Se asume quantity = 1
+            DCComponent comp = new DCComponent(type, value, name, 1);
             
-            // Agregar a la rama actual
-            int branchCount = (Integer) branchSpinner.getValue();
-            ensureBranchesExist(branchCount);
-            
-            // Agregar a la primera rama por simplicidad
-            if (!currentDCCircuit.getBranches().isEmpty()) {
-                currentDCCircuit.getBranches().get(0).addComponent(comp);
+            // 1. Asegurarse de que el número de ramas en el modelo coincida con la UI
+            int totalBranchesInUI = (Integer) branchSpinner.getValue();
+            ensureBranchesExist(totalBranchesInUI);
+
+            // 2. Obtener la rama de destino seleccionada por el usuario
+            int targetBranchIndex = (Integer) targetBranchSpinner.getValue() - 1; // -1 porque los spinners son 1-based
+
+            // 3. Validar que la rama de destino exista
+            if (targetBranchIndex < 0 || targetBranchIndex >= currentDCCircuit.getBranches().size()) {
+                showError("La rama de destino no existe. Ajuste el 'Número de Ramas' primero.");
+                return;
             }
+
+            // 4. Agregar el componente a la rama correcta
+            currentDCCircuit.getBranches().get(targetBranchIndex).addComponent(comp);
             
             // Actualizar configuración
             String config = (String) configCombo.getSelectedItem();
             currentDCCircuit.setConfiguration(config != null ? config : "Serie");
-            currentDCCircuit.setBatteryCount((Integer) batterySpinner.getValue());
+            // 5. Eliminar la dependencia del 'batterySpinner'
+            // currentDCCircuit.setBatteryCount((Integer) batterySpinner.getValue()); // <-- LÍNEA ELIMINADA
             
             // Actualizar UI
             dcDiagramPanel.setCircuit(currentDCCircuit);
             dcDiagramPanel.repaint();
             
             dcValueField.setText("");
-            showInfo("Componente DC agregado: " + comp.toString());
+            showInfo("Componente DC agregado a la Rama " + (targetBranchIndex + 1));
             
         } catch (NumberFormatException ex) {
             showError("Ingrese valores numéricos válidos para el componente DC");
@@ -6008,11 +5984,19 @@ public class RLCSimulator extends JPanel implements SimulationObserver {
         }
     }
 
+    // ---
+    // --- MÉTODO MODIFICADO ---
+    // ---
     private void simulateDCCircuit() {
         try {
             // Actualizar parámetros del circuito
-            currentDCCircuit.setSourceVoltage(getDCVoltage());
-            currentDCCircuit.setBatteryCount((Integer) batterySpinner.getValue());
+            // 1. Eliminar dependencias de UI viejas
+            // currentDCCircuit.setSourceVoltage(getDCVoltage()); // <-- LÍNEA ELIMINADA
+            // currentDCCircuit.setBatteryCount((Integer) batterySpinner.getValue()); // <-- LÍNEA ELIMINADA
+            
+            // 2. Asegurarse de que las ramas y config estén sincronizadas
+            int totalBranchesInUI = (Integer) branchSpinner.getValue();
+            ensureBranchesExist(totalBranchesInUI);
             currentDCCircuit.setConfiguration((String) configCombo.getSelectedItem());
 
             if (currentDCCircuit == null || !currentDCCircuit.isValid()) {
@@ -6059,9 +6043,19 @@ public class RLCSimulator extends JPanel implements SimulationObserver {
         }
     }
 
+    // ---
+    // --- MÉTODO MODIFICADO ---
+    // ---
     private void clearDCCircuit() {
-        currentDCCircuit = new DCCircuit(getDCVoltage(), "Serie", 1);
+        // 1. Crear circuito vacío sin depender de getDCVoltage()
+        currentDCCircuit = new DCCircuit(0.0, "Serie", 0);
         lastDCResult = null;
+        
+        // 2. Resetear los spinners de la UI
+        branchSpinner.setValue(2); // Valor por defecto
+        updateTargetBranchSpinnerMax(); // Sincronizar
+        targetBranchSpinner.setValue(1); // Valor por defecto
+        configCombo.setSelectedItem("Serie");
         
         // Actualizar UI
         dcDiagramPanel.setCircuit(currentDCCircuit);
@@ -6078,20 +6072,13 @@ public class RLCSimulator extends JPanel implements SimulationObserver {
         showInfo("Circuito DC limpiado");
     }
 
+    // ---
+    // --- MÉTODO MODIFICADO ---
+    // ---
     private double getDCVoltage() {
-        try {
-            if (dcVoltageField != null && !dcVoltageField.getText().trim().isEmpty()) {
-                double voltage = Double.parseDouble(dcVoltageField.getText().trim());
-                if (voltage > 0 && voltage <= 1000) {
-                    return voltage;
-                } else {
-                    throw new IllegalArgumentException("El voltaje debe estar entre 0.1 y 1000 V");
-                }
-            }
-            return 12.0; // Valor por defecto
-        } catch (NumberFormatException e) {
-            throw new IllegalArgumentException("Voltaje DC no válido");
-        }
+        // Este método ya no es llamado por la lógica de simulación,
+        // pero lo dejamos en 0.0 por seguridad.
+        return 0.0;
     }
 
     private String getDCMethod() {
@@ -6125,11 +6112,13 @@ public class RLCSimulator extends JPanel implements SimulationObserver {
         sb.append("Configuración: ").append(result.getCircuitConfiguration()).append("\n\n");
         
         sb.append("--- VERIFICACIÓN DE LEYES ---\n");
-        sb.append("Voltaje Total: ").append(df.format(result.getSourceVoltage())).append(" V\n");
-        sb.append("Corriente Total: ").append(df.format(result.getTotalCurrent())).append(" A\n");
-        sb.append("Resistencia Eq.: ").append(df.format(result.getTotalResistance())).append(" Ω\n");
+        sb.append("Voltaje Nodal (Va): ").append(df.format(result.getSourceVoltage())).append(" V\n");
+        sb.append("Corriente Eq. (I_eq): ").append(df.format(result.getTotalCurrent())).append(" A\n");
+        sb.append("Resistencia Eq. (R_eq): ").append(df.format(result.getTotalResistance())).append(" Ω\n");
+        
+        // Verificación V = I * R
         double calculatedVoltage = result.getTotalCurrent() * result.getTotalResistance();
-        sb.append("Ley de Ohm (V=I*R): ").append(df.format(calculatedVoltage)).append(" V (Verificado)\n\n");
+        sb.append("Ley de Ohm (Va = I_eq * R_eq): ").append(df.format(calculatedVoltage)).append(" V (Verificado)\n\n");
         
         sb.append("--- ANÁLISIS DE POTENCIA ---\n");
         sb.append("Potencia (Fuente): ").append(df.format(result.getTotalPower())).append(" W\n");
@@ -6138,14 +6127,25 @@ public class RLCSimulator extends JPanel implements SimulationObserver {
 
         sb.append("--- CORRIENTES POR RAMA ---\n");
         double[] branchCurrents = result.getBranchCurrents();
+        double kclCheck = 0.0;
         for (int i = 0; i < branchCurrents.length; i++) {
-            sb.append(String.format("• Rama %d: %s A\n", i + 1, df.format(branchCurrents[i])));
+            kclCheck += branchCurrents[i];
+            // Lógica de Sentido:
+            // Positivo (+) = Fluye "hacia abajo" (de Va a Tierra)
+            // Negativo (-) = Fluye "hacia arriba" (de Tierra a Va)
+            String sentido = (branchCurrents[i] >= 0) ? "↓ (Hacia abajo)" : "↑ (Hacia arriba)";
+            sb.append(String.format("• Rama %d: %s A  [%s]\n", 
+                i + 1, 
+                df.format(branchCurrents[i]),
+                sentido));
         }
+        sb.append(String.format("Verificación KCL (ΣI en Nodo Va): %.6f A (debería ser 0)\n", kclCheck));
         
         sb.append("\n--- TENSIONES EN COMPONENTES ---\n");
         double[] componentVoltages = result.getComponentVoltages();
         for (int i = 0; i < componentVoltages.length; i++) {
-            sb.append(String.format("• Componente %d: %.2f V\n", i + 1, componentVoltages[i]));
+            // Esta es una simplificación, muestra la caída de V en R o el V de la fuente
+            sb.append(String.format("• Componente %d (Valor): %.2f V\n", i + 1, componentVoltages[i]));
         }
         
         dcDetailedAnalysisArea.setText(sb.toString());
@@ -7602,8 +7602,6 @@ public class RLCSimulator extends JPanel implements SimulationObserver {
         simulateButton.addActionListener(e -> simulateCircuit());
         clearButton.addActionListener(e -> clearAll());
         valueField.addActionListener(e -> addComponent());
-        
-        // TODO: Agregar handlers para componentes DC cuando se implementen
     }
 
     private void updateStrategy() {
