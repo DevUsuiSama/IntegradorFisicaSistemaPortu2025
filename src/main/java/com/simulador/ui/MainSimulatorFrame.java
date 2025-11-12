@@ -22,6 +22,11 @@ public class MainSimulatorFrame extends JFrame {
         // Crear el simulador principal
         physicsSimulator = new RLCSimulator();
         
+        // --- INICIO DE MODIFICACIÓN ---
+        // Añadir la barra de menú creada en el panel principal
+        setJMenuBar(physicsSimulator.getAppMenuBar());
+        // --- FIN DE MODIFICACIÓN ---
+        
         setLayout(new BorderLayout());
         add(physicsSimulator, BorderLayout.CENTER);
         
@@ -62,12 +67,12 @@ public class MainSimulatorFrame extends JFrame {
                 System.out.println("\n=== INSTRUCCIONES PARA EJECUCIÓN EN UBUNTU ===");
                 System.out.println("1. Compilar: mvn clean package");
                 System.out.println("2. Ejecutar con métricas:");
-                System.out.println("   time java -jar simuladorRLC.jar");
-                System.out.println("   top -b -d 1 > metricas_sistema.txt");
-                System.out.println("   vmstat 1 60 > metricas_vmstat.txt");
-                System.out.println("   free -h > memoria_inicio.txt");
+                System.out.println("    time java -jar simuladorRLC.jar");
+                System.out.println("    top -b -d 1 > metricas_sistema.txt");
+                System.out.println("    vmstat 1 60 > metricas_vmstat.txt");
+                System.out.println("    free -h > memoria_inicio.txt");
                 System.out.println("3. Los algoritmos de planificación están integrados");
-                System.out.println("   en la simulación de circuitos RLC");
+                System.out.println("    en la simulación de circuitos RLC");
                 
             } catch (Exception e) {
                 handleStartupError(e);

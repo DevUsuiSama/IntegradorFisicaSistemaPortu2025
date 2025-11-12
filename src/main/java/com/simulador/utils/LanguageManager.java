@@ -21,10 +21,6 @@ public class LanguageManager {
             // --- Menú ---
             Map.entry("menu_options", "Opciones"),
             Map.entry("menu_language", "Idioma"),
-            Map.entry("menu_font_size", "Tamaño de Letra"),
-            Map.entry("font_small", "Pequeño"),
-            Map.entry("font_medium", "Mediano"),
-            Map.entry("font_large", "Grande"),
             Map.entry("lang_es", "Español"),
             Map.entry("lang_pt", "Português"),
             
@@ -65,6 +61,16 @@ public class LanguageManager {
             Map.entry("analytical", "Analítico"),
             Map.entry("euler", "Euler"),
             Map.entry("runge_kutta", "Runge-Kutta4"),
+            Map.entry("rlc_voltage_tooltip", "Voltaje entre 0.1 y 1000 V"),
+            Map.entry("rlc_frequency_tooltip", "Frecuencia entre 0.1 y 10000 Hz"),
+            Map.entry("rlc_method_tooltip", "Método de cálculo para la simulación"),
+            Map.entry("rlc_preset_tooltip", "Seleccione un circuito predefinido"),
+            Map.entry("rlc_value_tooltip", "Ingrese un valor positivo para el componente"),
+            Map.entry("rlc_add_tooltip", "Agregar componente al circuito"),
+            Map.entry("rlc_list_tooltip", "Componentes en el circuito actual"),
+            Map.entry("rlc_remove_tooltip", "Eliminar componente seleccionado"),
+            Map.entry("rlc_simulate_tooltip", "Ejecutar simulación del circuito actual"),
+            Map.entry("rlc_clear_tooltip", "Limpiar circuito y resultados"),
 
             // --- Pestaña DC ---
             Map.entry("dc_config_circuit", "Configuración del Circuito"),
@@ -95,7 +101,15 @@ public class LanguageManager {
             Map.entry("dc_method_thevenin", "Teorema de Thevenin"),
             Map.entry("dc_method_norton", "Teorema de Norton"),
             Map.entry("dc_method_source", "Transformación de Fuentes"),
-
+            Map.entry("dc_branches_tooltip", "Número de ramas en el circuito (Serie o Paralelo)"),
+            Map.entry("dc_value_tooltip", "Valor del componente (Ohms para resistencias, Volts para fuentes)"),
+            Map.entry("dc_polarity_tooltip", "Define la orientación de la fuente de voltaje"),
+            Map.entry("dc_in_branch_tooltip", "A cuál rama se agregará este componente"),
+            Map.entry("dc_add_tooltip", "Agregar componente al circuito DC"),
+            Map.entry("dc_method_tooltip", "Seleccione el método de análisis para circuitos DC"),
+            Map.entry("dc_simulate_tooltip", "Ejecutar simulación del circuito DC"),
+            Map.entry("dc_clear_tooltip", "Limpiar circuito DC y resultados"),
+            
             // --- Pestaña Procesos ---
             Map.entry("proc_algorithm", "Algoritmo de Planificación"),
             Map.entry("proc_batch_type", "Tipo de Lote"),
@@ -138,9 +152,18 @@ public class LanguageManager {
             Map.entry("dc_tab_equivalents", "Circuitos Equivalentes"),
             Map.entry("dc_tab_detailed_analysis", "Análisis Detallado"),
             Map.entry("dc_analysis_placeholder_title", "=== ANÁLISIS DETALLADO DC ==="),
+            Map.entry("dc_equiv_thevenin_tab", "Thevenin"),
+            Map.entry("dc_equiv_norton_tab", "Norton"),
+            Map.entry("dc_equiv_transform_tab", "Transformaciones"),
+            Map.entry("dc_results_voltage_card", "Voltaje Nodal (Va)"),
+            Map.entry("dc_results_current_card", "Corriente Eq. (I_eq)"),
+            Map.entry("dc_results_resistance_card", "Resistencia Eq. (R_eq)"),
+            Map.entry("dc_results_power_card", "Potencia Total"),
 
             // --- Panel Memoria (Derecha) ---
             Map.entry("mem_panel_title", "Memoria Virtual - Simulación de Procesos"),
+            Map.entry("mem_tab_virtual_mem", "Memoria Virtual"),
+            Map.entry("mem_tab_history", "Historial de Simulaciones"),
             Map.entry("mem_system_status", "Estado del Sistema"),
             Map.entry("mem_total_frag", "Fragmentación Total:"),
             Map.entry("mem_current_usage", "Uso actual de Memoria:"),
@@ -153,9 +176,14 @@ public class LanguageManager {
             Map.entry("mem_queues_title", "Colas de Procesos"),
             Map.entry("mem_none", "Ninguno"),
             Map.entry("mem_empty", "Vacía"),
+            Map.entry("mem_free", "LIBRE"),
             Map.entry("mem_queue_ready", "=== COLA DE LISTOS ==="),
             Map.entry("mem_queue_running", "=== EN EJECUCIÓN ==="),
             Map.entry("mem_queue_completed", "=== COMPLETADOS ==="),
+            Map.entry("history_export_button", "Exportar Historial"),
+            Map.entry("history_export_tooltip", "Guardar el historial como un archivo .csv o .txt"),
+            Map.entry("history_clear_button", "Limpiar Historial"),
+            Map.entry("history_clear_tooltip", "Limpiar la tabla de historial"),
 
             // --- Mensajes y Errores ---
             Map.entry("info", "Información"),
@@ -185,28 +213,31 @@ public class LanguageManager {
             Map.entry("sim_in_progress", "Simulación en progreso..."),
             Map.entry("sim_complete", "Simulación completada exitosamente"),
             Map.entry("sim_error_generic", "Error en la simulación: %s"),
-            Map.entry("sim_error_details", "Error en simulación. Por favor, verifique los parámetros e intente nuevamente.\n\nDetalles del error: %s")
+            Map.entry("sim_error_details", "Error en simulación. Por favor, verifique los parámetros e intente nuevamente.\n\nDetalles del error: %s"),
+            Map.entry("history_export_error_empty", "No hay datos en el historial para exportar."),
+            Map.entry("history_export_title", "Guardar Historial como..."),
+            Map.entry("history_export_success", "Historial exportado exitosamente a:\n%s"),
+            Map.entry("history_export_error_io", "Error al exportar el archivo: %s"),
+            Map.entry("history_cleared_log", "Historial de simulaciones limpiado."),
+            Map.entry("file_filter_txt", "Archivo de Texto Formateado (*.txt)"),
+            Map.entry("file_filter_csv", "Archivo CSV (*.csv)")
         )),
         Map.entry("pt", Map.ofEntries(
             // --- Menú ---
             Map.entry("menu_options", "Opções"),
             Map.entry("menu_language", "Idioma"),
-            Map.entry("menu_font_size", "Tamanho da Fonte"),
-            Map.entry("font_small", "Pequeno"),
-            Map.entry("font_medium", "Médio"),
-            Map.entry("font_large", "Grande"),
             Map.entry("lang_es", "Espanhol"),
             Map.entry("lang_pt", "Português"),
-
+            
             // --- Header ---
             Map.entry("header_title", "Simulador Avançado de Circuitos RLC e DC"),
             Map.entry("header_subtitle", "Com Algoritmos de Agendamento e Gerenciamento de Memória Virtual"),
-
+            
             // --- Pestañas Principales (Izquierda) ---
             Map.entry("tab_rlc", "Circuito RLC"),
             Map.entry("tab_dc", "Circuito DC"),
             Map.entry("tab_process", "Processos"),
-
+            
             // --- Pestaña RLC ---
             Map.entry("rlc_power_supply", "Fonte de Alimentação"),
             Map.entry("rlc_voltage", "Tensão (V):"),
@@ -235,6 +266,16 @@ public class LanguageManager {
             Map.entry("analytical", "Analítico"),
             Map.entry("euler", "Euler"),
             Map.entry("runge_kutta", "Runge-Kutta4"),
+            Map.entry("rlc_voltage_tooltip", "Tensão entre 0.1 e 1000 V"),
+            Map.entry("rlc_frequency_tooltip", "Frequência entre 0.1 e 10000 Hz"),
+            Map.entry("rlc_method_tooltip", "Método de cálculo para a simulação"),
+            Map.entry("rlc_preset_tooltip", "Selecione um circuito predefinido"),
+            Map.entry("rlc_value_tooltip", "Insira um valor positivo para o componente"),
+            Map.entry("rlc_add_tooltip", "Adicionar componente ao circuito"),
+            Map.entry("rlc_list_tooltip", "Componentes no circuito atual"),
+            Map.entry("rlc_remove_tooltip", "Remover componente selecionado"),
+            Map.entry("rlc_simulate_tooltip", "Executar simulação do circuito atual"),
+            Map.entry("rlc_clear_tooltip", "Limpar circuito e resultados"),
 
             // --- Pestaña DC ---
             Map.entry("dc_config_circuit", "Configuração do Circuito"),
@@ -265,6 +306,14 @@ public class LanguageManager {
             Map.entry("dc_method_thevenin", "Teorema de Thevenin"),
             Map.entry("dc_method_norton", "Teorema de Norton"),
             Map.entry("dc_method_source", "Transformação de Fontes"),
+            Map.entry("dc_branches_tooltip", "Número de ramos no circuito (Série ou Paralelo)"),
+            Map.entry("dc_value_tooltip", "Valor do componente (Ohms para resistores, Volts para fontes)"),
+            Map.entry("dc_polarity_tooltip", "Define a orientação da fonte de tensão"),
+            Map.entry("dc_in_branch_tooltip", "A qual ramo este componente será adicionado"),
+            Map.entry("dc_add_tooltip", "Adicionar componente ao circuito DC"),
+            Map.entry("dc_method_tooltip", "Selecione o método de análise para circuitos DC"),
+            Map.entry("dc_simulate_tooltip", "Executar simulação do circuito DC"),
+            Map.entry("dc_clear_tooltip", "Limpar circuito DC e resultados"),
 
             // --- Pestaña Procesos ---
             Map.entry("proc_algorithm", "Algoritmo de Agendamento"),
@@ -300,7 +349,7 @@ public class LanguageManager {
             Map.entry("rlc_results_placeholder_title", "=== Simulador Avançado de Circuitos RLC ==="),
             Map.entry("rlc_results_placeholder_inst", "Instruções:"),
             Map.entry("rlc_analysis_placeholder_title", "=== ANÁLISE DETALHADA DO CIRCUITO ==="),
-
+            
             // --- Panel DC (Derecha) ---
             Map.entry("dc_panel_title", "Simulador de Circuitos DC - Análise Resistiva"),
             Map.entry("dc_diagram_title", "Diagrama do Circuito DC"),
@@ -308,9 +357,18 @@ public class LanguageManager {
             Map.entry("dc_tab_equivalents", "Circuitos Equivalentes"),
             Map.entry("dc_tab_detailed_analysis", "Análise Detalhada"),
             Map.entry("dc_analysis_placeholder_title", "=== ANÁLISE DETALHADA DC ==="),
+            Map.entry("dc_equiv_thevenin_tab", "Thevenin"),
+            Map.entry("dc_equiv_norton_tab", "Norton"),
+            Map.entry("dc_equiv_transform_tab", "Transformações"),
+            Map.entry("dc_results_voltage_card", "Tensão Nodal (Va)"),
+            Map.entry("dc_results_current_card", "Corrente Eq. (I_eq)"),
+            Map.entry("dc_results_resistance_card", "Resistência Eq. (R_eq)"),
+            Map.entry("dc_results_power_card", "Potência Total"),
 
             // --- Panel Memoria (Derecha) ---
             Map.entry("mem_panel_title", "Memória Virtual - Simulação de Processos"),
+            Map.entry("mem_tab_virtual_mem", "Memória Virtual"),
+            Map.entry("mem_tab_history", "Histórico de Simulações"),
             Map.entry("mem_system_status", "Estado do Sistema"),
             Map.entry("mem_total_frag", "Fragmentação Total:"),
             Map.entry("mem_current_usage", "Uso atual de Memória:"),
@@ -323,9 +381,14 @@ public class LanguageManager {
             Map.entry("mem_queues_title", "Filas de Processos"),
             Map.entry("mem_none", "Nenhum"),
             Map.entry("mem_empty", "Vazia"),
+            Map.entry("mem_free", "LIVRE"),
             Map.entry("mem_queue_ready", "=== FILA DE PRONTOS ==="),
             Map.entry("mem_queue_running", "=== EM EXECUÇÃO ==="),
             Map.entry("mem_queue_completed", "=== CONCLUÍDOS ==="),
+            Map.entry("history_export_button", "Exportar Histórico"),
+            Map.entry("history_export_tooltip", "Salvar histórico como arquivo .csv ou .txt"),
+            Map.entry("history_clear_button", "Limpar Histórico"),
+            Map.entry("history_clear_tooltip", "Limpar a tabela de histórico"),
 
             // --- Mensajes y Errores ---
             Map.entry("info", "Informação"),
@@ -355,7 +418,14 @@ public class LanguageManager {
             Map.entry("sim_in_progress", "Simulação em andamento..."),
             Map.entry("sim_complete", "Simulação concluída com sucesso"),
             Map.entry("sim_error_generic", "Erro na simulação: %s"),
-            Map.entry("sim_error_details", "Erro na simulação. Por favor, verifique os parâmetros e tente novamente.\n\nDetalhes do erro: %s")
+            Map.entry("sim_error_details", "Erro na simulação. Por favor, verifique os parâmetros e tente novamente.\n\nDetalhes do erro: %s"),
+            Map.entry("history_export_error_empty", "Não há dados no histórico para exportar."),
+            Map.entry("history_export_title", "Salvar Histórico como..."),
+            Map.entry("history_export_success", "Histórico exportado com sucesso para:\n%s"),
+            Map.entry("history_export_error_io", "Erro ao exportar o arquivo: %s"),
+            Map.entry("history_cleared_log", "Histórico de simulações limpo."),
+            Map.entry("file_filter_txt", "Arquivo de Texto Formatado (*.txt)"),
+            Map.entry("file_filter_csv", "Arquivo CSV (*.csv)")
         ))
     );
 
@@ -461,17 +531,22 @@ public class LanguageManager {
      * Actualiza el texto de un componente Swing
      */
     public void updateComponentText(JComponent component, String key) {
+        if (component == null) return;
+        
+        String text = getTranslation(key);
+        
         if (component instanceof JLabel) {
-            ((JLabel) component).setText(getTranslation(key));
+            ((JLabel) component).setText(text);
         } else if (component instanceof JButton) {
-            ((JButton) component).setText(getTranslation(key));
+            ((JButton) component).setText(text);
         } else if (component instanceof JCheckBox) {
-            ((JCheckBox) component).setText(getTranslation(key));
+            ((JCheckBox) component).setText(text);
         } else if (component instanceof JRadioButton) {
-            ((JRadioButton) component).setText(getTranslation(key));
-        } else if (component instanceof JTabbedPane) {
-            // Para JTabbedPane necesitamos manejo especial
-            System.out.println("JTabbedPane requiere actualización manual por índice");
+            ((JRadioButton) component).setText(text);
+        } else if (component instanceof JMenu) {
+            ((JMenu) component).setText(text);
+        } else if (component instanceof JMenuItem) {
+            ((JMenuItem) component).setText(text);
         }
     }
     
@@ -479,6 +554,7 @@ public class LanguageManager {
      * Actualiza el tooltip de un componente
      */
     public void updateToolTipText(JComponent component, String key) {
+        if (component == null) return;
         component.setToolTipText(getTranslation(key));
     }
 }
